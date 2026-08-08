@@ -5,7 +5,9 @@
   "description": "Approval-first product discovery and content operations for Threads.",
   "scripts": {
     "check:docs": "node scripts/check-docs.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "start": "node apps/web/server.mjs",
+    "verify": "npm run check:docs && npm test"
   },
   "engines": {
     "node": ">=20"
