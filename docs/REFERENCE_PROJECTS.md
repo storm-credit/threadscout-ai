@@ -1,28 +1,39 @@
 # Reference Project Review
 
-The following references were supplied as candidates. Their exact repositories, current contents, licenses, and applicable ideas must be verified before adoption.
+Reviewed on 2026-08-08. ThreadScout adopts principles and workflow patterns only; it does not copy implementation code or prompts.
 
-## Candidate references
+## `multica-ai/andrej-karpathy-skills`
 
-- Karpathy-style engineering guidelines
-- `bradautomates/claude-video`
-- `obra/superpowers`
-- `Lum1104/Understand-Anything`
-- `rohitg00/agentmemory`
+- License stated in README: MIT.
+- Useful principles: think before coding, simplicity first, surgical changes, goal-driven execution.
+- Adopted: explicit assumptions, measurable success, minimal scope, changes traceable to the task.
+- Not adopted: wholesale replacement of the project-specific `CLAUDE.md`.
 
-## Review template
+## `obra/superpowers`
 
-For each project record:
+- License stated in README: MIT.
+- Useful principles: brainstorm before coding, design approval, small implementation tasks, test-driven work, verification before completion, branch finishing workflow.
+- Adopted: four-option design gate, feature branch, tests before completion claims, spec and code review separation.
+- Not adopted: mandatory subagent framework or plugin dependency for this small prototype.
 
-- exact repository and commit/date reviewed
-- license
-- relevant files
-- useful principle or structure
-- what ThreadScout will adopt
-- what ThreadScout will not adopt
-- copying or dependency risk
-- rationale
+## `bradautomates/claude-video`
+
+- License: MIT.
+- Useful principles: progressive fallback, bounded resource budgets, explicit setup checks, grounded outputs, cleanup.
+- Adopted: external capability preflight, bounded candidate/draft volume, local-only fallback, explicit unavailable-state messaging.
+- Not adopted: video tooling, download workflow, or media extraction code.
+
+## `rohitg00/agentmemory`
+
+- License: Apache-2.0.
+- Useful principles: durable decision memory, confidence and lifecycle, searchable evidence, cross-session continuity.
+- Adopted: decision log, audit events, evidence state, explicit timestamps and lifecycle transitions.
+- Not adopted: external memory server, MCP integration, or infrastructure dependency during Phase 1.
+
+## `Lum1104/Understand-Anything`
+
+The exact repository supplied by name was not resolvable during review. Search returned forks and related repositories, but not a verifiable original repository under that exact owner/name. No code or design was adopted from an unverified substitute.
 
 ## Guardrail
 
-Do not copy code, prompts, documentation, characters, scenes, settings, or proprietary examples merely because they are publicly visible. Verify licensing and prefer concepts over reproduction.
+Public visibility is not permission to copy. ThreadScout records what is adopted, what is rejected, and why; code or content reuse requires a verified license and attribution obligations.

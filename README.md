@@ -8,9 +8,9 @@ ThreadScout discovers product candidates, scores purchase intent and content fit
 
 ## Current phase
 
-Phase 0 — product definition and implementation guardrails.
+Phase 1 — a mobile-first local draft workspace is implemented.
 
-No automatic publishing is enabled. The repository starts with an approval-first architecture and documentation needed to make technical decisions safely.
+No automatic publishing is enabled. The prototype uses fixture products and local storage so the approval, integrity, and queue workflow can be validated before any external API is connected.
 
 ## Core flow
 
@@ -48,4 +48,4 @@ No automatic publishing is enabled. The repository starts with an approval-first
 
 ## Next gate
 
-Complete the user interview and choose one of the four designs before implementation begins.
+Run `npm start`, test the local approval workflow, and validate the working assumptions before connecting product discovery or Threads publishing APIs.
