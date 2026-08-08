@@ -32,6 +32,8 @@ function stage(id, label, assignedTo, requiredOutput, options = {}) {
     requiredOutput,
     supervisedBy: AGENT_IDS.ORCHESTRATOR,
     skippable: false,
+    skipped: false,
+    skipReason: null,
     ...options
   };
 }
@@ -99,12 +101,25 @@ export function validateOrchestraPlan(plan) {
   if (!plan.stages?.some((item) => item.id === RUN_STAGE_IDS.HUMAN_APPROVAL)) {
     errors.push('Human approval gate is required.');
   }
+
+  const assignedAgents = new Set((plan.stages ?? []).map((item) => item.assignedTo).filter((id) => agentIds.has(id)));
+  if ([...agentIds].some((id) => !assignedAgents.has(id))) {
+    errors.push('Every fixed agent must have a defined stage, even when that stage is skipped for a run.');
+  }
+
   const approvalIndex = stageIndex(plan, RUN_STAGE_IDS.HUMAN_APPROVAL);
   const queueIndex = stageIndex(plan, RUN_STAGE_IDS.LOCAL_QUEUE);
   if (approvalIndex < 0 || queueIndex < 0 || approvalIndex >= queueIndex) {
     errors.push('Human approval must occur before queueing.');
   }
   if (plan.externalPublishingEnabled !== false) errors.push('External publishing must remain disabled.');
+
+  for (const [name, value] of Object.entries(plan.loopLimits ?? {})) {
+    if (!Number.isInteger(value) || value < 0) errors.push(`Loop limit ${name} must be a non-negative integer.`);
+  }
+  if ((plan.loopLimits?.totalAgentInvocations ?? 0) < 1) {
+    errors.push('Total specialist invocation limit must be at least 1.');
+  }
 
   for (const item of plan.stages ?? []) {
     if (agentIds.has(item.assignedTo) && !getAgentById(item.assignedTo)) {
@@ -139,8 +154,10 @@ export function getCurrentStage(run) {
   return run.plan.stages[cursor] ?? null;
 }
 
-function totalAgentInvocations(run) {
-  return Object.values(run.invocationCounts).reduce((sum, count) => sum + count, 0);
+function totalSpecialistInvocations(run) {
+  return Object.entries(run.invocationCounts)
+    .filter(([agentId]) => agentId !== AGENT_IDS.ORCHESTRATOR)
+    .reduce((sum, [, count]) => sum + count, 0);
 }
 
 function routeUnresolvedVerification(next, artifact) {
@@ -180,8 +197,8 @@ export function submitAgentArtifact(run, agentId, artifact) {
   if (artifact?.runId !== run.runId) {
     throw new Error(`Artifact runId ${artifact?.runId ?? 'missing'} does not match ${run.runId}.`);
   }
-  if (totalAgentInvocations(run) >= run.plan.loopLimits.totalAgentInvocations) {
-    throw new Error('Total agent invocation limit reached.');
+  if (agentId !== AGENT_IDS.ORCHESTRATOR && totalSpecialistInvocations(run) >= run.plan.loopLimits.totalAgentInvocations) {
+    throw new Error('Total specialist invocation limit reached.');
   }
 
   const validation = validateAgentArtifact(agentId, artifact);
