@@ -6,10 +6,9 @@ No live provider, research, affiliate, or publishing integration begins until it
 
 - [x] Distinguish exact, likely, substitute, and unresolved products.
 - [x] Prevent first-hand language without usage confirmation.
-- [x] Require visible affiliate disclosure in fixture drafts.
 - [x] Keep price/stock/seller/variant in one Verifier snapshot.
 - [ ] Persist claim-level source IDs through every rewrite.
-- [ ] Invalidate drafts when evidence changes.
+- [ ] Invalidate every downstream artifact and queue record when evidence changes.
 - [ ] Recheck volatile commerce evidence immediately before a real post.
 - [ ] Add duplicate and near-duplicate indexing across runs.
 
@@ -20,49 +19,42 @@ No live provider, research, affiliate, or publishing integration begins until it
 - [x] Require specialists to return to Orchestrator.
 - [x] Require four angles and four drafts.
 - [x] Require Guardian pass and human approval.
-- [x] Add bounded Scout/Writer loops and invocation ceiling.
+- [x] Bound Scout/Writer loops and total invocations.
 - [x] Keep publishing outside every agent allowlist.
 
-## Provider-neutral runtime
+## Provider-neutral runtime and tools
 
-- [x] Choose provider-neutral adapter over direct provider coupling.
 - [x] Add deterministic replay provider.
-- [x] Add six per-agent budget records.
-- [x] Add timeout, attempts, input, and output limits.
-- [x] Add total invocation, elapsed-time, and output limits.
-- [x] Validate schema and semantic contract before state progression.
+- [x] Add six per-agent budget records and total run budgets.
+- [x] Validate schemas and semantic contracts before progression.
 - [x] Produce invocation receipts.
-- [x] Test malformed and oversized outputs.
-- [ ] Add stable prompt, schema, and artifact version hashes.
-- [ ] Define live-provider cancellation and unknown-result semantics.
-- [ ] Map character budgets to provider token/cost budgets.
+- [x] Reject non-allowlisted, publication, purchase, and payment tools.
+- [ ] Add provider token/cost budgets and cancellation semantics.
 - [ ] Redact sensitive provider errors before persistence.
-- [ ] Add provider-specific structured-output compatibility tests.
-- [ ] Decide whether the project baseline moves from Node 20 to Node 22 before a live SDK.
+- [ ] Add input/output schemas and mutability classes per tool.
+- [ ] Review handler implementation, domains, endpoints, robots, terms, and rate limits.
 
-## Tool broker
+## Phase 2D versioning and storage
 
-- [x] Enforce registry tool allowlists.
-- [x] Reject publication, purchase, and payment tool names.
-- [x] Require an explicitly registered handler.
-- [ ] Review each handler implementation, not only its name.
-- [ ] Add input/output schemas per tool.
-- [ ] Add read-only versus mutating tool classes.
-- [ ] Add domain and endpoint allowlists for future network tools.
-- [ ] Add robots/terms/rate-limit checks for public research sources.
-
-## Persistence and concurrency
-
-- [ ] Add immutable event/evidence storage.
-- [ ] Add atomic run-state updates and concurrent-run locking.
-- [ ] Separate raw sources, sanitized evidence, prompts, artifacts, and receipts.
-- [ ] Define retention and deletion.
-- [ ] Prevent one run's artifacts from entering another run.
+- [x] Canonically hash roster, prompts, schemas, evidence, and artifacts.
+- [x] Add artifact integrity metadata and dependency hashes.
+- [x] Detect stale artifacts after evidence changes.
+- [x] Store sources and artifacts by content hash.
+- [x] Add per-run append-only hash-chained events.
+- [x] Serialize concurrent writes per run inside one process.
+- [x] Detect payload and event tampering.
+- [ ] Recover or quarantine a partially written final JSONL line.
+- [ ] Add retention, deletion, export, and content-addressed garbage collection.
+- [ ] Add encryption/redaction classification for stored objects.
+- [ ] Add claim-to-source and dependency indexes.
+- [ ] Add cross-process transactional locking or migrate to SQLite.
+- [ ] Version the canonicalization algorithm explicitly before format changes.
+- [ ] Prevent stale approved/queued artifacts from publication.
 
 ## Publishing safety
 
 - [ ] Verify official Threads permissions and current capabilities.
-- [ ] Define idempotency and reconciliation.
+- [ ] Define idempotency and remote-state reconciliation.
 - [ ] Separate scheduled, publishing, published, failed, cancelled, and unknown states.
 - [ ] Add global kill switch.
 - [ ] Never retry an unknown remote publish blindly.

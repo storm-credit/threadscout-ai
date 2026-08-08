@@ -1,79 +1,68 @@
 # ThreadScout AI Project Constitution
 
-These rules apply to every human or AI contributor.
+## 1. Read and verify first
 
-## 1. Read before changing
+Read the README, project brief, success criteria, orchestra design, niche strategy, runtime/storage options, blind spots, traps, and decision log. Verify repository and branch state rather than assuming completion.
 
-Read `README.md`, project brief, success criteria, orchestra design, practical-novelty strategy, runtime options, blind spots, traps, and decision log. Verify repository state rather than assuming prior work exists.
+## 2. Automatic continuation boundary
 
-## 2. Missing context and automatic continuation
+Use existing context first and do not repeat answered questions. Reversible, local, credential-free work may continue automatically when assumptions are documented. Stop before spending, credentials, live external data, public posting, deletion, or irreversible actions.
 
-Use conversation and repository information first. Do not repeat answered questions. Reversible, local, credential-free work may continue from recorded defaults when assumptions are documented. Stop before spending, credentials, live external data, public posting, or irreversible actions.
+## 3. Four options and success conditions
 
-## 3. Success and stop conditions
+Compare four options before major UI, workflow, niche, runtime, provider, storage, or roster decisions. Every implementation states success criteria, non-goals, verification, and stop conditions.
 
-Every task states user-visible success, technical verification, non-goals, and stop conditions. Do not improvise around permissions, identity, media rights, failed tests, or required decisions.
-
-## 4. Blind spots, traps, and four options
-
-Review product, legal, operational, platform, cost, security, source, runtime, tool, agent, and trust risks. Compare four options before major UI, workflow, niche, runtime, provider, or roster decisions.
-
-## 5. Conservative implementation
-
-Preserve behavior, avoid unrelated refactoring and unnecessary dependencies, and prefer reversible verifiable changes. Record deviations and remaining risks.
-
-## 6. Approval first
+## 4. Approval first
 
 No post may be published without explicit human approval. Guardian pass is also required before queueing. Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement.
 
-## 7. Truth and fixtures
+## 5. Truth and evidence
 
-- Never claim personal use without a record.
-- Separate verified fact, opinion, inference, unknown, and synthetic fixture data.
-- Do not invent real product, seller, price, stock, effect, or review.
-- Record media origin and rights.
-- Distinguish exact, likely, substitute, and unresolved.
-- Show affiliate disclosure visibly.
+- Never claim personal use without a usage record.
+- Separate verified facts, opinion, inference, unknown, and synthetic fixture data.
+- Do not invent real product, price, seller, stock, effect, or review.
+- Exact product identity, media origin/rights, and claim sources must remain explicit.
 - Fixture values cannot be surfaced as current market truth.
+- Hashes prove consistency, not factual truth.
 
-## 8. Fixed six-agent orchestra
+## 6. Fixed six-agent orchestra
 
 Exactly six agents exist: `orchestrator`, `scout`, `verifier`, `strategist`, `writer`, and `guardian`.
 
-- No seventh, dynamic, removed, merged, renamed, or split role without user approval, four options, decision log, and tests.
+- No seventh, dynamic, removed, merged, renamed, or split role without explicit user approval, four options, decision log, and tests.
 - There is no dedicated price agent.
 - Only Orchestrator delegates.
 - Specialists return structured artifacts to Orchestrator.
 - Scheduler, publisher, metrics, and audit remain deterministic services.
 - Guardian blockers cannot be bypassed.
-- Default orchestration limits remain one Scout refinement, two Writer revisions, and twelve specialist invocations.
+- One Scout refinement, two Writer revisions, and twelve specialist invocations are the default limits.
 
-## 9. Practical novel-item niche
+## 7. Practical novel-item niche
 
-Novelty alone is insufficient. Scout prioritizes problem clarity, short demonstration, utility, purchase intent, audience fit, identity confidence, and source readiness. Four content angles are problem/result, mechanism/demo, buying checklist, and honest fit.
+Novelty alone is insufficient. Scout prioritizes problem clarity, short demonstration, utility, purchase intent, audience fit, identity confidence, and evidence readiness. The four angles are problem/result, mechanism/demo, buying checklist, and honest fit.
 
-## 10. Prompt and schema rules
+## 8. Prompt, schema, runtime, and tool rules
 
-Each agent has one detailed system prompt and one output schema. Outputs are one JSON object. Schema validation supplements semantic validation. Unknown or conflicting facts become blockers rather than invented fields.
-
-## 11. Provider-neutral runtime
-
-- Provider adapters receive fixed prompt, schema, run ID, agent ID, and structured input.
+- Each agent has one detailed prompt and one output schema.
+- Provider output passes schema and semantic validation before progression.
 - Runtime config contains budgets for exactly six agents.
-- Enforce timeout, attempts, input/output, total invocation, elapsed-time, and total output limits.
-- Validate output before state progression.
-- Create a receipt for every invocation.
-- A provider cannot change the roster, gates, schemas, or publication policy.
+- Every invocation creates a metadata receipt.
+- Every tool call passes through registry allowlists and a reviewed registered handler.
+- Publication, purchase, payment, and equivalent tools are forbidden.
 - Current provider is deterministic replay only.
-- Live provider credentials and cost require a separate approved phase.
 
-## 12. Tool broker
+## 9. Versioning and storage
 
-- Every tool call passes through the broker and the registry allowlist.
-- No unregistered handler executes.
-- Publication, purchase, payment, or equivalent external-action tools are forbidden.
-- A safe tool name does not make an unsafe implementation acceptable; handlers require review and schemas before live use.
+- Canonical serialization and hashing behavior are part of the data contract.
+- Persisted artifacts include roster/manifest, prompt, schema, parent, evidence, and integrity hashes.
+- Tampered or stale artifacts cannot be treated as valid.
+- Sources and artifacts are stored by content hash.
+- Run events are append-only, sequential, isolated by run ID, and previous-hash chained.
+- Phase 2D concurrency guarantees apply only inside one Node.js process.
+- `.threadscout-data/` and all credentials remain outside Git.
+- Fixture, provider, or source payloads must be sanitized before durable storage.
+- Do not claim production durability until transactional cross-process storage is implemented.
 
-## 13. Verification
+## 10. Deviations and verification
 
-Run documentation checks, all tests, fixture simulation, replay execution, and relevant user-flow checks. Do not claim completion from file creation alone.
+Record where a plan failed, the original plan, change, reason, impact, and remaining risks. Run documentation checks, all tests, simulations, replay execution, storage-chain validation, and relevant user-flow checks before reporting completion.

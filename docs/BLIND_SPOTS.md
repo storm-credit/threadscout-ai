@@ -1,64 +1,59 @@
 # Blind-Spot Sweep
 
-## Product discovery
+## Product and content
 
-- High engagement does not necessarily indicate purchase intent.
-- Viral content may already be over-saturated.
+- High engagement may not indicate purchase intent.
+- Viral content may already be saturated.
 - Informal product names may be incomplete or wrong.
-- Similar-looking affiliate listings may not be the exact item.
-- Stock, seller, price, and delivery can change after approval.
+- Similar-looking listings may not be the exact item.
 - Novelty can hide low repeat-use value.
-
-## Content and trust
-
-- Automated drafts can converge on one artificial voice.
-- Strong hooks can become exaggeration or false scarcity.
+- Hooks can drift into exaggeration, false scarcity, or copied phrasing.
 - First-hand language may appear without actual use.
-- Popular phrasing can drift into copying.
-- Too many affiliate posts can damage trust.
 
-## Media and rights
+## Media, claims, and commerce
 
 - Publicly visible media is not automatically reusable.
-- Retailer and brand images may have restrictions.
-- Generated images can misrepresent the item.
-- Before/after media can imply unobserved effects.
+- Generated or before/after media can imply unobserved effects.
+- Health, skincare, child, and supplement claims carry elevated risk.
+- Price, seller, stock, variant, and delivery can change after approval.
 
-## Agent orchestra
+## Six-agent orchestra
 
-- Multiple agents can repeat the same contaminated assumption.
-- Guardian may rubber-stamp Writer if contexts are not sufficiently independent.
-- Free-form conversations hide where false information entered.
-- Loops can consume cost without improving evidence.
-- Shared state can leak rejected claims across runs.
+- Several agents can repeat one contaminated assumption.
+- Guardian can rubber-stamp Writer if context is not independent.
 - Agent agreement is not source evidence.
+- Revision loops can consume cost without improving facts.
+- Rejected claims can leak through shared context.
 
 ## Provider runtime
 
-- A provider can change model behavior without code changes.
-- Character limits are only a proxy for token and financial cost.
-- Timeout cancellation may not stop remote billing in a future live adapter.
-- A timed-out provider may still complete, creating ambiguous duplicate attempts.
-- Replay fixtures can become stale and overfit tests to one happy path.
-- Receipts without prompt/version hashes cannot reproduce behavior exactly.
-- Large prior-artifact context can expose data to a provider unnecessarily.
-- A tool name allowlist is insufficient if a safe-named handler performs unsafe work.
-- Runtime retries and orchestrator revision loops can multiply each other.
-- Provider error text may contain secrets or personal data if stored verbatim.
-- A successful schema parse does not prove factual correctness.
-- A malicious or malformed artifact could inflate receipt/log storage.
+- Provider behavior can change without code changes.
+- Character budgets only approximate token and financial cost.
+- A timeout may not cancel remote billing or completion.
+- Replay fixtures can overfit one happy path.
+- A schema-valid output can still be factually wrong.
+- Safe tool names can hide unsafe handler implementations.
 
-## Platform and publishing
+## Versioning and persistence
 
-- Tokens expire and capabilities require review.
-- Rate limits and platform changes can interrupt operations.
-- Publish timeouts can create unknown remote state.
-- Blind retry can create duplicate posts.
+- SHA-256 proves content consistency, not truth.
+- Hash chains detect mutation but do not prevent authorized deletion of an entire run directory.
+- Canonicalization bugs can change hashes across versions.
+- Storing full artifacts can preserve sensitive or copyrighted content longer than intended.
+- Provider errors or source payloads may contain secrets or personal data if not redacted.
+- JSONL append is not a transaction across processes or machines.
+- A process crash during append can leave a partial final line.
+- Content-addressed objects need garbage-collection and retention rules.
+- Prompt/schema changes can mark many artifacts stale at once.
+- Evidence invalidation must propagate to strategy, drafts, Guardian report, and queue records.
+- Identical content hashes can reveal that two runs used the same source or artifact.
+- Event timestamps depend on system clock correctness.
+- Hash metadata can create false confidence if source provenance is weak.
+
+## Platform and business
+
+- Publish timeout can create unknown remote state and duplicates.
 - Timezone errors can publish at unintended times.
-
-## Business
-
-- Constant trend monitoring can take more time than it saves.
 - Daily volume can exceed truthful material supply.
-- View optimization can reduce purchase conversion and trust.
+- View optimization can reduce trust and conversion.
 - The system can become a complex SaaS before the personal workflow is proven.
