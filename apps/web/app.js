@@ -62,6 +62,15 @@ function replaceCandidate(updated) {
   state.candidates = state.candidates.map((candidate) => candidate.id === updated.id ? updated : candidate);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function statusLabel(status) {
   return {
     discovered: '추천됨', drafted: '초안 작성', held: '보류', rejected: '거절',
@@ -77,21 +86,22 @@ function evidenceLabel(candidate) {
 
 function candidateCard(candidate) {
   const evidence = evidenceLabel(candidate);
+  const safeState = Object.values(CANDIDATE_STATES).includes(candidate.state) ? candidate.state : CANDIDATE_STATES.DISCOVERED;
   const blocked = candidate.riskLevel === 'blocked' || candidate.exactMatchStatus !== 'exact' || candidate.mediaRights === 'unknown';
   return `
-    <article class="candidate-card ${blocked ? 'needs-evidence' : ''}" data-id="${candidate.id}">
+    <article class="candidate-card ${blocked ? 'needs-evidence' : ''}" data-id="${escapeHtml(candidate.id)}">
       <div class="candidate-main">
-        <div class="score-ring" aria-label="추천 점수 ${candidate.score}점"><strong>${candidate.score}</strong><span>점</span></div>
+        <div class="score-ring" aria-label="추천 점수 ${escapeHtml(candidate.score)}점"><strong>${escapeHtml(candidate.score)}</strong><span>점</span></div>
         <div class="candidate-copy">
-          <div class="card-meta"><span>${candidate.category} · 예시 데이터</span><span class="state-badge state-${candidate.state}">${statusLabel(candidate.state)}</span></div>
-          <h3>${candidate.name}</h3>
-          <p>${candidate.reasons[0]}</p>
+          <div class="card-meta"><span>${escapeHtml(candidate.category)} · 예시 데이터</span><span class="state-badge state-${safeState}">${escapeHtml(statusLabel(safeState))}</span></div>
+          <h3>${escapeHtml(candidate.name)}</h3>
+          <p>${escapeHtml(candidate.reasons[0])}</p>
           <div class="evidence-row">
             <span class="evidence ${candidate.exactMatchStatus === 'exact' ? 'ok' : 'warn'}">${evidence.exact}</span>
             <span class="evidence ${candidate.mediaRights === 'unknown' ? 'warn' : 'ok'}">${evidence.rights}</span>
             <span class="evidence ${candidate.personalUse === 'confirmed' ? 'ok' : ''}">${candidate.personalUse === 'confirmed' ? '직접 사용' : '발견형 문구만'}</span>
           </div>
-          <p class="risk-line"><strong>주의:</strong> ${candidate.risks[0]}</p>
+          <p class="risk-line"><strong>주의:</strong> ${escapeHtml(candidate.risks[0])}</p>
         </div>
       </div>
       <div class="card-actions">
@@ -123,7 +133,7 @@ function renderQueue() {
   els.queueList.innerHTML = state.queue.length
     ? state.queue.map((item) => `
         <article class="queue-card">
-          <div><strong>${item.productName}</strong><span>${new Date(item.scheduledFor).toLocaleString('ko-KR')}</span></div>
+          <div><strong>${escapeHtml(item.productName)}</strong><span>${new Date(item.scheduledFor).toLocaleString('ko-KR')}</span></div>
           <span class="queue-status">로컬 저장 · 게시 안 됨</span>
         </article>`).join('')
     : '<div class="empty-state">승인 후 예약한 글이 아직 없습니다.</div>';
@@ -147,10 +157,10 @@ function renderDrafts(candidate) {
     <label class="draft-card">
       <div class="draft-card-head">
         <span class="draft-number">${index + 1}</span>
-        <strong>${draft.angle}</strong>
-        <input type="radio" name="selected-draft" value="${draft.id}" ${candidate.selectedDraftId === draft.id || (!candidate.selectedDraftId && index === 0) ? 'checked' : ''} />
+        <strong>${escapeHtml(draft.angle)}</strong>
+        <input type="radio" name="selected-draft" value="${escapeHtml(draft.id)}" ${candidate.selectedDraftId === draft.id || (!candidate.selectedDraftId && index === 0) ? 'checked' : ''} />
       </div>
-      <textarea data-draft-id="${draft.id}" rows="7">${draft.text}</textarea>
+      <textarea data-draft-id="${escapeHtml(draft.id)}" rows="7">${escapeHtml(draft.text)}</textarea>
     </label>`).join('');
 }
 
@@ -189,8 +199,9 @@ function syncWorkspace() {
 
   const selected = els.form.querySelector('input[name="selected-draft"]:checked');
   const drafts = candidate.drafts.map((draft) => {
-    const textarea = els.form.querySelector(`textarea[data-draft-id="${draft.id}"]`);
-    return { ...draft, text: textarea.value.trim() };
+    const textarea = [...els.form.querySelectorAll('textarea[data-draft-id]')]
+      .find((element) => element.dataset.draftId === draft.id);
+    return { ...draft, text: textarea?.value.trim() ?? draft.text };
   });
 
   const updated = {

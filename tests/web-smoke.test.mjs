@@ -20,7 +20,20 @@ test('web app keeps publishing local-only', async () => {
   assert.match(core, /publishingEnabled: false/);
 });
 
+
 test('dashboard labels fixture data as examples', async () => {
   const html = await read('apps/web/index.html');
   assert.match(html, /예시 데이터/);
+});
+
+
+test('web app escapes persisted draft text before rendering', async () => {
+  const app = await read('apps/web/app.js');
+  assert.match(app, /function escapeHtml/);
+  assert.match(app, /escapeHtml\(draft\.text\)/);
+});
+
+test('local server keeps resolved paths inside the repository root', async () => {
+  const server = await read('apps/web/server.mjs');
+  assert.match(server, /repoRoot.*path\.sep/);
 });

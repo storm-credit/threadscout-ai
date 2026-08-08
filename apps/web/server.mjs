@@ -19,7 +19,7 @@ const contentTypes = {
 function resolveRequestPath(urlPath) {
   const requested = urlPath === '/' ? '/apps/web/index.html' : decodeURIComponent(urlPath);
   const fullPath = path.resolve(repoRoot, `.${requested}`);
-  if (!fullPath.startsWith(repoRoot)) return null;
+  if (fullPath !== repoRoot && !fullPath.startsWith(`${repoRoot}${path.sep}`)) return null;
   return fullPath;
 }
 
