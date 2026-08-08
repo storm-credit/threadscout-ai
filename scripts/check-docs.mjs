@@ -19,10 +19,13 @@ const requiredFiles = [
   'docs/PHASE2C_PLAN.md',
   'docs/PHASE2D_PLAN.md',
   'docs/PHASE2E_PLAN.md',
+  'docs/PHASE2F_PLAN.md',
   'docs/SINBAK_ITEM_STRATEGY.md',
   'docs/RUNTIME_OPTIONS.md',
   'docs/STORAGE_OPTIONS.md',
   'docs/RESEARCH_OPTIONS.md',
+  'docs/LIVE_SOURCE_OPTIONS.md',
+  'docs/LIVE_SOURCE_REVIEW.md',
   'docs/REFERENCE_PROJECTS.md',
   'docs/DECISION_LOG.md',
   'docs/IMPLEMENTATION_STATUS.md'

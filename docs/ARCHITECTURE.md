@@ -2,14 +2,14 @@
 
 ## Direction
 
-Approval-first application using a fixed six-agent orchestra, provider-neutral runtime, versioned evidence store, and explicit read-only research boundary.
+Approval-first application using a fixed six-agent orchestra, provider-neutral runtime, versioned evidence store, and source-specific readiness gates.
 
 ```text
-Read-only source adapter
+source registry + readiness gate
       ↓
-Validated source records
+read-only adapter (currently fixture only)
       ↓
-Content-addressed source store
+validated source records + content hashes
       ↓
 Product Scout candidate evidence
       ↓
@@ -17,75 +17,56 @@ Evidence Verifier exact-product package
       ↓
 Strategist → Writer → Guardian
       ↓
-Versioned artifacts + hash-chained events
-      ↓
-Explicit human approval → local-only scheduler
+explicit human approval → local-only scheduler
 ```
 
-Only Orchestrator delegates. Specialists return artifacts to Orchestrator and cannot publish.
+Only Orchestrator delegates. Specialists cannot publish.
 
-## Fixed layers
+## Source registry
 
-### Six-agent registry
+Every future source records:
 
-Exactly six roles with narrow missions, tool allowlists, forbidden actions, and stop conditions. There is no price agent. Scheduler, publisher adapter, metrics collector, and audit log are deterministic services.
+- use-case disposition
+- agent ownership
+- official references and review date
+- host, endpoint, method, and data semantics
+- required credential variable names and permissions
+- readiness requirements
+- human activation requirement
+- enabled/network/mutation state
 
-### Prompt, schema, and state machine
+Credential values are never returned by readiness reports or committed to Git.
 
-Each agent has one system prompt and one output schema. Outputs pass schema and semantic validation. The state machine owns stage order, bounded revisions, Guardian gate, human gate, and local queue.
+## Selected source stack
 
-### Provider-neutral runtime and tool broker
+- Threads Keyword Search: primary social/product-discussion discovery
+- NAVER API HUB trends: secondary Korean search/click signal
+- manual user evidence: offline fallback
+- Google Trends alpha: deferred
+- Coupang Seller Open API: rejected for general affiliate discovery
 
-The current provider is deterministic replay. Every invocation has budgets and receipts. Every tool call is checked against the registry. Publication, purchase, payment, and equivalent tools are rejected.
+## Disabled request builders
 
-### Versioned evidence store
+Request builders validate query modes and endpoints and replace every secret header with `<redacted>`. The execution function always throws in Phase 2F.
 
-Canonical SHA-256 hashes cover roster, prompts, schemas, evidence, parents, and artifacts. Sources and artifacts are content addressed. Per-run JSONL events are sequential and previous-hash chained. One-process write serialization is not a distributed transaction guarantee.
+## Existing invariant layers
 
-## Phase 2E research boundary
+- exactly six fixed agents
+- prompt and output-schema validation
+- bounded orchestration loops
+- Guardian and explicit human gates
+- provider-neutral replay budgets and receipts
+- strict tool allowlists
+- canonical hashes and content-addressed objects
+- per-run hash-chained events
+- read-only fixture research and cross-source evidence
 
-### Research policy
+## Activation sequence
 
-The fixture policy fixes:
-
-- `networkAllowed=false`
-- `mutationAllowed=false`
-- only `fixture:` schemes
-- approved source types only
-- maximum result and excerpt sizes
-- no personal data
-- no raw payload storage
-- explicit retention, rights, observed time, and retrieved time
-
-### Source records
-
-A source record contains version, ID, type, URL, title, sanitized excerpt, timestamps, synthetic/network flags, policy ID, rights state, retention class, redaction state, product mentions, purchase signals, optional commerce metadata, and content hash.
-
-### Role separation
-
-Product Scout may use `public_search`, `topic_search`, `trend_lookup`, and `candidate_normalization` through the broker.
-
-Evidence Verifier may use official/listing lookup, cross-source checks, rights checks, and commerce snapshots.
-
-Writer cannot browse for new facts. Strategist and Guardian read verified evidence rather than discovering new sources.
-
-### Candidate evidence
-
-Mentions are grouped by normalized brand, model, variant, and product name. Exact-match readiness requires a listing, complete identity hints, at least two records, and at least two source types. Scout readiness remains a proposal; Verifier owns the final exact-match decision.
-
-### Dependency index
-
-Artifact-save events record parent and evidence hashes. The index can find artifacts directly linked to an evidence version and recursively collect dependent descendants for invalidation.
-
-## Live-source gate
-
-No live adapter is enabled. Each future source requires separate review of official access, terms, robots, rate limits, permissions, privacy, retention, rights, recency, citations, failure behavior, and revocation.
-
-## Next implementation order
-
-1. Select one candidate live source only after public-policy research
-2. Add source-specific adapter contract tests without credentials
-3. Add partial-line recovery and SQLite migration interface
-4. Add claim-to-source indexes in the dashboard
-5. Evaluate a live model provider separately
-6. Keep publishing disabled until a later explicit gate
+1. User selects one source to activate.
+2. Account/application and permissions are completed outside Git.
+3. Quota, cost, privacy, retention, fields, and error handling are confirmed.
+4. Credentials are configured in a secret manager or local environment.
+5. Source-specific contract tests run against an approved test account.
+6. A pull request changes only that source's network flag and tool handler.
+7. Guardian/human/publishing gates remain unchanged.
