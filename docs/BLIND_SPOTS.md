@@ -3,65 +3,62 @@
 ## Product discovery
 
 - High engagement does not necessarily indicate purchase intent.
-- A viral post can signal that the product is already over-saturated.
-- Product names extracted from informal posts may be incomplete or wrong.
-- A similar-looking affiliate listing may not be the exact product shown.
-- Low-cost products may generate attention but little commission.
-- Stock, seller, price, and delivery conditions can change after a draft is approved.
+- Viral content may already be over-saturated.
+- Informal product names may be incomplete or wrong.
+- Similar-looking affiliate listings may not be the exact item.
+- Stock, seller, price, and delivery can change after approval.
+- Novelty can hide low repeat-use value.
 
 ## Content and trust
 
-- Automated drafts can converge on the same artificial voice.
-- Strong hooks can drift into exaggeration, fear, or misleading scarcity.
-- “I used it” language may be generated even when the creator did not use it.
-- Reusing popular phrasing too closely can create plagiarism or impersonation concerns.
-- An account with too many affiliate posts can lose organic reach and reader trust.
-- Drafts optimized only for views may attract the wrong audience and lower conversion.
+- Automated drafts can converge on one artificial voice.
+- Strong hooks can become exaggeration or false scarcity.
+- First-hand language may appear without actual use.
+- Popular phrasing can drift into copying.
+- Too many affiliate posts can damage trust.
 
 ## Media and rights
 
-- Publicly viewable media is not automatically reusable.
-- Product images may carry retailer, photographer, or brand restrictions.
-- AI-generated product images can misrepresent the real item.
-- Before/after images can imply effects that were not actually observed.
+- Publicly visible media is not automatically reusable.
+- Retailer and brand images may have restrictions.
+- Generated images can misrepresent the item.
+- Before/after media can imply unobserved effects.
 
-## Platform operations
+## Agent orchestra
 
-- Access tokens expire.
-- Search and publishing capabilities may require review or permissions.
-- Rate limits and undocumented changes can interrupt automation.
-- A publish request can time out even though the post was created.
-- Retry logic can create duplicate posts without idempotency.
-- Scheduling in the wrong timezone can publish at unintended times.
+- Multiple agents can repeat the same contaminated assumption.
+- Guardian may rubber-stamp Writer if contexts are not sufficiently independent.
+- Free-form conversations hide where false information entered.
+- Loops can consume cost without improving evidence.
+- Shared state can leak rejected claims across runs.
+- Agent agreement is not source evidence.
 
-## Affiliate and compliance
+## Provider runtime
 
-- Disclosure hidden in a secondary reply may not be sufficiently visible.
-- Linking an alternative product without saying so can mislead readers.
-- Health, skincare, child, and supplement claims carry elevated risk.
-- Revenue attribution can be incomplete or delayed.
+- A provider can change model behavior without code changes.
+- Character limits are only a proxy for token and financial cost.
+- Timeout cancellation may not stop remote billing in a future live adapter.
+- A timed-out provider may still complete, creating ambiguous duplicate attempts.
+- Replay fixtures can become stale and overfit tests to one happy path.
+- Receipts without prompt/version hashes cannot reproduce behavior exactly.
+- Large prior-artifact context can expose data to a provider unnecessarily.
+- A tool name allowlist is insufficient if a safe-named handler performs unsafe work.
+- Runtime retries and orchestrator revision loops can multiply each other.
+- Provider error text may contain secrets or personal data if stored verbatim.
+- A successful schema parse does not prove factual correctness.
+- A malicious or malformed artifact could inflate receipt/log storage.
 
-## Business and behavior
+## Platform and publishing
 
-- Constant trend monitoring can consume more time than it saves.
-- Daily content volume may exceed the supply of truthful, high-quality material.
-- Success metrics can incentivize spam unless guardrails are explicit.
-- The project can become a complex SaaS before the personal workflow is proven.
+- Tokens expire and capabilities require review.
+- Rate limits and platform changes can interrupt operations.
+- Publish timeouts can create unknown remote state.
+- Blind retry can create duplicate posts.
+- Timezone errors can publish at unintended times.
 
-## Six-agent orchestra
+## Business
 
-- More agents can create false confidence because several agents may repeat the same unsupported assumption.
-- Role names do not guarantee independence if every agent receives the same contaminated context.
-- A Guardian using the same prompt and evidence as the Writer may rubber-stamp the draft.
-- Free-form agent conversations can hide which agent introduced a false fact.
-- Circular Scout–Verifier or Writer–Guardian handoffs can consume cost without improving evidence.
-- Fixed agents may be invoked unnecessarily unless the Orchestrator can skip stages safely.
-- A fixed count can become dogma; role boundaries should be tuned while preserving the six-role contract.
-- Shared memory can leak rejected claims into later stages unless artifacts are versioned.
-- A price snapshot can become stale between verification, approval, and publication.
-- A cheap product can dominate recommendations if commercial value is over-weighted.
-- Parallel runs can overwrite shared state without run IDs and atomic updates.
-- A specialist can exceed its role by browsing for new facts after evidence has been frozen.
-- Agent agreement is not evidence; source references must remain attached to claims.
-- Model-provider changes can alter output behavior even when prompts and code do not change.
-- Costs can grow multiplicatively with four drafts, revisions, and repeated verification.
+- Constant trend monitoring can take more time than it saves.
+- Daily volume can exceed truthful material supply.
+- View optimization can reduce purchase conversion and trust.
+- The system can become a complex SaaS before the personal workflow is proven.

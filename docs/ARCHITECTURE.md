@@ -2,96 +2,85 @@
 
 ## Direction
 
-Approval-first personal application using a fixed six-agent orchestra supervised by a deterministic state machine.
+Approval-first application using a fixed six-agent orchestra, provider-neutral model boundary, and deterministic state machine.
 
 ```text
 User objective
       ↓
-Orchestrator run plan
+Runtime executor
       ↓
-Product Scout candidate_set
+Provider adapter + fixed prompt + output schema + budgets
       ↓
-Evidence Verifier evidence_packet
+Orchestrator → Scout → Verifier → Strategist → Writer → Guardian
       ↓
-Content Strategist content_brief (4 angles)
-      ↓
-Threads Writer draft_bundle (4 drafts)
-      ↓
-Integrity Guardian review_report
+Semantic contract + schema validation
       ↓
 Human approval
       ↓
 Deterministic local scheduler
 ```
 
-Only the Orchestrator delegates. Specialists return structured artifacts to the Orchestrator and cannot publish.
+Only Orchestrator delegates. Specialists return artifacts to Orchestrator and cannot publish.
 
-## Phase 2B runtime layers
+## Layers
 
-### 1. Immutable registry
+### Fixed registry
 
-`agent-registry.mjs` fixes the six roles, ownership boundaries, tool allowlists, forbidden actions, and stop conditions.
+Six roles, ownership, tool allowlists, forbidden actions, and stop conditions.
 
-### 2. System prompts
+### Prompt and schema layer
 
-`prompts.mjs` converts the registry, global integrity rules, the 실용 신박템 profile, and each output schema into six detailed system prompts. Prompts require one JSON object and forbid hidden specialist-to-specialist delegation.
+Six system prompts and six machine-readable output schemas. Schema validation supplements semantic validation.
 
-### 3. Machine-readable schemas
+### State machine
 
-`schemas.mjs` defines the required shape for run plans, candidate sets, evidence packets, content briefs, draft bundles, and review reports. Schema checks supplement—not replace—the semantic checks in `contracts.mjs`.
+Stage order, conditional Scout skip, one Scout refinement, two Writer revisions, invocation ceiling, Guardian gate, human gate, and local queue.
 
-### 4. Niche scoring
+### Provider-neutral runtime
 
-`niche-profile.mjs` treats novelty as one signal rather than the objective. Problem clarity, demonstration, and practical utility account for 60% of the score. Hard gates and penalties prevent gimmick-only or high-risk products from passing.
+The runtime receives agent ID, run ID, prompt, output schema, and structured input. It returns one artifact and one receipt. It owns provider-specific timeout and output handling but cannot change role boundaries or workflow gates.
 
-### 5. Deterministic simulation
+Current provider: `replay`.
 
-`simulation.mjs` runs one explicitly synthetic product through all six agents, Guardian pass, simulated human approval, and a local-only queue. It performs no network, model, affiliate, or publishing call.
+### Budget layer
+
+Each of the six agents has:
+
+- timeout
+- maximum attempts
+- maximum input characters
+- maximum output characters
+
+Each run has:
+
+- maximum invocations
+- maximum elapsed time
+- maximum total output characters
+
+These runtime limits are additional to the orchestration loop limits.
+
+### Tool broker
+
+All tool requests pass through one broker. It checks the agent registry allowlist and registered deterministic handler. Tools containing publication, payment, or purchase behavior are rejected even if misconfigured elsewhere.
+
+### Receipts and audit boundary
+
+Every replay/model invocation records provider, agent, run, attempt, input/output size, status, timestamps, and failure reason. Receipts contain metadata rather than secret-bearing raw prompts.
 
 ## Evidence boundary
 
-Product Scout proposes candidates and sources but cannot declare exact match or current commerce facts.
-
-Evidence Verifier owns:
-
-- canonical product, brand, model, and variant
-- exact-match state
-- claim evidence and source links
-- personal-use state
-- media rights
-- time-stamped price status, amount/currency, stock, seller, and variant snapshot
-
-Fixture commerce records must be marked synthetic and can never be displayed as current market truth.
-
-## State models
-
-Agent run:
-
-`ready → running → revision_requested → running → needs_human_decision / blocked / approved_for_local_queue → completed_local_only`
-
-Content:
-
-`draft → needs_evidence → ready_for_review → guardian_passed → human_approved → scheduled → publishing → published`
-
-No transition into schedule or publication is valid without Guardian pass, human actor, and timestamp.
+Scout proposes; Verifier confirms canonical product, exact match, claims, rights, personal-use status, and timestamped commerce snapshot. Fixture values remain synthetic.
 
 ## Deterministic services
 
-The following are not agents:
-
-- scheduler
-- publisher adapter
-- metrics collector
-- audit log
-
-They execute validated commands and do not invent content or evidence.
+Scheduler, publisher adapter, metrics collector, and audit log are not agents. Publisher remains disabled.
 
 ## Next implementation order
 
-1. Provider-neutral model interface
-2. Fixture/replay model adapter
-3. Per-agent timeout and token/cost budgets
-4. Tool broker with strict per-agent allowlists
-5. Evidence-store persistence and source recency
-6. Live research adapter only after policy and access checks
-7. Official publishing adapter only after separate approval
+1. Prompt and artifact version hashes
+2. Persistent evidence/event store
+3. Artifact invalidation when evidence changes
+4. Read-only research tool adapter with source recency and access controls
+5. Replay fixtures from recorded sanitized runs
+6. Live model adapter after provider review
+7. Publishing only after a separate permission and safety gate

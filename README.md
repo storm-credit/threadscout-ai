@@ -1,18 +1,18 @@
 # ThreadScout AI
 
-AI-assisted product discovery and approval-first content operations for Threads.
+Approval-first product discovery and content operations for Threads.
 
 ## Product direction
 
-ThreadScout finds products worth talking about, verifies exact identity and evidence, creates four different content approaches, performs an independent integrity review, and requires human approval before anything enters a queue.
+ThreadScout finds practical novel items worth talking about, verifies exact identity and evidence, creates four different content approaches, performs an independent integrity review, and requires human approval before anything enters a queue.
 
-The primary operating niche is now **실용 신박템**: products with a novel or unexpected mechanism that solve a visible everyday problem and can be understood through a short demonstration. Novelty alone is not enough.
+The primary niche is **실용 신박템**: products with a novel mechanism that solve a visible everyday problem and can be understood through a short demonstration. Novelty alone is not enough.
 
 ## Current phase
 
-Phase 2B — the fixed six-agent orchestra now has detailed system prompts, machine-readable output schemas, a practical-novelty scoring profile, and a deterministic end-to-end fixture simulation.
+Phase 2C — the project now has a provider-neutral model runtime boundary, deterministic replay provider, strict tool broker, per-agent budgets, total-run budgets, and auditable invocation receipts.
 
-No live model, product-data, affiliate, or Threads API is connected. The simulation uses explicitly synthetic product, seller, price, stock, media, and evidence records. External publishing is disabled.
+No live model, product-data, affiliate, search, or Threads API is connected. Replay uses explicitly synthetic fixture data. External publishing is disabled.
 
 ## Fixed six-agent roster
 
@@ -23,46 +23,35 @@ No live model, product-data, affiliate, or Threads API is connected. The simulat
 5. Threads Writer
 6. Integrity Guardian
 
-There is no dedicated price agent. Price, stock, seller, product variant, and observation time belong to one Evidence Verifier commerce snapshot.
+There is no dedicated price agent. Price, stock, seller, variant, and observation time belong to one Evidence Verifier commerce snapshot.
 
-Scheduling, publishing, metrics collection, and audit logging are deterministic services—not agents.
+## Runtime flow
 
-## Core flow
+```text
+objective
+  ↓
+provider-neutral runtime
+  ↓
+Orchestrator → Scout → Verifier → Strategist → Writer → Guardian
+  ↓
+validated artifact after every call
+  ↓
+human approval
+  ↓
+local-only scheduler record
+```
 
-1. Orchestrator fixes objective, constraints, success criteria, stop conditions, and limits.
-2. Product Scout ranks practical novel-item candidates.
-3. Evidence Verifier checks exact product, claims, media rights, and time-stamped commerce evidence.
-4. Content Strategist creates four logically different angles.
-5. Threads Writer creates four Korean drafts from verified evidence only.
-6. Integrity Guardian returns pass, revise, or block.
-7. Human edits and approves.
-8. Scheduler writes a local-only queue record.
+Each call receives the fixed system prompt, machine-readable output schema, structured prior artifacts, and stage context. Output must pass both semantic contract and schema validation before the state machine advances.
 
-## Practical novel-item gates
+## Runtime controls
 
-A candidate cannot be recommended only because it looks surprising. The current score prioritizes:
-
-- problem clarity: 20
-- demonstration potential: 20
-- practical utility: 20
-- novelty: 15
-- purchase intent: 15
-- audience fit: 10
-
-Low utility, unclear problems, weak evidence, product-identity risk, rights risk, health-claim risk, and over-saturation reduce or block a recommendation.
-
-## Repository map
-
-- `CLAUDE.md` — project constitution, six-agent rules, and niche rules
-- `docs/SINBAK_ITEM_STRATEGY.md` — four niche options and selected strategy
-- `docs/PHASE2B_PLAN.md` — Phase 2B success and stop conditions
-- `packages/orchestra/src/prompts.mjs` — six system prompts
-- `packages/orchestra/src/schemas.mjs` — six output schemas and validator
-- `packages/orchestra/src/niche-profile.mjs` — practical-novelty score and gates
-- `packages/orchestra/src/simulation.mjs` — deterministic full-run fixture
-- `packages/orchestra/src/agent-registry.mjs` — immutable six-agent roster
-- `packages/orchestra/src/contracts.mjs` — artifact integrity contracts
-- `packages/orchestra/src/orchestrator.mjs` — state machine and bounded routing
+- exactly six per-agent budget entries
+- timeout, max attempts, max input characters, and max output characters per agent
+- total invocation, elapsed-time, and output budgets
+- one receipt per model invocation
+- per-agent tool allowlists
+- publication, purchase, and payment tools blocked
+- replay provider for deterministic tests and incident reproduction
 
 ## Commands
 
@@ -70,20 +59,33 @@ Low utility, unclear problems, weak evidence, product-identity risk, rights risk
 npm run verify
 npm run orchestra:demo
 npm run orchestra:simulate
+npm run orchestra:replay
 npm start
 ```
 
-## Non-goals for the current phase
+## Repository map
 
-- Dynamic or seventh agents
-- Dedicated price agent
-- Live product scraping
-- Real product-price claims from fixture data
-- Live LLM or paid API calls
-- Automatic comments, likes, follows, or engagement farming
-- External publication
-- Publishing without Guardian pass and explicit human approval
+- `packages/orchestra/src/agent-registry.mjs` — fixed six roles
+- `packages/orchestra/src/prompts.mjs` — six detailed system prompts
+- `packages/orchestra/src/schemas.mjs` — output schemas
+- `packages/orchestra/src/orchestrator.mjs` — state machine and gates
+- `packages/orchestra/src/model-runtime.mjs` — provider-neutral replay runtime
+- `packages/orchestra/src/runtime-config.mjs` — budgets
+- `packages/orchestra/src/tool-broker.mjs` — strict tool authorization
+- `packages/orchestra/src/executor.mjs` — runtime-driven orchestration
+- `packages/orchestra/src/replay-fixtures.mjs` — deterministic replay handlers
+- `docs/RUNTIME_OPTIONS.md` — four runtime options and selection
 
-## Next gate
+## Current non-goals
 
-Build a provider-neutral model adapter and tool boundary only after prompt/schema fixtures remain stable. Live public-product research must be added separately with source, recency, robots/terms, rate-limit, and evidence-retention checks.
+- live LLM or paid API calls
+- live product research or scraping
+- real market claims from fixture data
+- dynamic or seventh agents
+- dedicated price agent
+- automatic engagement
+- external publication
+
+## Next safe gate
+
+Add a persistent evidence store and prompt/artifact version hashes, then design a read-only public-research adapter with source recency, access-policy, rate-limit, and evidence-retention checks. A live provider or publishing adapter remains a separate approval decision.
