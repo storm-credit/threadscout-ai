@@ -47,3 +47,21 @@
 - Daily content volume may exceed the supply of truthful, high-quality material.
 - Success metrics can incentivize spam unless guardrails are explicit.
 - The project can become a complex SaaS before the personal workflow is proven.
+
+## Six-agent orchestra
+
+- More agents can create false confidence because several agents may repeat the same unsupported assumption.
+- Role names do not guarantee independence if every agent receives the same contaminated context.
+- A Guardian using the same prompt and evidence as the Writer may rubber-stamp the draft.
+- Free-form agent conversations can hide which agent introduced a false fact.
+- Circular Scout–Verifier or Writer–Guardian handoffs can consume cost without improving evidence.
+- Fixed agents may be invoked unnecessarily unless the Orchestrator can skip stages safely.
+- A fixed count can become dogma; role boundaries should be tuned while preserving the six-role contract.
+- Shared memory can leak rejected claims into later stages unless artifacts are versioned.
+- A price snapshot can become stale between verification, approval, and publication.
+- A cheap product can dominate recommendations if commercial value is over-weighted.
+- Parallel runs can overwrite shared state without run IDs and atomic updates.
+- A specialist can exceed its role by browsing for new facts after evidence has been frozen.
+- Agent agreement is not evidence; source references must remain attached to claims.
+- Model-provider changes can alter output behavior even when prompts and code do not change.
+- Costs can grow multiplicatively with four drafts, revisions, and repeated verification.

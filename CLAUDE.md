@@ -9,9 +9,10 @@ Before editing code or documents, read:
 1. `README.md`
 2. `docs/PROJECT_BRIEF.md`
 3. `docs/SUCCESS_CRITERIA.md`
-4. `docs/BLIND_SPOTS.md`
-5. `docs/PRE_IMPLEMENTATION_TRAPS.md`
-6. `docs/DECISION_LOG.md`
+4. `docs/AGENT_ORCHESTRA.md`
+5. `docs/BLIND_SPOTS.md`
+6. `docs/PRE_IMPLEMENTATION_TRAPS.md`
+7. `docs/DECISION_LOG.md`
 
 Do not assume a planned file, feature, integration, or previous completion exists. Verify the repository state first.
 
@@ -32,15 +33,15 @@ Stop and report rather than improvise when permissions, product identity, media 
 
 ## 4. Sweep blind spots before implementation
 
-Review product, legal, operational, platform, cost, security, data quality, and user-trust risks. Update `docs/BLIND_SPOTS.md` when a new risk is discovered.
+Review product, legal, operational, platform, cost, security, data quality, agent coordination, and user-trust risks. Update `docs/BLIND_SPOTS.md` when a new risk is discovered.
 
 ## 5. Check implementation traps first
 
-Confirm API capabilities, token lifecycle, rate limits, idempotency, retry behavior, exact product matching, data retention, secrets handling, and rollback before implementation. Update `docs/PRE_IMPLEMENTATION_TRAPS.md`.
+Confirm API capabilities, token lifecycle, rate limits, idempotency, retry behavior, exact product matching, agent contracts, loop limits, data retention, secrets handling, and rollback before implementation. Update `docs/PRE_IMPLEMENTATION_TRAPS.md`.
 
 ## 6. Present four comparable options for major design decisions
 
-Before locking a major UI, workflow, or architecture, present four options in one comparable view. Include user flow, benefits, drawbacks, cost, complexity, largest risk, and recommended audience.
+Before locking a major UI, workflow, architecture, or agent-roster change, present four options in one comparable view. Include user flow, benefits, drawbacks, cost, complexity, largest risk, and recommended audience.
 
 ## 7. Study references without copying
 
@@ -101,3 +102,28 @@ context dump → missing-context questions → explicit success criteria → fir
 ## 14. Verify before claiming completion
 
 Run the relevant tests, build, lint, type checks, and user-flow checks. Every visible button and form in a claimed-complete scope must actually work. Do not report completion based only on file creation.
+
+## 15. Fixed six-agent orchestra
+
+The project has exactly six agents in total, including the Orchestrator:
+
+1. `orchestrator`
+2. `scout`
+3. `verifier`
+4. `strategist`
+5. `writer`
+6. `guardian`
+
+Rules:
+
+- Do not add a seventh or dynamically generated agent.
+- Do not remove, merge, rename, or split an agent role without explicit user approval, four design options, a decision-log entry, and updated tests.
+- There is no dedicated price agent. Price, stock, seller, quantity, model, and observation time are evidence fields owned by `verifier`.
+- Only `orchestrator` may delegate work.
+- Specialists return structured artifacts to `orchestrator`; they do not form hidden agent-to-agent conversations.
+- Every agent must have a narrow mission, input contract, output contract, tool allowlist, forbidden actions, and stop conditions.
+- Scheduler, publisher adapter, metrics collector, and audit log remain deterministic services, not agents.
+- No agent may own or invoke external publication directly.
+- Guardian blockers cannot be bypassed by the Orchestrator, Writer, or user-interface code.
+- Default loop limits are one Scout refinement, two Writer revisions, and twelve total specialist invocations.
+- Reaching a limit triggers a human decision; it never triggers creation of another agent.
