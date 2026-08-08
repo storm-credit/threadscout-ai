@@ -2,25 +2,30 @@
 
 Approval-first product discovery and content operations for Threads.
 
-## Product direction
+## Direction
 
-ThreadScout finds **실용 신박템**, verifies exact product evidence, creates four different content approaches, performs an independent Guardian review, and requires human approval before a local queue record is created.
+The primary niche is **실용 신박템**: products with an unexpected mechanism that solve a visible everyday problem and can be demonstrated quickly. Novelty alone is not enough.
 
 ## Current phase
 
-Phase 2D — the fixed six-agent orchestra now has:
+Phase 2E adds a strictly read-only research boundary before any real source is connected.
 
-- six detailed prompts and output schemas
-- provider-neutral replay execution
-- strict per-agent runtime and tool budgets
-- content-addressed source/artifact storage
-- prompt, schema, roster, evidence, parent, and artifact hashes
-- append-only per-run event streams with hash-chain validation
-- stale-artifact detection when evidence changes
+The repository now contains:
 
-No live model, product-data, affiliate, search, or Threads API is connected. All demonstrations use explicitly synthetic fixture data. External publishing is disabled.
+- fixed six-agent orchestra
+- detailed prompts and schemas
+- provider-neutral replay runtime and strict tool broker
+- practical-novelty scoring
+- versioned content-addressed evidence/artifact store
+- hash-chained run events and stale-artifact detection
+- source-record policy and schemas
+- deterministic fixture research adapter
+- candidate normalization across observation and listing records
+- evidence dependency index
 
-## Fixed six-agent roster
+No live model, Threads/product/affiliate search, retailer API, or publication is connected. Fixture URLs, products, prices, sellers, stock, and signals are synthetic.
+
+## Fixed agents
 
 1. Orchestrator
 2. Product Scout
@@ -29,57 +34,45 @@ No live model, product-data, affiliate, search, or Threads API is connected. All
 5. Threads Writer
 6. Integrity Guardian
 
-There is no dedicated price agent. Price, stock, seller, variant, and observation time are one Evidence Verifier snapshot.
+There is no price agent. Commerce facts belong to Evidence Verifier.
 
-## Runtime and persistence flow
+## Research boundary
 
 ```text
-objective
+read-only source adapter
   ↓
-provider-neutral replay runtime
+validated source records
   ↓
-6 validated agent artifacts
+content-addressed storage
   ↓
-version metadata + content hashes
+Scout candidate evidence
   ↓
-content-addressed object store
-  ↓
-hash-chained run events
-  ↓
-Guardian pass → explicit human approval → local-only queue
+Verifier exact-product and commerce checks
 ```
+
+Only Scout and Verifier have research tools. Writer, Strategist, Guardian, and Orchestrator cannot use Scout search tools outside their own allowlists.
 
 ## Commands
 
 ```bash
 npm run verify
-npm run orchestra:demo
+npm run research:fixture
 npm run orchestra:simulate
 npm run orchestra:replay
 npm run orchestra:store
 npm start
 ```
 
-## Key files
+## Key Phase 2E files
 
-- `packages/orchestra/src/agent-registry.mjs` — fixed six roles
-- `packages/orchestra/src/prompts.mjs` — six prompts
-- `packages/orchestra/src/schemas.mjs` — six output schemas
-- `packages/orchestra/src/model-runtime.mjs` — provider-neutral replay runtime
-- `packages/orchestra/src/tool-broker.mjs` — strict tool authorization
-- `packages/orchestra/src/versioning.mjs` — canonical hashes and artifact freshness
-- `packages/orchestra/src/evidence-store.mjs` — content-addressed objects and JSONL event chain
-- `packages/orchestra/src/executor.mjs` — runtime, versioning, persistence, and approval flow
-- `docs/STORAGE_OPTIONS.md` — four persistence options and selected design
+- `research-policy.mjs` — network, mutation, schemes, source types, retention, and privacy rules
+- `source-records.mjs` — sanitized, hashed source records
+- `fixture-research-adapter.mjs` — deterministic read-only fixture source
+- `research-tools.mjs` — handlers matching Scout/Verifier allowlists
+- `candidate-evidence.mjs` — cross-source product grouping and readiness
+- `dependency-index.mjs` — evidence-to-artifact invalidation relationships
+- `fixture-research-pipeline.mjs` — research, persistence, and audit flow
 
-## Current non-goals
+## Next blocked gate
 
-- live LLM/API credentials
-- live product scraping or current price claims
-- distributed/multi-process workers
-- automatic comments, likes, follows, purchase, payment, or publication
-- dynamic or seventh agents
-
-## Next safe gate
-
-Add source/evidence schemas, artifact invalidation indexes, and a read-only fixture research adapter. Live public research remains blocked until source access terms, recency, rate limits, retention, and redaction are explicitly checked.
+The next step would be a **live read-only public-source adapter**, but it is intentionally blocked pending a source-by-source review of official access, terms, robots, rate limits, privacy, retention, media rights, and recency. External publishing remains a later separate approval decision.

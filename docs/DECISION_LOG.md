@@ -8,66 +8,65 @@ Use `threadscout-ai` and `ThreadScout AI`.
 
 ## 2026-08-08 — Approval-first B+C hybrid
 
-Use a personal approval dashboard first, then add discovery and learning. Truth, identity, rights, Guardian review, and human approval precede automation.
+Use a personal approval dashboard first, then discovery and learning. Truth, exact identity, rights, Guardian review, and human approval precede automation.
 
 ---
 
 ## 2026-08-08 — Fixed six-agent orchestra
 
-The roster is Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian. Price is Verifier evidence, not an agent.
+Use Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian. Price is Verifier evidence, not an agent.
 
 ---
 
 ## 2026-08-08 — Practical demonstrable novel items
 
-Four niche options were compared. Select 실용 시연형 신박템. Problem clarity, demonstration, and practical utility receive 60% of the score.
-
----
-
-## 2026-08-08 — Prompt/schema fixture before live models
-
-Create six prompts, six schemas, and a deterministic full-run fixture before any paid or nondeterministic model call.
+Select 실용 시연형 신박템 after comparing four niche options. Problem clarity, demonstration, and utility receive 60% of the score.
 
 ---
 
 ## 2026-08-08 — Provider-neutral replay runtime
 
-Four runtime options were compared. Select a small provider-neutral interface and replay provider. Add per-agent budgets, receipts, schema validation, and a strict tool broker. Defer live SDK and durable workflow infrastructure.
+Select a provider-neutral interface and deterministic replay after four runtime options. Add budgets, receipts, schema checks, and strict tool brokerage before live models.
 
 ---
 
 ## 2026-08-08 — Content-addressed JSONL evidence store
 
+Select local content-addressed objects and per-run hash-chained JSONL after comparing in-memory, JSONL, SQLite, and managed database options. This proves contracts but not production multi-process durability.
+
+---
+
+## 2026-08-08 — Read-only fixture research before live sources
+
 ### Options considered
 
-1. in-memory only
-2. content-addressed objects plus per-run JSONL event chain
-3. SQLite
-4. managed PostgreSQL/object storage
+1. manual source entry only
+2. read-only adapter contract with fixture records
+3. immediate live website/API integrations
+4. commercial research-data provider
 
 ### Decision
 
-Select option 2 for Phase 2D.
+Select option 2 for Phase 2E.
 
 ### Reason
 
-The project needs reproducible version and invalidation contracts before it needs production infrastructure. This design is dependency-free, inspectable, and testable without credentials or cost.
+The project must prove source policy, privacy, provenance, rights, timestamps, role tool boundaries, normalization, persistence, and invalidation before a real source creates legal or factual risk.
 
 ### Impact
 
-- roster, prompt, schema, evidence, parent, and artifact hashes are recorded
-- artifacts can be detected as stale after evidence or configuration changes
-- sources/artifacts are immutable content-addressed objects
-- run actions are append-only and hash chained
-- the replay executor can persist six artifacts, model invocation metadata, human decision, failure, and local queue events
-
-### Boundary
-
-Per-run writes are serialized only inside one process. Multi-process workers require SQLite or another transactional backend.
+- research policy disables network and mutation
+- only `fixture:` records and approved source types pass
+- source records are sanitized, hashed, synthetic, and personal-data free by contract
+- Scout and Verifier receive brokered tools matching their fixed allowlists
+- Writer remains unable to research new facts
+- exact-match readiness requires cross-source observation and listing evidence
+- source records persist in the content-addressed store
+- dependency index propagates evidence invalidation
 
 ### Remaining risks
 
-- partial-line crash recovery is not implemented
-- retention, redaction, deletion, export, and garbage collection are not implemented
-- hash consistency does not establish factual truth
-- dependency invalidation is evaluated but not yet indexed across all stored runs
+- fixtures do not prove live API availability, terms, robots, pagination, auth, or rate limits
+- simple excerpt cleanup is not sufficient for real personal-data redaction
+- source independence and repost detection are not implemented
+- no live adapter may be enabled without a source-by-source review and explicit approval
