@@ -6,7 +6,7 @@
 2. A selected candidate produces four meaningfully different approaches.
 3. The user can edit, approve, hold, reject, and suppress.
 4. No content reaches a queue without Guardian pass and explicit human approval.
-5. Unresolved identity, disclosure, rights, or unsupported first-hand language blocks approval.
+5. Exact product identity, disclosure, media rights, and any first-hand claim must be resolved before approval; unresolved values block progression.
 6. Similar products are labeled as alternatives.
 7. Failures provide a readable reason and next action.
 
