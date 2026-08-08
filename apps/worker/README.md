@@ -1,3 +1,3 @@
-# Worker application
+# apps/worker
 
-Placeholder for scheduled candidate processing, checks, publishing, and analytics jobs.
+Reserved for the implementation phase after the user interview and architecture gate are complete.
