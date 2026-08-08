@@ -18,8 +18,48 @@ const OUTPUT_TYPE_BY_AGENT = Object.freeze({
   [AGENT_IDS.GUARDIAN]: ARTIFACT_TYPES.REVIEW_REPORT
 });
 
+const PRICE_STATUSES = new Set(['observed', 'unavailable', 'not_applicable']);
+const STOCK_STATUSES = new Set(['in_stock', 'out_of_stock', 'unknown', 'not_applicable']);
+const SELLER_STATUSES = new Set(['verified', 'unverified', 'unavailable', 'not_applicable']);
+const VARIANT_STATUSES = new Set(['verified', 'unresolved', 'not_applicable']);
+
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function validateCommerceSnapshot(snapshot) {
+  const errors = [];
+  if (!snapshot || typeof snapshot !== 'object') {
+    return ['Verifier evidence_packet requires commerceSnapshot.'];
+  }
+  if (!isNonEmptyString(snapshot.observedAt)) {
+    errors.push('commerceSnapshot.observedAt is required.');
+  }
+  if (!PRICE_STATUSES.has(snapshot.priceStatus)) {
+    errors.push('commerceSnapshot.priceStatus must be observed, unavailable, or not_applicable.');
+  }
+  if (snapshot.priceStatus === 'observed') {
+    if (typeof snapshot.amount !== 'number' || snapshot.amount < 0) {
+      errors.push('Observed price requires a non-negative numeric amount.');
+    }
+    if (!isNonEmptyString(snapshot.currency)) errors.push('Observed price requires currency.');
+  }
+  if (!STOCK_STATUSES.has(snapshot.stockStatus)) {
+    errors.push('commerceSnapshot.stockStatus is invalid.');
+  }
+  if (!SELLER_STATUSES.has(snapshot.sellerStatus)) {
+    errors.push('commerceSnapshot.sellerStatus is invalid.');
+  }
+  if (snapshot.sellerStatus === 'verified' && !isNonEmptyString(snapshot.sellerName)) {
+    errors.push('Verified seller requires sellerName.');
+  }
+  if (!VARIANT_STATUSES.has(snapshot.variantStatus)) {
+    errors.push('commerceSnapshot.variantStatus is invalid.');
+  }
+  if (snapshot.variantStatus === 'verified' && !isNonEmptyString(snapshot.variantName)) {
+    errors.push('Verified variant requires variantName.');
+  }
+  return errors;
 }
 
 export function validateAgentArtifact(agentId, artifact) {
@@ -49,9 +89,7 @@ export function validateAgentArtifact(agentId, artifact) {
     if (!Array.isArray(artifact.sources) || artifact.sources.length === 0) {
       errors.push('Verifier evidence_packet requires source evidence.');
     }
-    if (!artifact.priceSnapshot || !isNonEmptyString(artifact.priceSnapshot.status) || !isNonEmptyString(artifact.priceSnapshot.observedAt)) {
-      errors.push('Verifier evidence_packet requires a timestamped price snapshot status, even when price is unavailable.');
-    }
+    errors.push(...validateCommerceSnapshot(artifact.commerceSnapshot));
     if (!isNonEmptyString(artifact.mediaRights)) errors.push('Verifier evidence_packet requires mediaRights.');
   }
 
