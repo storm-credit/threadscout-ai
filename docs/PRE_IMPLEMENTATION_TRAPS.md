@@ -50,3 +50,26 @@ No publishing integration should begin until every blocking item is resolved.
 - [ ] Show uncertainty and blocking risks before the CTA.
 - [ ] Ensure approve and reject actions cannot be confused.
 - [ ] Provide undo or cancellation where technically possible.
+
+## Agent-orchestration contracts
+
+- [x] Fix the total roster at six agents including the Orchestrator.
+- [x] Assign price, stock, seller, quantity, and observation timestamp to the Evidence Verifier.
+- [x] Prohibit a dedicated price agent.
+- [x] Require every specialist to return control to the Orchestrator.
+- [x] Define structured artifact types for every handoff.
+- [x] Require exactly four strategy angles and four drafts.
+- [x] Require Guardian pass before human approval.
+- [x] Require human approval before local queueing.
+- [x] Keep publishing outside every agent tool allowlist.
+- [x] Add loop and total invocation limits.
+- [ ] Choose the real model provider and model per role.
+- [ ] Measure token cost and latency for one standard run.
+- [ ] Define prompt/version hashes in every artifact.
+- [ ] Define claim-level source IDs that survive every rewrite.
+- [ ] Define artifact versioning and invalidation after evidence changes.
+- [ ] Define concurrent-run locking and atomic state persistence.
+- [ ] Add model timeout, malformed-output, and partial-run recovery.
+- [ ] Add trace redaction before storing prompts or external data.
+- [ ] Re-verify price/stock immediately before an approved post references them.
+- [ ] Keep Guardian context independent enough to avoid Writer confirmation bias.

@@ -12,8 +12,12 @@ const requiredFiles = [
   'docs/PRODUCT_SCOUT_SPEC.md',
   'docs/PROMPTING_PLAYBOOK.md',
   'docs/ARCHITECTURE.md',
+  'docs/AGENT_ORCHESTRA.md',
+  'docs/AGENT_RESEARCH.md',
+  'docs/PHASE2_PLAN.md',
   'docs/REFERENCE_PROJECTS.md',
-  'docs/DECISION_LOG.md'
+  'docs/DECISION_LOG.md',
+  'docs/IMPLEMENTATION_STATUS.md'
 ];
 
 const missing = [];
