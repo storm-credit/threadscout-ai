@@ -32,7 +32,7 @@ Preserve existing behavior. Avoid unrelated refactoring, unnecessary dependencie
 
 ## 8. Approval first
 
-No post may be published without Guardian pass and explicit human approval. Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement.
+No post may be published without explicit human approval. Guardian pass is also required before human approval can move content into a queue. Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement.
 
 ## 9. Truth and content integrity
 
