@@ -17,8 +17,10 @@ const requiredFiles = [
   'docs/PHASE2_PLAN.md',
   'docs/PHASE2B_PLAN.md',
   'docs/PHASE2C_PLAN.md',
+  'docs/PHASE2D_PLAN.md',
   'docs/SINBAK_ITEM_STRATEGY.md',
   'docs/RUNTIME_OPTIONS.md',
+  'docs/STORAGE_OPTIONS.md',
   'docs/REFERENCE_PROJECTS.md',
   'docs/DECISION_LOG.md',
   'docs/IMPLEMENTATION_STATUS.md'

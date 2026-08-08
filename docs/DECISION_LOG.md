@@ -8,74 +8,66 @@ Use `threadscout-ai` and `ThreadScout AI`.
 
 ## 2026-08-08 — Approval-first B+C hybrid
 
-Use a personal approval dashboard first, then add discovery and learning. Truth, identity, rights, and approval precede automation.
+Use a personal approval dashboard first, then add discovery and learning. Truth, identity, rights, Guardian review, and human approval precede automation.
 
 ---
 
-## 2026-08-08 — Phase 1 local-first implementation
+## 2026-08-08 — Fixed six-agent orchestra
 
-Proceed with reversible local behavior because automatic continuation was requested. No credentials, cost, or irreversible external action were introduced.
-
----
-
-## 2026-08-08 — Fix the orchestra at six total agents
-
-The fixed roster is Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian. Price is evidence owned by Verifier, not an agent.
+The roster is Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian. Price is Verifier evidence, not an agent.
 
 ---
 
-## 2026-08-08 — Use a framework-neutral orchestrator first
+## 2026-08-08 — Practical demonstrable novel items
 
-Keep registry, artifacts, routing, loops, and human approval independent of a heavy framework.
-
----
-
-## 2026-08-08 — Select practical demonstrable novel items
-
-Four options were compared: viral gimmicks, practical demonstrations, ultra-low-price novelty, and parenting novelty. Select practical demonstration-first novel items. Problem clarity, demonstration, and utility receive 60% of the score.
+Four niche options were compared. Select 실용 시연형 신박템. Problem clarity, demonstration, and practical utility receive 60% of the score.
 
 ---
 
-## 2026-08-08 — Add prompts, schemas, and synthetic fixture before live models
+## 2026-08-08 — Prompt/schema fixture before live models
 
-Create six prompts, six schemas, and a deterministic fixture so failures are reproducible before paid calls.
+Create six prompts, six schemas, and a deterministic full-run fixture before any paid or nondeterministic model call.
 
 ---
 
-## 2026-08-08 — Select a provider-neutral runtime adapter
+## 2026-08-08 — Provider-neutral replay runtime
 
-### Options
+Four runtime options were compared. Select a small provider-neutral interface and replay provider. Add per-agent budgets, receipts, schema validation, and a strict tool broker. Defer live SDK and durable workflow infrastructure.
 
-1. direct provider calls inside each agent
-2. provider-neutral adapter
-3. full agent framework immediately
-4. durable job/workflow infrastructure immediately
+---
+
+## 2026-08-08 — Content-addressed JSONL evidence store
+
+### Options considered
+
+1. in-memory only
+2. content-addressed objects plus per-run JSONL event chain
+3. SQLite
+4. managed PostgreSQL/object storage
 
 ### Decision
 
-Select option 2. Add a common runtime that receives fixed prompt, schema, agent ID, run ID, and structured input. It returns one validated artifact and one invocation receipt.
-
-### First provider
-
-Use a deterministic `replay` provider. Do not connect a live model yet.
+Select option 2 for Phase 2D.
 
 ### Reason
 
-Direct calls duplicate retry, budget, audit, and schema behavior. A full framework or durable queue is premature. Replay tests the same boundary without credentials, cost, or non-determinism.
+The project needs reproducible version and invalidation contracts before it needs production infrastructure. This design is dependency-free, inspectable, and testable without credentials or cost.
 
 ### Impact
 
-- runtime budgets are defined for exactly six agents
-- malformed or oversized outputs fail before state progression
-- every invocation produces a receipt
-- a strict tool broker enforces registry allowlists
-- publication, purchase, and payment tools are blocked
-- future providers must fit the contract rather than changing the orchestra
+- roster, prompt, schema, evidence, parent, and artifact hashes are recorded
+- artifacts can be detected as stale after evidence or configuration changes
+- sources/artifacts are immutable content-addressed objects
+- run actions are append-only and hash chained
+- the replay executor can persist six artifacts, model invocation metadata, human decision, failure, and local queue events
+
+### Boundary
+
+Per-run writes are serialized only inside one process. Multi-process workers require SQLite or another transactional backend.
 
 ### Remaining risks
 
-- character budgets are not provider token/cost budgets
-- timeout cancellation semantics differ by provider
-- prompt and schema version hashes are not yet persisted
-- replay cannot expose all live model failure modes
-- live SDK runtime requirements may require a separate Node version decision
+- partial-line crash recovery is not implemented
+- retention, redaction, deletion, export, and garbage collection are not implemented
+- hash consistency does not establish factual truth
+- dependency invalidation is evaluated but not yet indexed across all stored runs

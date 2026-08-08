@@ -2,7 +2,7 @@
 
 ## Direction
 
-Approval-first application using a fixed six-agent orchestra, provider-neutral model boundary, and deterministic state machine.
+Approval-first application using a fixed six-agent orchestra, provider-neutral runtime, deterministic state machine, and versioned evidence store.
 
 ```text
 User objective
@@ -13,74 +13,88 @@ Provider adapter + fixed prompt + output schema + budgets
       ↓
 Orchestrator → Scout → Verifier → Strategist → Writer → Guardian
       ↓
-Semantic contract + schema validation
+Semantic + schema validation
       ↓
-Human approval
+Version metadata + content-addressed persistence
+      ↓
+Guardian pass → Human approval
       ↓
 Deterministic local scheduler
 ```
 
 Only Orchestrator delegates. Specialists return artifacts to Orchestrator and cannot publish.
 
-## Layers
+## Fixed layers
 
-### Fixed registry
+### Six-agent registry
 
-Six roles, ownership, tool allowlists, forbidden actions, and stop conditions.
+Exactly six roles with missions, ownership, tool allowlists, forbidden actions, and stop conditions. Scheduler, publisher adapter, metrics collector, and audit log remain deterministic services.
 
 ### Prompt and schema layer
 
-Six system prompts and six machine-readable output schemas. Schema validation supplements semantic validation.
+Each role has one system prompt and one output schema. Schema validation supplements semantic validation.
 
-### State machine
+### Orchestration state machine
 
-Stage order, conditional Scout skip, one Scout refinement, two Writer revisions, invocation ceiling, Guardian gate, human gate, and local queue.
+The state machine owns stage order, one optional Scout refinement, two Writer revisions, total invocation ceiling, Guardian gate, human gate, and local queue transition.
 
 ### Provider-neutral runtime
 
-The runtime receives agent ID, run ID, prompt, output schema, and structured input. It returns one artifact and one receipt. It owns provider-specific timeout and output handling but cannot change role boundaries or workflow gates.
-
-Current provider: `replay`.
-
-### Budget layer
-
-Each of the six agents has:
-
-- timeout
-- maximum attempts
-- maximum input characters
-- maximum output characters
-
-Each run has:
-
-- maximum invocations
-- maximum elapsed time
-- maximum total output characters
-
-These runtime limits are additional to the orchestration loop limits.
+A provider receives agent ID, run ID, prompt, output schema, and structured input. It returns one artifact and one receipt. The current provider is deterministic replay. A provider cannot change the roster, gates, or publication policy.
 
 ### Tool broker
 
-All tool requests pass through one broker. It checks the agent registry allowlist and registered deterministic handler. Tools containing publication, payment, or purchase behavior are rejected even if misconfigured elsewhere.
+Every tool call is checked against the agent registry and a registered handler. Publication, purchase, payment, and equivalent external-action tools are denied.
 
-### Receipts and audit boundary
+## Phase 2D persistence
 
-Every replay/model invocation records provider, agent, run, attempt, input/output size, status, timestamps, and failure reason. Receipts contain metadata rather than secret-bearing raw prompts.
+### Canonical hashing
+
+Objects are serialized with recursively sorted object keys and hashed with SHA-256. This allows identical logical content to share one storage address.
+
+### Version manifest
+
+The runtime manifest contains:
+
+- roster hash
+- six prompt hashes
+- six schema hashes
+- manifest hash
+
+### Artifact metadata
+
+Persisted artifacts include:
+
+- format version and agent ID
+- manifest, prompt, and schema hashes
+- parent artifact hashes
+- current evidence hash
+- artifact integrity hash
+
+A changed prompt/schema/manifest or evidence hash can mark an artifact stale even when its text has not changed.
+
+### Content-addressed objects
+
+Sanitized sources and versioned artifacts are stored under paths derived from their content hashes. Stored objects are rehashed when read.
+
+### Append-only run events
+
+Each run has an isolated JSONL stream. Events include sequence, previous-event hash, payload hash, and event hash. Mutation or reordering is detectable.
+
+### Concurrency boundary
+
+Writes are serialized per run inside one process. This does not provide distributed or multi-process transaction guarantees. SQLite is the next local durability candidate before worker concurrency.
 
 ## Evidence boundary
 
-Scout proposes; Verifier confirms canonical product, exact match, claims, rights, personal-use status, and timestamped commerce snapshot. Fixture values remain synthetic.
-
-## Deterministic services
-
-Scheduler, publisher adapter, metrics collector, and audit log are not agents. Publisher remains disabled.
+Scout proposes candidates. Verifier confirms canonical product, exact product identity, claims, media rights, personal-use status, and timestamped commerce evidence. Fixture values remain synthetic.
 
 ## Next implementation order
 
-1. Prompt and artifact version hashes
-2. Persistent evidence/event store
-3. Artifact invalidation when evidence changes
-4. Read-only research tool adapter with source recency and access controls
-5. Replay fixtures from recorded sanitized runs
-6. Live model adapter after provider review
-7. Publishing only after a separate permission and safety gate
+1. Source and evidence-record schemas
+2. Claim-to-source indexes and artifact invalidation graph
+3. Read-only fixture research adapter
+4. SQLite compatibility/migration interface
+5. Live source policy, recency, rate-limit, and retention review
+6. Live model provider review
+7. Publishing only after separate explicit approval

@@ -1,51 +1,41 @@
 # Implementation Status
 
-## Phase 0 — complete
+## Completed
 
-Project constitution, interview, success criteria, four design options, blind spots, traps, architecture, and references are present.
+- Phase 0: product definition, interviews, success conditions, blind spots, traps, four designs, references
+- Phase 1: mobile local approval workspace
+- Phase 2A: fixed six-agent orchestra and bounded state machine
+- Phase 2B: practical novel-item niche, six prompts/schemas, synthetic full simulation
+- Phase 2C: provider-neutral replay runtime, budgets, receipts, and tool broker
 
-## Phase 1 — complete
+## Phase 2D — implemented on feature branch
 
-Mobile-first local product cards, four draft angles, evidence controls, integrity checks, approval actions, persistence, and local-only queue.
-
-## Phase 2A — complete
-
-Exactly six agents, central Orchestrator routing, structured artifacts, bounded loops, Guardian review, human approval, and deterministic non-agent services.
-
-## Phase 2B — complete
-
-Practical novel-item niche, six prompts, six schemas, scoring gates, synthetic fixture evidence, and a deterministic full run.
-
-## Phase 2C — implemented on feature branch
-
-- provider-neutral model runtime interface
-- replay provider using the production prompt/schema boundary
-- exactly six agent budget records
-- per-agent timeout, attempts, input, and output limits
-- total invocation, elapsed-time, and output limits
-- auditable model invocation receipts
-- strict per-agent tool broker
-- explicit publication, purchase, and payment tool denial
-- runtime executor connected to the existing state machine
-- safe failure for malformed output and budget overflow
-- human rejection path with no queue record
-- replay CLI and automated tests
+- canonical JSON serialization and SHA-256 hashing
+- roster/prompt/schema runtime manifest
+- version metadata on every persisted artifact
+- artifact integrity verification
+- stale detection after evidence or prompt/schema changes
+- content-addressed source and artifact objects
+- append-only JSONL run events
+- previous-hash event chaining
+- per-process per-run write serialization
+- runtime persistence of six artifacts, invocation records, human decision, failure, and local queue events
+- tamper, concurrency, freshness, and integration tests
 
 ## Verification
 
 ```bash
 npm run verify
-npm run orchestra:demo
-npm run orchestra:simulate
-npm run orchestra:replay
+npm run orchestra:store
 ```
 
-## Still intentionally disconnected
+## Still disconnected
 
-- live model provider and API keys
+- live model provider
 - live Threads/product/affiliate research
-- persistent evidence database
+- persistent production database
+- cross-process locking
 - real external tool calls
 - external publishing
 
-The next phase should persist evidence and version prompts/artifacts before any live research adapter is added.
+The next phase should define source/evidence schemas and a read-only fixture research adapter before evaluating any live source.
