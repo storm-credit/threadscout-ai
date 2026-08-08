@@ -1,3 +1,3 @@
-# Web application
+# apps/web
 
-Placeholder for the mobile-first approval dashboard implementation.
+Reserved for the implementation phase after the user interview and architecture gate are complete.
