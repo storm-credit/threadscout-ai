@@ -2,7 +2,7 @@
 
 ## 1. Verify context first
 
-Read the README, project brief, success criteria, orchestra design, niche strategy, runtime/storage/research options, blind spots, traps, and decision log. Verify repository and branch state rather than assuming completion.
+Read the README, project brief, success criteria, orchestra design, niche strategy, runtime/storage/research/live-source options, blind spots, traps, and decision log. Verify repository and branch state rather than assuming completion.
 
 ## 2. Automatic continuation boundary
 
@@ -43,24 +43,30 @@ Exactly six agents exist: `orchestrator`, `scout`, `verifier`, `strategist`, `wr
 - Runtime budgets cover exactly six agents and every invocation produces a receipt.
 - Every tool call passes registry allowlists and a reviewed handler.
 - Publication, purchase, payment, and equivalent tools are forbidden.
-- Persisted artifacts include manifest, prompt, schema, parent, evidence, and integrity hashes.
 - Sources and artifacts are content addressed; run events are sequential and hash chained.
 - Tampered or stale artifacts cannot be treated as valid.
 - `.threadscout-data/` and credentials remain outside Git.
 
-## 8. Read-only research rule
+## 8. Research roles
 
-Phase 2E is fixture-only.
-
-- `networkAllowed=false` and `mutationAllowed=false`.
-- Only `fixture:` URLs and approved source types are accepted.
-- Raw payload and personal-data storage are forbidden.
-- Source records require observed/retrieved times, policy, rights, retention, redaction, product mentions, purchase signals, and content hash.
-- Scout proposes candidate evidence; Verifier owns exact-match conclusions.
+- Scout may discover candidate sources through approved read-only tools.
+- Verifier owns exact product, rights, claims, seller, variant, price/stock timestamp, and cross-source conclusions.
 - Writer cannot browse for new facts.
-- One listing or one social observation is not independent proof.
-- No live adapter is enabled without source-specific review and explicit approval.
+- One social observation or listing is not independent proof.
 
-## 9. Verification and deviations
+## 9. Live source readiness
 
-Record where plans fail, the original plan, change, reason, impact, and remaining risks. Run documentation checks, tests, simulations, replay, store-chain validation, fixture research, and relevant user flows before reporting completion.
+Phase 2F does not enable network execution.
+
+- Every network source remains `enabled=false`, `networkEnabled=false`, and `mutationAllowed=false`.
+- Threads is the selected primary future discovery source; NAVER trends are secondary corroboration.
+- Google Trends alpha is deferred; Coupang Seller Open API is rejected for general affiliate discovery.
+- Manual user evidence is the only enabled fallback and performs no network call.
+- Credential names may appear in configuration; credential values never enter Git, logs, readiness reports, prompts, artifacts, or events.
+- Credentials alone cannot activate a source.
+- Activation requires completed source-specific checks, explicit human approval, and a reviewed pull request.
+- Disabled request builders must redact secrets and refuse execution.
+
+## 10. Verification and deviations
+
+Record where plans fail, the original plan, change, reason, impact, and remaining risks. Run documentation checks, all tests, simulations, replay, store-chain validation, fixture research, live-source readiness, and relevant user flows before reporting completion.

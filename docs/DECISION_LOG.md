@@ -32,41 +32,52 @@ Select a provider-neutral interface and deterministic replay after four runtime 
 
 ## 2026-08-08 — Content-addressed JSONL evidence store
 
-Select local content-addressed objects and per-run hash-chained JSONL after comparing in-memory, JSONL, SQLite, and managed database options. This proves contracts but not production multi-process durability.
+Select local content-addressed objects and per-run hash-chained JSONL after comparing in-memory, JSONL, SQLite, and managed database options.
 
 ---
 
 ## 2026-08-08 — Read-only fixture research before live sources
 
-### Options considered
+Select a fixture-first read-only adapter contract after four options. Prove source policy, privacy, provenance, rights, timestamps, role boundaries, normalization, persistence, and invalidation before live data.
 
-1. manual source entry only
-2. read-only adapter contract with fixture records
-3. immediate live website/API integrations
-4. commercial research-data provider
+---
+
+## 2026-08-08 — Prepare Threads + NAVER source stack without activation
+
+### Four options
+
+1. Threads official API only
+2. Threads official API plus NAVER API HUB trends and manual fallback
+3. Google Trends-led research
+4. scraping/commercial aggregator
 
 ### Decision
 
-Select option 2 for Phase 2E.
+Select option 2 as the future source stack, but keep every network source disabled.
+
+### Source dispositions
+
+- Meta Threads Keyword Search: selected primary discovery
+- NAVER API HUB Search Trend/Shopping Insight: selected secondary trend signal
+- Google Trends API alpha: deferred limited access
+- Coupang Seller Open API: rejected for general affiliate discovery
+- manual user evidence: enabled offline fallback
 
 ### Reason
 
-The project must prove source policy, privacy, provenance, rights, timestamps, role tool boundaries, normalization, persistence, and invalidation before a real source creates legal or factual risk.
+Threads is closest to the target content platform, while NAVER provides a separate Korean search/click trend signal. Neither source alone proves exact product identity. Google access is not generally available, and Coupang's documented seller API does not match arbitrary affiliate-product discovery.
 
 ### Impact
 
-- research policy disables network and mutation
-- only `fixture:` records and approved source types pass
-- source records are sanitized, hashed, synthetic, and personal-data free by contract
-- Scout and Verifier receive brokered tools matching their fixed allowlists
-- Writer remains unable to research new facts
-- exact-match readiness requires cross-source observation and listing evidence
-- source records persist in the content-addressed store
-- dependency index propagates evidence invalidation
+- source registry stores endpoint, credential-name, permission, purpose, owner, official-reference, and readiness metadata
+- credentials alone cannot activate a source
+- explicit human activation approval and a code change are required
+- request builders are redacted and execution-disabled
+- no live source, model, affiliate, or publishing call is made
 
 ### Remaining risks
 
-- fixtures do not prove live API availability, terms, robots, pagination, auth, or rate limits
-- simple excerpt cleanup is not sufficient for real personal-data redaction
-- source independence and repost detection are not implemented
-- no live adapter may be enabled without a source-by-source review and explicit approval
+- Meta permission availability/review and rate limits require account-specific confirmation
+- NAVER credentials, quotas, cost, and category mapping require NCP setup
+- live-source privacy and retention need production-grade redaction
+- exact product and commerce verification still needs an authorized listing source or manual evidence

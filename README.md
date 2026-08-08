@@ -8,22 +8,31 @@ The primary niche is **실용 신박템**: products with an unexpected mechanism
 
 ## Current phase
 
-Phase 2E adds a strictly read-only research boundary before any real source is connected.
+Phase 2F prepares official live-source contracts without enabling them.
 
 The repository now contains:
 
 - fixed six-agent orchestra
-- detailed prompts and schemas
+- six prompts and output schemas
 - provider-neutral replay runtime and strict tool broker
 - practical-novelty scoring
 - versioned content-addressed evidence/artifact store
 - hash-chained run events and stale-artifact detection
-- source-record policy and schemas
-- deterministic fixture research adapter
-- candidate normalization across observation and listing records
-- evidence dependency index
+- deterministic fixture research
+- live-source registry and redacted readiness reports
+- disabled Threads and NAVER request builders
 
-No live model, Threads/product/affiliate search, retailer API, or publication is connected. Fixture URLs, products, prices, sellers, stock, and signals are synthetic.
+No live model, social/product/trend API, affiliate integration, or publication is enabled.
+
+## Source readiness decision
+
+- Primary future discovery: Meta Threads Keyword Search
+- Secondary Korean trend corroboration: NAVER API HUB Search Trend and Shopping Insight
+- Deferred: Google Trends API alpha
+- Rejected for general affiliate discovery: Coupang Seller Open API
+- Enabled fallback: manually supplied product/source references, with no network action
+
+Every network source remains disabled and requires credentials outside Git, completed source-specific checks, explicit human activation approval, and a separate code change.
 
 ## Fixed agents
 
@@ -36,43 +45,26 @@ No live model, Threads/product/affiliate search, retailer API, or publication is
 
 There is no price agent. Commerce facts belong to Evidence Verifier.
 
-## Research boundary
-
-```text
-read-only source adapter
-  ↓
-validated source records
-  ↓
-content-addressed storage
-  ↓
-Scout candidate evidence
-  ↓
-Verifier exact-product and commerce checks
-```
-
-Only Scout and Verifier have research tools. Writer, Strategist, Guardian, and Orchestrator cannot use Scout search tools outside their own allowlists.
-
 ## Commands
 
 ```bash
 npm run verify
 npm run research:fixture
+npm run research:readiness
 npm run orchestra:simulate
 npm run orchestra:replay
 npm run orchestra:store
 npm start
 ```
 
-## Key Phase 2E files
+## Key Phase 2F files
 
-- `research-policy.mjs` — network, mutation, schemes, source types, retention, and privacy rules
-- `source-records.mjs` — sanitized, hashed source records
-- `fixture-research-adapter.mjs` — deterministic read-only fixture source
-- `research-tools.mjs` — handlers matching Scout/Verifier allowlists
-- `candidate-evidence.mjs` — cross-source product grouping and readiness
-- `dependency-index.mjs` — evidence-to-artifact invalidation relationships
-- `fixture-research-pipeline.mjs` — research, persistence, and audit flow
+- `live-source-registry.mjs` — source purpose, status, credentials, permissions, references, and activation gates
+- `source-readiness.mjs` — secret-safe preflight reporting
+- `disabled-live-adapters.mjs` — redacted request builders that cannot execute
+- `docs/LIVE_SOURCE_REVIEW.md` — official source findings
+- `docs/LIVE_SOURCE_OPTIONS.md` — four source-stack options and selection
 
-## Next blocked gate
+## Next gate
 
-The next step would be a **live read-only public-source adapter**, but it is intentionally blocked pending a source-by-source review of official access, terms, robots, rate limits, privacy, retention, media rights, and recency. External publishing remains a later separate approval decision.
+The codebase has reached the credential/live-data boundary. Enabling Meta Threads or NAVER API HUB requires account-specific credentials, permission/quota confirmation, explicit activation approval, and a new pull request. External publishing remains a separate later gate.

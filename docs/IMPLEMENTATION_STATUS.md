@@ -8,35 +8,33 @@
 - Phase 2B: practical novel-item niche, prompts/schemas, synthetic full simulation
 - Phase 2C: provider-neutral replay runtime, budgets, receipts, tool broker
 - Phase 2D: versioned content-addressed evidence/artifact store and hash-chained run events
+- Phase 2E: read-only fixture research, validated source records, candidate evidence, invalidation index
 
-## Phase 2E — implemented on feature branch
+## Phase 2F — implemented on feature branch
 
-- explicit read-only, non-networked research policy
-- validated, sanitized, hashed source records
-- deterministic fixture observation and listing sources
-- source scheme/type, privacy, retention, rights, and timestamp controls
-- Scout public/topic/trend/normalization tool handlers
-- Verifier listing/cross-source/rights/commerce tool handlers
-- Writer research denial through existing allowlists
-- cross-source candidate evidence and exact-match readiness
-- content-addressed source persistence and audit events
-- dependency index for evidence invalidation propagation
-- fixture research CLI and tests
+- official-source review for Meta Threads, NAVER API HUB, Google Trends alpha, and Coupang Seller Open API
+- four live-source stack options and selected readiness plan
+- immutable live-source registry
+- primary/secondary/deferred/rejected/fallback dispositions
+- source-specific endpoint, permission, credential-name, role-owner, and readiness metadata
+- secret-safe readiness evaluation
+- explicit human activation gate
+- redacted disabled request builders for Threads and NAVER
+- tests proving every network source is disabled and read-only
+- credentials-alone activation prevention
 
 ## Verification
 
 ```bash
 npm run verify
-npm run research:fixture
+npm run research:readiness
 ```
 
-## Still intentionally disconnected
+## Blocked boundary
 
-- live public search or scraping
-- Threads keyword API
-- retailer/Coupang product API
-- Google Trends or commercial data
-- live model provider and credentials
-- external publication
+- no live source credentials are stored
+- no Meta/NAVER/Google/Coupang account is created or modified
+- no network request is executed
+- no live model or publishing adapter is enabled
 
-The next phase requires source-by-source policy research and explicit approval before enabling any live adapter.
+The next implementation phase begins only after explicit source activation approval and credentials are configured outside Git.
