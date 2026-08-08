@@ -40,12 +40,27 @@ function candidateSet(run) {
   });
 }
 
+function commerceSnapshot(overrides = {}) {
+  return {
+    observedAt: createdAt,
+    priceStatus: 'observed',
+    amount: 9900,
+    currency: 'KRW',
+    stockStatus: 'in_stock',
+    sellerStatus: 'verified',
+    sellerName: '테스트 판매자',
+    variantStatus: 'verified',
+    variantName: '기본 구성',
+    ...overrides
+  };
+}
+
 function evidencePacket(run, overrides = {}) {
   return artifact(run.runId, ARTIFACT_TYPES.EVIDENCE_PACKET, {
     exactMatchStatus: 'exact',
     sources: [{ id: 'source-1', type: 'listing' }],
     mediaRights: 'owned',
-    priceSnapshot: { status: 'observed', amount: 9900, currency: 'KRW', observedAt: createdAt },
+    commerceSnapshot: commerceSnapshot(),
     blockers: [],
     ...overrides
   });
@@ -148,12 +163,21 @@ test('exact user-supplied products skip Scout but never skip Verifier or Guardia
   assert.equal(plan.stages.find((item) => item.id === RUN_STAGE_IDS.REVIEW).skipped, false);
 });
 
-test('verifier artifacts require timestamped price status even when no amount is available', () => {
+test('verifier artifacts require one timestamped commerce snapshot without a separate price agent', () => {
   const valid = validateAgentArtifact(AGENT_IDS.VERIFIER, artifact('run-1', ARTIFACT_TYPES.EVIDENCE_PACKET, {
     exactMatchStatus: 'exact',
     sources: [{ id: 'source' }],
     mediaRights: 'not_required',
-    priceSnapshot: { status: 'unavailable', observedAt: createdAt }
+    commerceSnapshot: commerceSnapshot({
+      priceStatus: 'unavailable',
+      amount: undefined,
+      currency: undefined,
+      stockStatus: 'unknown',
+      sellerStatus: 'unavailable',
+      sellerName: undefined,
+      variantStatus: 'unresolved',
+      variantName: undefined
+    })
   }));
   assert.equal(valid.ok, true, valid.errors.join('\n'));
 
@@ -163,7 +187,28 @@ test('verifier artifacts require timestamped price status even when no amount is
     mediaRights: 'not_required'
   }));
   assert.equal(invalid.ok, false);
-  assert.match(invalid.errors.join(' '), /price snapshot/);
+  assert.match(invalid.errors.join(' '), /commerceSnapshot/);
+});
+
+test('observed commerce evidence requires price, seller, and variant details', () => {
+  const invalid = validateAgentArtifact(AGENT_IDS.VERIFIER, artifact('run-1', ARTIFACT_TYPES.EVIDENCE_PACKET, {
+    exactMatchStatus: 'exact',
+    sources: [{ id: 'source' }],
+    mediaRights: 'owned',
+    commerceSnapshot: {
+      observedAt: createdAt,
+      priceStatus: 'observed',
+      stockStatus: 'in_stock',
+      sellerStatus: 'verified',
+      variantStatus: 'verified'
+    }
+  }));
+
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.errors.join(' '), /amount/);
+  assert.match(invalid.errors.join(' '), /currency/);
+  assert.match(invalid.errors.join(' '), /sellerName/);
+  assert.match(invalid.errors.join(' '), /variantName/);
 });
 
 test('strategist and writer contracts require four distinct angles', () => {
