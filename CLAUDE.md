@@ -4,108 +4,62 @@ These rules apply to every human or AI contributor.
 
 ## 1. Read before changing
 
-Before editing code or documents, read:
-
-1. `README.md`
-2. `docs/PROJECT_BRIEF.md`
-3. `docs/SUCCESS_CRITERIA.md`
-4. `docs/AGENT_ORCHESTRA.md`
-5. `docs/BLIND_SPOTS.md`
-6. `docs/PRE_IMPLEMENTATION_TRAPS.md`
-7. `docs/DECISION_LOG.md`
-
-Do not assume a planned file, feature, integration, or previous completion exists. Verify the repository state first.
+Before editing, read `README.md`, `docs/PROJECT_BRIEF.md`, `docs/SUCCESS_CRITERIA.md`, `docs/AGENT_ORCHESTRA.md`, `docs/SINBAK_ITEM_STRATEGY.md`, `docs/BLIND_SPOTS.md`, `docs/PRE_IMPLEMENTATION_TRAPS.md`, and `docs/DECISION_LOG.md`. Verify repository state rather than assuming prior work exists.
 
 ## 2. Ask only for missing context
 
-Use the existing conversation and repository first. Do not repeat questions that have already been answered. Ask 3–5 high-impact questions at a time and provide a recommended default for difficult choices.
+Use existing conversation and repository information first. Do not repeat answered questions. When a reversible implementation can proceed from recorded defaults, document assumptions and continue; stop before credentials, spending, public posting, or other irreversible actions.
 
 ## 3. Define success and stopping conditions
 
-Every implementation task must state:
+Every task must state user-visible success conditions, technical verification, non-goals, and stop conditions. Stop rather than improvise when permissions, identity, media rights, tests, or required decisions are unresolved.
 
-- user-visible success conditions
-- technical verification steps
-- non-goals
-- stop conditions
+## 4. Sweep blind spots and traps
 
-Stop and report rather than improvise when permissions, product identity, media rights, test results, or required decisions are unresolved.
+Review product, legal, operational, platform, cost, security, data quality, agent coordination, source recency, and user-trust risks before implementation. Record new risks in the relevant document.
 
-## 4. Sweep blind spots before implementation
+## 5. Present four options for major changes
 
-Review product, legal, operational, platform, cost, security, data quality, agent coordination, and user-trust risks. Update `docs/BLIND_SPOTS.md` when a new risk is discovered.
+Before locking a major UI, workflow, architecture, niche, runtime, or agent-roster change, compare four options with benefits, drawbacks, cost, complexity, and largest risk.
 
-## 5. Check implementation traps first
+## 6. Study references without copying
 
-Confirm API capabilities, token lifecycle, rate limits, idempotency, retry behavior, exact product matching, agent contracts, loop limits, data retention, secrets handling, and rollback before implementation. Update `docs/PRE_IMPLEMENTATION_TRAPS.md`.
+Record what was studied, adopted, rejected, why, and any license risk. Public visibility is not permission to copy code, prompts, media, or creative material.
 
-## 6. Present four comparable options for major design decisions
+## 7. Implement conservatively
 
-Before locking a major UI, workflow, architecture, or agent-roster change, present four options in one comparable view. Include user flow, benefits, drawbacks, cost, complexity, largest risk, and recommended audience.
+Preserve existing behavior. Avoid unrelated refactoring, unnecessary dependencies, and scope expansion. Prefer small, verifiable, reversible changes.
 
-## 7. Study references without copying
+## 8. Approval first
 
-Use similar GitHub projects and products as structural references. Record:
+No post may be published without explicit human approval. Guardian pass is also required before human approval can move content into a queue. Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement.
 
-- what was studied
-- what will be adopted
-- what will not be adopted
-- licensing or copying risks
-- the reason for each decision
+## 9. Truth and content integrity
 
-For creative-writing projects, references are for structure, reader expectation, and genre convention—not sentence, scene, character, or setting replication.
+- Never claim personal use without a usage record.
+- Separate verified facts, opinion, inference, fixture data, and unknown information.
+- Do not invent real price, stock, seller, effect, review, or product identity.
+- Distinguish exact product, likely match, substitute, and unresolved.
+- Record media origin and rights.
+- Place affiliate disclosure visibly.
+- Do not make unsupported health, skincare, or child-development claims.
+- Synthetic fixture evidence must be labeled and cannot be surfaced as current market truth.
 
-## 8. Implement conservatively
+## 10. Record deviations
 
-Preserve existing behavior. Avoid unrelated refactoring, premature abstraction, unnecessary dependencies, and scope expansion. Prefer the smallest verifiable change.
+When blocked or changing plan, record where the original plan failed, the original plan, the change, reason, impact, and remaining risks in `docs/DECISION_LOG.md`.
 
-## 9. Approval first
+## 11. Prompt adaptation and refinement
 
-No post may be published without explicit human approval. Do not implement automatic comments, likes, follows, or unsolicited engagement. Draft generation and recommendation may be automated; irreversible external actions require approval.
+Goal prompts include completion and stop conditions. Coding prompts include constraints, affected files, commands, tests, and rollback. Research prompts include source quality, scope, recency, verification, and uncertainty. Refine through sample output, failure classification, instruction reduction, and retesting.
 
-## 10. Truth and content integrity
+## 12. Verify before completion
 
-- Never describe a product as personally used unless the record says it was used.
-- Separate verified facts, user opinion, inference, and unknown information.
-- Do not invent price, stock, effect, review, or product identity.
-- Distinguish an exact product from a similar substitute.
-- Record media origin and usage rights.
-- Place affiliate disclosure where a reader can easily see it.
-- Do not make medical, skincare, or health guarantees.
+Run relevant documentation, unit, integration, schema, simulation, build, and user-flow checks. Do not claim completion from file creation alone.
 
-## 11. Record deviations
+## 13. Fixed six-agent orchestra
 
-When blocked or when the plan changes, update `docs/DECISION_LOG.md` with:
-
-- where the original plan failed
-- the original plan
-- the change
-- the reason
-- the impact
-- remaining risks
-
-Do not silently change direction.
-
-## 12. Adapt prompts to the execution environment
-
-- Goal prompt: include completion and stop conditions.
-- Coding agent: include constraints, affected files, commands, tests, and rollback.
-- Image generation: include composition, subject, style, lighting, camera direction, aspect ratio, and prohibited elements.
-- Research agent: include source quality, scope, recency, verification method, and uncertainty format.
-
-## 13. Refine prompts through evidence
-
-Use this cycle:
-
-context dump → missing-context questions → explicit success criteria → first prompt → sample outputs → failure classification → remove ineffective instructions → retain safety and recurring-failure rules → re-test → final output review
-
-## 14. Verify before claiming completion
-
-Run the relevant tests, build, lint, type checks, and user-flow checks. Every visible button and form in a claimed-complete scope must actually work. Do not report completion based only on file creation.
-
-## 15. Fixed six-agent orchestra
-
-The project has exactly six agents in total, including the Orchestrator:
+The project has exactly six agents:
 
 1. `orchestrator`
 2. `scout`
@@ -116,14 +70,29 @@ The project has exactly six agents in total, including the Orchestrator:
 
 Rules:
 
-- Do not add a seventh or dynamically generated agent.
-- Do not remove, merge, rename, or split an agent role without explicit user approval, four design options, a decision-log entry, and updated tests.
-- There is no dedicated price agent. Price, stock, seller, quantity, model, and observation time are evidence fields owned by `verifier`.
-- Only `orchestrator` may delegate work.
-- Specialists return structured artifacts to `orchestrator`; they do not form hidden agent-to-agent conversations.
-- Every agent must have a narrow mission, input contract, output contract, tool allowlist, forbidden actions, and stop conditions.
-- Scheduler, publisher adapter, metrics collector, and audit log remain deterministic services, not agents.
-- No agent may own or invoke external publication directly.
-- Guardian blockers cannot be bypassed by the Orchestrator, Writer, or user-interface code.
-- Default loop limits are one Scout refinement, two Writer revisions, and twelve total specialist invocations.
-- Reaching a limit triggers a human decision; it never triggers creation of another agent.
+- No seventh, dynamic, removed, merged, renamed, or split agent without explicit user approval, four options, decision log, and updated tests.
+- There is no dedicated price agent.
+- Only Orchestrator delegates.
+- Specialists return structured artifacts to Orchestrator.
+- Every agent has a narrow mission, inputs, output schema, tool allowlist, forbidden actions, and stop conditions.
+- Scheduler, publisher adapter, metrics collector, and audit log are deterministic services.
+- No agent owns external publication.
+- Guardian blockers cannot be bypassed.
+- Default limits are one Scout refinement, two Writer revisions, and twelve total specialist invocations.
+
+## 14. Current niche: 실용 신박템
+
+- Novelty alone never justifies recommendation.
+- Product Scout prioritizes problem clarity, short demonstration, practical utility, purchase intent, and audience fit.
+- Practical utility under 60, demonstration under 55, problem clarity under 55, weak identity confidence, fewer than two sources, blocked categories, and health-claim risk prevent automatic recommendation.
+- Pure curiosity items are limited supporting content.
+- Product Scout proposes; Evidence Verifier confirms exact product and commerce evidence.
+- Four strategy angles are problem/result, mechanism/demo, buying checklist, and honest fit.
+
+## 15. Phase 2B fixture/runtime rule
+
+- System prompts must request one structured JSON object.
+- Schema validation supplements semantic contract validation.
+- Full-run fixtures must be deterministic and explicitly synthetic.
+- Fixture product, price, seller, stock, rights, and source values cannot be presented as live facts.
+- No network, paid model, affiliate, or publishing call is allowed in Phase 2B.

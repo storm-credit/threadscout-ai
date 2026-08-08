@@ -2,154 +2,95 @@
 
 ## 2026-08-08 — Repository working name
 
-### Decision
-
-Use `threadscout-ai` as the repository name and `ThreadScout AI` as the product name.
-
-### Reason
-
-The name describes the initial core function—scouting worthwhile Threads product topics—without tying the project permanently to one affiliate network.
-
-### Remaining risk
-
-Name availability and trademark/domain suitability have not been assessed.
+Use `threadscout-ai` as the repository name and `ThreadScout AI` as the product name. The name describes scouting worthwhile Threads product topics without tying the project to one affiliate network.
 
 ---
 
 ## 2026-08-08 — Approval-first B+C hybrid
 
-### Original possibilities
-
-A sheet workflow, a personal approval dashboard, a discovery-and-learning dashboard, or a multi-agent SaaS.
-
-### Decision
-
-Use the personal dashboard's integrity and approval model, then add the discovery-and-learning pipeline incrementally.
-
-### Reason
-
-The user's hardest problem is choosing products, but automated discovery should not be built before the truth, identity, rights, and approval model is reliable.
-
-### Impact
-
-The first implementation will use manual or fixture candidates before connecting external discovery and publishing APIs.
-
-### Remaining risk
-
-The final discovery sources and official API permissions are not yet verified.
+Use a personal approval dashboard first, then add discovery and learning incrementally. Automated discovery must not precede truth, identity, rights, and approval controls.
 
 ---
 
 ## 2026-08-08 — Phase 1 local-first implementation
 
-### Original plan
-
-Complete the user interview before any implementation.
-
-### Change
-
-Proceed with a reversible local prototype using the recommended defaults already present in the conversation and record them in `docs/ASSUMPTIONS.md`.
-
-### Reason
-
-The user explicitly requested automatic continuation. The prototype does not make external posts, spend money, or require credentials, so unanswered integration decisions do not create irreversible risk.
-
-### Impact
-
-Phase 1 implements the approval state machine, five fixture candidates, four draft angles, integrity checks, mobile UI, local persistence, and a local-only queue. Threads API and automated discovery remain blocked.
-
-### Remaining risks
-
-Content niche, 30-day business targets, exact disclosure wording, and final API permissions still require validation before live use.
+Proceed with a reversible local prototype because automatic continuation was requested. No credentials, spending, or irreversible external action were introduced.
 
 ---
 
-## 2026-08-08 — Bootstrap committed directly to `main`
+## 2026-08-08 — Bootstrap committed directly to main
 
-### Original workflow
-
-Feature work should use a branch and pull request.
-
-### What happened
-
-The initial constitution, documentation skeleton, templates, and status markers were committed directly to the newly created empty repository before the branching rule was established.
-
-### Reason
-
-The repository required a usable baseline before a feature branch could be created through the connected GitHub tools.
-
-### Impact
-
-The bootstrap history contains several small commits. All subsequent implementation work is isolated on feature branches and reviewed through pull requests.
-
-### Remaining risk
-
-No runtime feature was placed on `main`; the impact is limited to noisier initial history.
+The empty repository needed a baseline before the feature-branch rule could be used. Subsequent runtime work uses branches and pull requests.
 
 ---
 
 ## 2026-08-08 — Fix the orchestra at six total agents
 
-### Clarification
-
-The request was for role-specific agents, not a separate price agent.
-
-### Decision
-
-Fix the total roster at six, including the Orchestrator:
-
-1. Orchestrator
-2. Product Scout
-3. Evidence Verifier
-4. Content Strategist
-5. Threads Writer
-6. Integrity Guardian
-
-### Price responsibility
-
-Do not create a price agent. The Evidence Verifier owns timestamped price, stock, seller, quantity, and product-variant evidence together with exact product identity.
-
-### Reason
-
-Price alone cannot determine whether a product should be recommended. Separating it would fragment exact-product verification and create conflicting snapshots. Six roles are enough to isolate coordination, discovery, evidence, strategy, writing, and final integrity risks.
-
-### Impact
-
-- agent count is enforced by code and tests
-- only the Orchestrator delegates
-- specialists return structured artifacts
-- scheduler, publisher, metrics, and audit remain deterministic services
-- agent creation becomes an architecture change requiring user approval
-
-### Remaining risks
-
-- model and runtime provider are not selected
-- live agent cost and latency are unknown until model calls are introduced
-- the fixed roster may require role-boundary tuning after real runs, but count changes remain prohibited without explicit review
+The total roster is fixed at Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian. There is no price agent; Evidence Verifier owns price, stock, seller, quantity, variant, and observation time.
 
 ---
 
 ## 2026-08-08 — Use a framework-neutral orchestrator first
 
-### Options researched
+Keep registry, artifacts, deterministic routing, bounded loops, and human approval independent of a heavy framework. Runtime adapters may be evaluated later without changing role boundaries.
 
-LangGraph, CrewAI, OpenAI Agents SDK JS, and Microsoft AutoGen.
+---
+
+## 2026-08-08 — Select practical demonstrable novel items as the first niche
+
+### Trigger
+
+The user indicated that `신박템` is a promising content direction and requested automatic continuation.
+
+### Four options considered
+
+1. viral surprise/gimmick items
+2. practical demonstration-first novel items
+3. ultra-low-price novelty items
+4. parenting/elementary-school novelty items
 
 ### Decision
 
-Implement the registry, structured artifacts, deterministic routing, bounded loops, and human approval without adding an orchestration framework dependency.
+Select option 2: **실용 시연형 신박템**.
+
+Novelty is not the primary score. Problem clarity, demonstration potential, and practical utility account for 60% of the score. Parenting, travel, desk, and storage items remain subcategories.
 
 ### Reason
 
-- CrewAI is Python-first while this repository is JavaScript.
-- AutoGen is in maintenance mode and points new users to Microsoft Agent Framework.
-- OpenAI Agents SDK JS is a strong future candidate but currently requires Node.js 22 or later; this project supports Node.js 20.
-- LangGraph-style durable execution is useful later, but current local runs do not yet justify the dependency.
+This direction preserves the attention advantage of an unexpected product while providing a repeatable purchase reason and a truthful visual story. It is less dependent on copied viral media than gimmick-only content.
 
 ### Impact
 
-The contracts are portable. A future runtime adapter may be evaluated without changing the six roles or their artifact boundaries.
+- Product Scout receives a dedicated niche profile and score gates.
+- Four content angles become problem/result, mechanism/demo, buying checklist, and honest fit.
+- Low-utility gimmicks, health-claim products, weak evidence, rights risk, and identity risk are penalized or blocked.
 
-### Remaining risk
+### Remaining risks
 
-The custom state machine must remain small. If durable cross-process execution becomes necessary, a framework migration should be reconsidered through four options.
+- real source availability and platform-search access are not yet verified
+- direct filming still requires obtaining products or lawful media rights
+- novelty may decay quickly, so saturation and timestamp handling remain necessary
+
+---
+
+## 2026-08-08 — Add prompts, schemas, and a synthetic full-run fixture before live models
+
+### Original next step
+
+Connect a model runtime after the six role contracts were stable.
+
+### Change
+
+First create six detailed prompts, six machine-readable schemas, and a deterministic full-run fixture.
+
+### Reason
+
+Live model calls would make prompt failures costly and difficult to reproduce. A fixture allows exact invocation, schema, gating, and queue behavior to be tested without network or paid calls.
+
+### Impact
+
+The project can now validate one product from Orchestrator through local queue using synthetic evidence. No fixture seller, price, stock, or media record may be treated as real.
+
+### Remaining risks
+
+Provider-specific structured-output behavior, token limits, retries, and tool-call failure modes remain untested until Phase 2C.

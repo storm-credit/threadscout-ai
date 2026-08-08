@@ -2,79 +2,88 @@
 
 ## Objective
 
-Recommend products that combine rising attention, genuine purchase intent, strong visual/story potential, account relevance, and acceptable risk. Popularity alone is insufficient.
+Recommend **실용 신박템** that combine visible problem solving, short demonstration value, genuine purchase intent, audience relevance, and acceptable evidence risk. Popularity and novelty alone are insufficient.
 
 ## Candidate lifecycle
 
-`discovered → normalized → evidence-collected → scored → blocked/recommended → drafted → approved/rejected → published → measured`
+`discovered → normalized → scored → evidence-requested → verified/blocked → drafted → guardian-reviewed → human-approved/rejected → queued → measured`
 
 ## Required candidate data
 
-- raw mention text and source reference
-- normalized product name
-- brand and model/variant when available
-- exact-match confidence
-- topic and audience fit
-- engagement observations
+- candidate ID and normalized product name
+- raw mention/source references
+- identity confidence
+- problem being solved
+- demonstration description
+- practical-use reason
+- novelty reason
 - purchase-intent observations
-- visual demonstration potential
+- audience fit
 - saturation estimate
-- price/availability timestamp
-- media-rights status
-- personal-use status
-- compliance risks
+- creator media feasibility
+- risk flags
+- score breakdown, gates, and plain-language recommendation reason
+
+Product Scout does not declare an exact product match and does not assert current price or stock. Those belong to Evidence Verifier.
 
 ## Purchase-intent examples
 
 Higher-intent language includes questions about:
 
 - where to buy
-- exact product name
+- exact product or option
 - price
 - link
-- stock
-- delivery
+- stock and delivery
+- dimensions or quantity
 - comparison with alternatives
 
-Likes alone are a weak purchase signal.
+Likes and generic reactions are weak signals.
 
-## Proposed score
+## Practical novel-item score
 
-The score is an explanation aid, not proof.
+- problem clarity: 20
+- demonstration potential: 20
+- practical utility: 20
+- novelty: 15
+- purchase intent: 15
+- audience fit: 10
 
-- attention acceleration: 20
-- purchase intent: 25
-- visual/content potential: 15
-- account/audience fit: 15
-- exact product availability: 10
-- potential commercial value: 10
-- creator evidence/readiness: 5
+## Hard gates before `recommended`
 
-Risk deductions:
+- practical utility must be at least 60/100
+- demonstration potential must be at least 55/100
+- problem clarity must be at least 55/100
+- normalized identity confidence must be at least 0.65
+- at least two source references are required
+- blocked categories and health-claim risk cannot pass
 
-- over-saturation
-- unresolved exact match
-- unavailable or unstable listing
-- unlicensed media dependency
-- health/skincare/child claim exposure
-- quality controversy or misleading substitution risk
+## Risk deductions
+
+- gimmick-only product
+- over-saturated visual or wording pattern
+- weak source evidence
+- uncertain product identity
+- third-party-media dependency or rights risk
+- health/skincare efficacy dependency
 
 ## Recommendation rule
 
 A candidate can appear in the top five only when:
 
-- blocking identity and rights risks are visible
-- recommendation reasons are shown in plain language
-- uncertainty is not hidden by the score
-- the user can block the product or category
+- the score and gates are visible
+- uncertainty is not hidden by a numeric total
+- the problem and demonstration are described plainly
+- evidence and rights can realistically be verified
+- the user can hold, reject, or suppress the product/category
 
 ## Draft angles
 
-Each recommended product may generate four approaches:
+Each verified product may generate exactly four approaches:
 
 1. problem → practical result
-2. curiosity/demonstration
-3. comparison/decision support
-4. honest limitation and best-fit audience
+2. mechanism → short demonstration
+3. comparison → buying checklist
+4. honest limitation → best-fit audience
 
 The four drafts must differ in argument and reader value, not only vocabulary.
