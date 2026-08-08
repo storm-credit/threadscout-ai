@@ -1,71 +1,59 @@
 # Success Criteria and Stop Conditions
 
-## Product success criteria for the first usable release
+## Product criteria
 
-1. The mobile first screen shows today's five recommended product candidates.
-2. Each recommendation shows score, recommendation reasons, uncertainty, exact-match status, media-rights status, and key risks.
-3. Selecting a candidate generates four meaningfully different draft approaches.
-4. The user can edit, approve, hold, reject, and block future recommendations.
-5. Every visible button and form in the release scope works end to end.
-6. No content can reach the publishing queue without Guardian pass and explicit human approval.
-7. A post cannot be approved if exact product identity, disclosure requirement, or media-rights status is unresolved.
-8. A product not personally used cannot produce first-hand-experience language.
-9. Similar products are labeled as alternatives and never presented as the pictured exact product.
-10. Failures show a human-readable reason and recoverable next action.
+1. The mobile first screen shows five recommended product candidates with reasons, uncertainty, exact-match status, rights status, and risks.
+2. A selected candidate produces four meaningfully different approaches.
+3. The user can edit, approve, hold, reject, and suppress.
+4. No content reaches a queue without Guardian pass and explicit human approval.
+5. Unresolved identity, disclosure, rights, or unsupported first-hand language blocks approval.
+6. Similar products are labeled as alternatives.
+7. Failures provide a readable reason and next action.
 
-## Six-agent orchestra success criteria
+## Fixed orchestra criteria
 
-1. The registry contains exactly six agents including one Orchestrator.
-2. The roles are Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian.
-3. No dedicated price agent exists.
-4. Only the Orchestrator delegates.
-5. Specialists return structured artifacts.
-6. Guardian blockers cannot be bypassed.
+1. Exactly six agents including one Orchestrator.
+2. No dedicated price agent.
+3. Only Orchestrator delegates.
+4. Specialists return structured artifacts.
+5. Strategist produces four angles; Writer produces four mapped drafts.
+6. Guardian returns pass, revise, or block and cannot be bypassed.
 7. Human approval occurs after Guardian pass and before queueing.
-8. Scheduler, publisher adapter, metrics collector, and audit log remain deterministic services.
+8. Deterministic services remain outside the agent roster.
 9. No agent can publish externally.
-10. Bounded loops prevent circular handoffs.
+10. Bounded loops prevent circular execution.
 
-## Phase 2B success criteria
+## Practical novel-item criteria
 
-1. All six agents have detailed system prompts.
-2. Every prompt includes mission, inputs, allowed tools, forbidden actions, stop conditions, and a JSON output contract.
-3. All six artifacts have machine-readable schemas.
-4. Practical-novelty scoring prioritizes problem clarity, demonstration, and utility over novelty alone.
-5. Gimmick-only candidates do not receive recommended status.
-6. A deterministic synthetic product run invokes all six agents exactly once.
-7. The fixture run produces four angles and four drafts.
-8. Evidence Verifier owns one timestamped price/stock/seller/variant snapshot.
-9. Guardian pass and human approval are required.
-10. The completed fixture ends in a local-only queue with external publishing disabled.
-11. Every fixture value that could be mistaken for current commerce data is marked synthetic.
+1. Problem clarity, demonstration, and practical utility account for 60% of the score.
+2. Gimmick-only candidates cannot receive recommended status.
+3. Identity confidence and two source references are required.
+4. High-risk health claims and blocked categories cannot pass automatically.
+5. Product, seller, price, stock, option, rights, and timestamp are verified together.
 
-## Technical verification criteria
+## Phase 2C runtime criteria
 
-- documentation check passes
-- unit tests pass
-- prompt-set tests pass
-- schema tests pass
-- practical-novelty scoring tests pass
-- end-to-end fixture simulation passes
-- orchestra registry and routing tests pass
-- malformed or cross-run artifacts are rejected
-- Guardian and human approval gate tests pass
-- secrets are not committed
-- external publishing remains disabled
+1. Runtime configuration contains budgets for exactly six agents.
+2. Every agent has timeout, attempt, input, and output limits.
+3. Every run has total invocation, elapsed-time, and output limits.
+4. Provider adapters receive the fixed prompt and output schema.
+5. Every output passes semantic and schema checks before stage progression.
+6. Every invocation creates a receipt.
+7. Tool broker rejects non-allowlisted tools.
+8. Publication, purchase, and payment tools are blocked.
+9. Replay runtime completes all six agents and ends local-only.
+10. Malformed and oversized outputs fail without advancing the run.
+11. Human rejection produces no queue record.
 
 ## Stop conditions
 
-Stop and request a decision when:
+Stop when:
 
-- required API permissions are unavailable
-- platform capability or policy conflicts with the proposed workflow
-- exact product identity or media rights cannot be verified
-- a health or skincare claim cannot be supported
-- an agent artifact fails its schema
-- a loop or invocation limit is reached
-- adding, removing, splitting, or merging an agent appears necessary
-- Guardian returns a blocker
-- fixture data would need to be represented as real evidence
-- a test or build fails and the safe fix changes scope
-- costs or rate limits exceed the accepted budget
+- an output fails schema or semantic validation
+- a budget or orchestration limit is reached
+- identity, media rights, or high-risk claims remain unresolved
+- a new/seventh agent appears necessary
+- a tool cannot be isolated to an existing allowlist
+- a provider requires weaker contracts
+- fixture evidence could be confused with current facts
+- credentials, cost, or irreversible external action become necessary without approval

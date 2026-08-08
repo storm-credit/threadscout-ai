@@ -9,7 +9,8 @@
     "start": "node apps/web/server.mjs",
     "orchestra:demo": "node scripts/demo-orchestra.mjs",
     "orchestra:simulate": "node scripts/simulate-sinbak-orchestra.mjs",
-    "verify": "npm run check:docs && npm test && npm run orchestra:simulate"
+    "orchestra:replay": "node scripts/run-replay-runtime.mjs",
+    "verify": "npm run check:docs && npm test && npm run orchestra:simulate && npm run orchestra:replay"
   },
   "engines": {
     "node": ">=20"

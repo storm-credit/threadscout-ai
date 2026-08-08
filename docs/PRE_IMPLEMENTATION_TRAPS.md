@@ -1,75 +1,68 @@
 # Pre-Implementation Trap Check
 
-No publishing integration should begin until every blocking item is resolved.
+No live provider, research, affiliate, or publishing integration begins until its blocking items are resolved.
 
-## Platform and API
+## Product identity and content
 
-- [ ] Confirm current Threads API capabilities from official documentation.
-- [ ] Confirm required account type, app setup, permissions, and review process.
-- [ ] Confirm text, image, video, carousel, reply, scheduling, search, and insight limitations.
-- [ ] Confirm rate limits and error semantics.
-- [ ] Define access-token encryption, rotation, refresh, and revocation.
+- [x] Distinguish exact, likely, substitute, and unresolved products.
+- [x] Prevent first-hand language without usage confirmation.
+- [x] Require visible affiliate disclosure in fixture drafts.
+- [x] Keep price/stock/seller/variant in one Verifier snapshot.
+- [ ] Persist claim-level source IDs through every rewrite.
+- [ ] Invalidate drafts when evidence changes.
+- [ ] Recheck volatile commerce evidence immediately before a real post.
+- [ ] Add duplicate and near-duplicate indexing across runs.
+
+## Fixed orchestra
+
+- [x] Fix six agents including Orchestrator.
+- [x] Prohibit a dedicated price agent.
+- [x] Require specialists to return to Orchestrator.
+- [x] Require four angles and four drafts.
+- [x] Require Guardian pass and human approval.
+- [x] Add bounded Scout/Writer loops and invocation ceiling.
+- [x] Keep publishing outside every agent allowlist.
+
+## Provider-neutral runtime
+
+- [x] Choose provider-neutral adapter over direct provider coupling.
+- [x] Add deterministic replay provider.
+- [x] Add six per-agent budget records.
+- [x] Add timeout, attempts, input, and output limits.
+- [x] Add total invocation, elapsed-time, and output limits.
+- [x] Validate schema and semantic contract before state progression.
+- [x] Produce invocation receipts.
+- [x] Test malformed and oversized outputs.
+- [ ] Add stable prompt, schema, and artifact version hashes.
+- [ ] Define live-provider cancellation and unknown-result semantics.
+- [ ] Map character budgets to provider token/cost budgets.
+- [ ] Redact sensitive provider errors before persistence.
+- [ ] Add provider-specific structured-output compatibility tests.
+- [ ] Decide whether the project baseline moves from Node 20 to Node 22 before a live SDK.
+
+## Tool broker
+
+- [x] Enforce registry tool allowlists.
+- [x] Reject publication, purchase, and payment tool names.
+- [x] Require an explicitly registered handler.
+- [ ] Review each handler implementation, not only its name.
+- [ ] Add input/output schemas per tool.
+- [ ] Add read-only versus mutating tool classes.
+- [ ] Add domain and endpoint allowlists for future network tools.
+- [ ] Add robots/terms/rate-limit checks for public research sources.
+
+## Persistence and concurrency
+
+- [ ] Add immutable event/evidence storage.
+- [ ] Add atomic run-state updates and concurrent-run locking.
+- [ ] Separate raw sources, sanitized evidence, prompts, artifacts, and receipts.
+- [ ] Define retention and deletion.
+- [ ] Prevent one run's artifacts from entering another run.
 
 ## Publishing safety
 
-- [ ] Define an explicit approval-state machine.
-- [ ] Define idempotency keys for each publish attempt.
+- [ ] Verify official Threads permissions and current capabilities.
+- [ ] Define idempotency and reconciliation.
 - [ ] Separate scheduled, publishing, published, failed, cancelled, and unknown states.
-- [ ] Handle timeout-with-unknown-result without blind retry.
-- [ ] Provide a global publishing kill switch.
-- [ ] Define maximum retry count and backoff.
-
-## Product identity and data quality
-
-- [ ] Store canonical product name, brand, model/variant, seller/listing, and evidence.
-- [ ] Distinguish exact match, likely match, substitute, and unresolved.
-- [ ] Recheck availability and identity before publishing.
-- [ ] Store when and how a product was personally used.
-- [ ] Prevent first-hand language unless usage status is confirmed.
-
-## Content integrity
-
-- [ ] Classify each statement as verified fact, user experience, opinion, inference, or unknown.
-- [ ] Add duplicate and near-duplicate detection.
-- [ ] Add prohibited and high-risk claim checks.
-- [ ] Add affiliate disclosure at a visible location.
-- [ ] Record media source, license/permission, and transformation history.
-
-## Security and privacy
-
-- [ ] Keep secrets out of source control and client bundles.
-- [ ] Apply least-privilege credentials.
-- [ ] Define data retention and deletion.
-- [ ] Log external actions without logging tokens or sensitive payloads.
-- [ ] Protect approval actions against accidental or duplicated requests.
-
-## User experience
-
-- [ ] Confirm the first-screen information hierarchy on a narrow mobile viewport.
-- [ ] Show why a product was recommended, not only a numeric score.
-- [ ] Show uncertainty and blocking risks before the CTA.
-- [ ] Ensure approve and reject actions cannot be confused.
-- [ ] Provide undo or cancellation where technically possible.
-
-## Agent-orchestration contracts
-
-- [x] Fix the total roster at six agents including the Orchestrator.
-- [x] Assign price, stock, seller, quantity, and observation timestamp to the Evidence Verifier.
-- [x] Prohibit a dedicated price agent.
-- [x] Require every specialist to return control to the Orchestrator.
-- [x] Define structured artifact types for every handoff.
-- [x] Require exactly four strategy angles and four drafts.
-- [x] Require Guardian pass before human approval.
-- [x] Require human approval before local queueing.
-- [x] Keep publishing outside every agent tool allowlist.
-- [x] Add loop and total invocation limits.
-- [ ] Choose the real model provider and model per role.
-- [ ] Measure token cost and latency for one standard run.
-- [ ] Define prompt/version hashes in every artifact.
-- [ ] Define claim-level source IDs that survive every rewrite.
-- [ ] Define artifact versioning and invalidation after evidence changes.
-- [ ] Define concurrent-run locking and atomic state persistence.
-- [ ] Add model timeout, malformed-output, and partial-run recovery.
-- [ ] Add trace redaction before storing prompts or external data.
-- [ ] Re-verify price/stock immediately before an approved post references them.
-- [ ] Keep Guardian context independent enough to avoid Writer confirmation bias.
+- [ ] Add global kill switch.
+- [ ] Never retry an unknown remote publish blindly.

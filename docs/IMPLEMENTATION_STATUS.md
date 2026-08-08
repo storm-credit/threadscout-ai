@@ -2,49 +2,50 @@
 
 ## Phase 0 — complete
 
-Project constitution, user interview, success criteria, blind spots, implementation traps, four design options, architecture, Product Scout specification, and reference review are present.
+Project constitution, interview, success criteria, four design options, blind spots, traps, architecture, and references are present.
 
 ## Phase 1 — complete
 
-The mobile-first local prototype contains product cards, four draft angles, evidence controls, integrity checks, approval actions, local persistence, and a local-only queue.
+Mobile-first local product cards, four draft angles, evidence controls, integrity checks, approval actions, persistence, and local-only queue.
 
 ## Phase 2A — complete
 
-The repository contains exactly six agents, central Orchestrator routing, structured artifacts, bounded loops, Guardian review, human approval, deterministic non-agent services, and contract tests.
+Exactly six agents, central Orchestrator routing, structured artifacts, bounded loops, Guardian review, human approval, and deterministic non-agent services.
 
-## Phase 2B — implemented on feature branch
+## Phase 2B — complete
 
-The project now includes:
+Practical novel-item niche, six prompts, six schemas, scoring gates, synthetic fixture evidence, and a deterministic full run.
 
-- `실용 신박템` as the primary niche
-- a four-option niche comparison and decision record
-- practical-novelty scoring and hard gates
-- six detailed system prompts
-- six machine-readable output schemas
-- schema validation in addition to existing artifact contracts
-- an explicitly synthetic product/evidence/commerce fixture
-- one full run through all six agents
-- Guardian pass, simulated human approval, and local-only queue completion
-- tests for prompts, schemas, novelty-vs-utility scoring, full-run invocation counts, and rejection behavior
+## Phase 2C — implemented on feature branch
+
+- provider-neutral model runtime interface
+- replay provider using the production prompt/schema boundary
+- exactly six agent budget records
+- per-agent timeout, attempts, input, and output limits
+- total invocation, elapsed-time, and output limits
+- auditable model invocation receipts
+- strict per-agent tool broker
+- explicit publication, purchase, and payment tool denial
+- runtime executor connected to the existing state machine
+- safe failure for malformed output and budget overflow
+- human rejection path with no queue record
+- replay CLI and automated tests
 
 ## Verification
-
-Run:
 
 ```bash
 npm run verify
 npm run orchestra:demo
 npm run orchestra:simulate
-npm start
+npm run orchestra:replay
 ```
 
-## Intentionally not connected
+## Still intentionally disconnected
 
-- live model provider
-- live Threads search
-- live product or affiliate data
-- real seller, price, or stock assertions from fixtures
-- external database
+- live model provider and API keys
+- live Threads/product/affiliate research
+- persistent evidence database
+- real external tool calls
 - external publishing
 
-The next safe phase is a provider-neutral adapter and tool boundary with replayable fixtures, timeout/budget controls, and no automatic publication.
+The next phase should persist evidence and version prompts/artifacts before any live research adapter is added.
