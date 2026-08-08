@@ -4,13 +4,15 @@ AI-assisted product discovery and approval-first content operations for Threads.
 
 ## Product direction
 
-ThreadScout discovers product candidates, verifies evidence, designs four content angles, writes four drafts, performs an independent integrity review, and lets a human approve before any queue or publication action.
+ThreadScout finds products worth talking about, verifies exact identity and evidence, creates four different content approaches, performs an independent integrity review, and requires human approval before anything enters a queue.
+
+The primary operating niche is now **실용 신박템**: products with a novel or unexpected mechanism that solve a visible everyday problem and can be understood through a short demonstration. Novelty alone is not enough.
 
 ## Current phase
 
-Phase 2A — the framework-neutral fixed six-agent orchestra and deterministic dry-run coordinator are implemented.
+Phase 2B — the fixed six-agent orchestra now has detailed system prompts, machine-readable output schemas, a practical-novelty scoring profile, and a deterministic end-to-end fixture simulation.
 
-No automatic publishing is enabled. The prototype uses fixture products, local storage, structured agent contracts, bounded loops, and a local-only queue so integrity can be validated before any external model, product-data, or Threads API is connected.
+No live model, product-data, affiliate, or Threads API is connected. The simulation uses explicitly synthetic product, seller, price, stock, media, and evidence records. External publishing is disabled.
 
 ## Fixed six-agent roster
 
@@ -21,45 +23,53 @@ No automatic publishing is enabled. The prototype uses fixture products, local s
 5. Threads Writer
 6. Integrity Guardian
 
-There is no dedicated price agent. Price, stock, seller, product variant, and observation time are evidence handled by the Evidence Verifier.
+There is no dedicated price agent. Price, stock, seller, product variant, and observation time belong to one Evidence Verifier commerce snapshot.
 
 Scheduling, publishing, metrics collection, and audit logging are deterministic services—not agents.
 
 ## Core flow
 
-1. Orchestrator records objective, constraints, success criteria, loop limits, and stop conditions.
-2. Product Scout collects candidates unless the user supplied an exact product.
-3. Evidence Verifier resolves exact product identity, evidence, rights, and volatile commerce snapshots.
-4. Content Strategist creates four genuinely different content angles.
-5. Threads Writer writes four Korean drafts using verified facts only.
+1. Orchestrator fixes objective, constraints, success criteria, stop conditions, and limits.
+2. Product Scout ranks practical novel-item candidates.
+3. Evidence Verifier checks exact product, claims, media rights, and time-stamped commerce evidence.
+4. Content Strategist creates four logically different angles.
+5. Threads Writer creates four Korean drafts from verified evidence only.
 6. Integrity Guardian returns pass, revise, or block.
 7. Human edits and approves.
-8. Deterministic scheduler stores an approved local queue record.
-9. A future publisher adapter may run only after official API and permission verification.
+8. Scheduler writes a local-only queue record.
+
+## Practical novel-item gates
+
+A candidate cannot be recommended only because it looks surprising. The current score prioritizes:
+
+- problem clarity: 20
+- demonstration potential: 20
+- practical utility: 20
+- novelty: 15
+- purchase intent: 15
+- audience fit: 10
+
+Low utility, unclear problems, weak evidence, product-identity risk, rights risk, health-claim risk, and over-saturation reduce or block a recommendation.
 
 ## Repository map
 
-- `CLAUDE.md` — project constitution and fixed-agent rules
-- `docs/AGENT_ORCHESTRA.md` — detailed six-agent responsibilities and handoffs
-- `docs/AGENT_RESEARCH.md` — current orchestration-framework research
-- `docs/PHASE2_PLAN.md` — success, non-goals, and stop conditions for the orchestra
-- `packages/orchestra/` — fixed registry, artifact contracts, and deterministic routing
-- `docs/PROJECT_BRIEF.md` — goals, users, scope, and assumptions
-- `docs/USER_INTERVIEW.md` — unanswered product questions
-- `docs/SUCCESS_CRITERIA.md` — measurable completion and stop conditions
-- `docs/DESIGN_OPTIONS.md` — four comparable product designs
-- `docs/BLIND_SPOTS.md` — product, legal, operational, agent, and business blind spots
-- `docs/PRE_IMPLEMENTATION_TRAPS.md` — technical traps to resolve before live integration
-- `docs/PRODUCT_SCOUT_SPEC.md` — candidate discovery and scoring specification
-- `docs/PROMPTING_PLAYBOOK.md` — context dump, prompt refinement, and output review
-- `docs/DECISION_LOG.md` — changes from the original plan and their impact
-- `docs/ARCHITECTURE.md` — approval-first six-agent architecture
+- `CLAUDE.md` — project constitution, six-agent rules, and niche rules
+- `docs/SINBAK_ITEM_STRATEGY.md` — four niche options and selected strategy
+- `docs/PHASE2B_PLAN.md` — Phase 2B success and stop conditions
+- `packages/orchestra/src/prompts.mjs` — six system prompts
+- `packages/orchestra/src/schemas.mjs` — six output schemas and validator
+- `packages/orchestra/src/niche-profile.mjs` — practical-novelty score and gates
+- `packages/orchestra/src/simulation.mjs` — deterministic full-run fixture
+- `packages/orchestra/src/agent-registry.mjs` — immutable six-agent roster
+- `packages/orchestra/src/contracts.mjs` — artifact integrity contracts
+- `packages/orchestra/src/orchestrator.mjs` — state machine and bounded routing
 
 ## Commands
 
 ```bash
 npm run verify
 npm run orchestra:demo
+npm run orchestra:simulate
 npm start
 ```
 
@@ -67,14 +77,13 @@ npm start
 
 - Dynamic or seventh agents
 - Dedicated price agent
+- Live product scraping
+- Real product-price claims from fixture data
+- Live LLM or paid API calls
 - Automatic comments, likes, follows, or engagement farming
+- External publication
 - Publishing without Guardian pass and explicit human approval
-- Claiming first-hand use when the product was not used
-- Reposting third-party media without recorded usage rights
-- Hiding affiliate relationships
-- Installing a heavy orchestration framework before contracts are validated
-- Building a multi-tenant SaaS before the personal workflow is validated
 
 ## Next gate
 
-Connect a model runtime only after the six contracts are stable, the user confirms the content niche and disclosure wording, and the framework/runtime choice passes a separate four-option review.
+Build a provider-neutral model adapter and tool boundary only after prompt/schema fixtures remain stable. Live public-product research must be added separately with source, recency, robots/terms, rate-limit, and evidence-retention checks.

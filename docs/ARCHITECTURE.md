@@ -1,33 +1,11 @@
-# Proposed Architecture
+# Architecture
 
-## Recommended direction
+## Direction
 
 Approval-first personal application using a fixed six-agent orchestra supervised by a deterministic state machine.
 
-## Agent layer
-
 ```text
-                         ┌──────────── Product Scout
-                         │
-User → Orchestrator ─────┼──────────── Evidence Verifier
-                         │
-                         ├──────────── Content Strategist
-                         │
-                         ├──────────── Threads Writer
-                         │
-                         └──────────── Integrity Guardian
-                                      ↓
-                                Human approval
-```
-
-Only the Orchestrator delegates. Every specialist returns a structured artifact to the Orchestrator.
-
-The six-agent roster is fixed. A request may skip an unnecessary specialist, but the system may not create a new role.
-
-## End-to-end flow
-
-```text
-User objective and constraints
+User objective
       ↓
 Orchestrator run plan
       ↓
@@ -35,92 +13,67 @@ Product Scout candidate_set
       ↓
 Evidence Verifier evidence_packet
       ↓
-Content Strategist content_brief with four angles
+Content Strategist content_brief (4 angles)
       ↓
-Threads Writer draft_bundle with four drafts
+Threads Writer draft_bundle (4 drafts)
       ↓
 Integrity Guardian review_report
       ↓
 Human approval
       ↓
-Deterministic scheduler and local queue
-      ↓
-Future official publisher adapter
-      ↓
-Deterministic metrics collection
+Deterministic local scheduler
 ```
 
-When an exact product is supplied, Product Scout may be skipped. Evidence verification, Guardian review, and human approval are never skipped.
+Only the Orchestrator delegates. Specialists return structured artifacts to the Orchestrator and cannot publish.
 
-## Why price is not an agent
+## Phase 2B runtime layers
 
-Price is volatile evidence, not an independent decision-maker. The Evidence Verifier records price together with seller, stock, quantity, product variant, source, and observation timestamp. The system must not recommend a product by price alone or present a snapshot as permanent truth.
+### 1. Immutable registry
 
-## Structured artifacts
+`agent-registry.mjs` fixes the six roles, ownership boundaries, tool allowlists, forbidden actions, and stop conditions.
 
-### `run_plan`
+### 2. System prompts
 
-Objective, constraints, stage order, loop limits, stop conditions, and human gates.
+`prompts.mjs` converts the registry, global integrity rules, the 실용 신박템 profile, and each output schema into six detailed system prompts. Prompts require one JSON object and forbid hidden specialist-to-specialist delegation.
 
-### `candidate_set`
+### 3. Machine-readable schemas
 
-Normalized products, sources, attention, purchase intent, saturation, account fit, visual potential, and uncertainty.
+`schemas.mjs` defines the required shape for run plans, candidate sets, evidence packets, content briefs, draft bundles, and review reports. Schema checks supplement—not replace—the semantic checks in `contracts.mjs`.
 
-### `evidence_packet`
+### 4. Niche scoring
 
-Canonical identity, exact-match state, source evidence, claim evidence, personal-use state, media rights, and timestamped price/stock/seller snapshot.
+`niche-profile.mjs` treats novelty as one signal rather than the objective. Problem clarity, demonstration, and practical utility account for 60% of the score. Hard gates and penalties prevent gimmick-only or high-risk products from passing.
 
-### `content_brief`
+### 5. Deterministic simulation
 
-Audience, core value, CTA, and exactly four distinct content angles.
+`simulation.mjs` runs one explicitly synthetic product through all six agents, Guardian pass, simulated human approval, and a local-only queue. It performs no network, model, affiliate, or publishing call.
 
-### `draft_bundle`
+## Evidence boundary
 
-Exactly four drafts, each mapped to a distinct angle and limited to verified claims.
+Product Scout proposes candidates and sources but cannot declare exact match or current commerce facts.
 
-### `review_report`
+Evidence Verifier owns:
 
-Guardian decision of pass, revise, or block; blockers, warnings, and bounded revision instructions.
+- canonical product, brand, model, and variant
+- exact-match state
+- claim evidence and source links
+- personal-use state
+- media rights
+- time-stamped price status, amount/currency, stock, seller, and variant snapshot
 
-## Bounded areas
+Fixture commerce records must be marked synthetic and can never be displayed as current market truth.
 
-### Product evidence
+## State models
 
-Canonical identity, listing evidence, source observations, price timestamp, exact-match status, personal-use status, media rights.
-
-### Recommendations
-
-Signals, score components, plain-language reasons, uncertainty, blocking risks, suppression rules.
-
-### Content
-
-Draft angle, claims, disclosure, media, revisions, duplicate similarity, approval state.
-
-### Orchestra runtime
-
-Fixed registry, run plan, current stage, artifact validation, invocation counts, revision limits, blockers, human decisions, and trace events.
-
-### Publishing
-
-Schedule, idempotency key, attempt history, remote post ID, reconciliation, retry/cancel state.
-
-### Analytics
-
-Post metrics, link outcomes when available, topic/format/time grouping, weekly conclusions with uncertainty.
-
-## Agent state model
+Agent run:
 
 `ready → running → revision_requested → running → needs_human_decision / blocked / approved_for_local_queue → completed_local_only`
 
-## Content approval state model
+Content:
 
 `draft → needs_evidence → ready_for_review → guardian_passed → human_approved → scheduled → publishing → published`
 
-Alternative terminal or recovery states:
-
-`held`, `rejected`, `cancelled`, `failed`, `unknown_remote_state`
-
-No transition into `scheduled` or `publishing` is valid without Guardian pass, a human approval actor, and timestamp.
+No transition into schedule or publication is valid without Guardian pass, human actor, and timestamp.
 
 ## Deterministic services
 
@@ -131,16 +84,14 @@ The following are not agents:
 - metrics collector
 - audit log
 
-They execute validated commands and must not invent content or evidence.
+They execute validated commands and do not invent content or evidence.
 
-## Implementation order
+## Next implementation order
 
-1. Domain types and state machine
-2. Local fixture-based recommendation inbox
-3. Four-angle draft generation interface
-4. Integrity and blocking checks
-5. Fixed six-agent registry and artifact contracts
-6. Deterministic orchestration, loop limits, and human gate
-7. Semi-automatic candidate import
-8. Official publishing adapter after capability verification
-9. Analytics feedback after reliable post reconciliation
+1. Provider-neutral model interface
+2. Fixture/replay model adapter
+3. Per-agent timeout and token/cost budgets
+4. Tool broker with strict per-agent allowlists
+5. Evidence-store persistence and source recency
+6. Live research adapter only after policy and access checks
+7. Official publishing adapter only after separate approval
