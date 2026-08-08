@@ -2,24 +2,24 @@
 
 ## Direction
 
-Approval-first application using a fixed six-agent orchestra, provider-neutral runtime, deterministic state machine, and versioned evidence store.
+Approval-first application using a fixed six-agent orchestra, provider-neutral runtime, versioned evidence store, and explicit read-only research boundary.
 
 ```text
-User objective
+Read-only source adapter
       ↓
-Runtime executor
+Validated source records
       ↓
-Provider adapter + fixed prompt + output schema + budgets
+Content-addressed source store
       ↓
-Orchestrator → Scout → Verifier → Strategist → Writer → Guardian
+Product Scout candidate evidence
       ↓
-Semantic + schema validation
+Evidence Verifier exact-product package
       ↓
-Version metadata + content-addressed persistence
+Strategist → Writer → Guardian
       ↓
-Guardian pass → Human approval
+Versioned artifacts + hash-chained events
       ↓
-Deterministic local scheduler
+Explicit human approval → local-only scheduler
 ```
 
 Only Orchestrator delegates. Specialists return artifacts to Orchestrator and cannot publish.
@@ -28,73 +28,64 @@ Only Orchestrator delegates. Specialists return artifacts to Orchestrator and ca
 
 ### Six-agent registry
 
-Exactly six roles with missions, ownership, tool allowlists, forbidden actions, and stop conditions. Scheduler, publisher adapter, metrics collector, and audit log remain deterministic services.
+Exactly six roles with narrow missions, tool allowlists, forbidden actions, and stop conditions. There is no price agent. Scheduler, publisher adapter, metrics collector, and audit log are deterministic services.
 
-### Prompt and schema layer
+### Prompt, schema, and state machine
 
-Each role has one system prompt and one output schema. Schema validation supplements semantic validation.
+Each agent has one system prompt and one output schema. Outputs pass schema and semantic validation. The state machine owns stage order, bounded revisions, Guardian gate, human gate, and local queue.
 
-### Orchestration state machine
+### Provider-neutral runtime and tool broker
 
-The state machine owns stage order, one optional Scout refinement, two Writer revisions, total invocation ceiling, Guardian gate, human gate, and local queue transition.
+The current provider is deterministic replay. Every invocation has budgets and receipts. Every tool call is checked against the registry. Publication, purchase, payment, and equivalent tools are rejected.
 
-### Provider-neutral runtime
+### Versioned evidence store
 
-A provider receives agent ID, run ID, prompt, output schema, and structured input. It returns one artifact and one receipt. The current provider is deterministic replay. A provider cannot change the roster, gates, or publication policy.
+Canonical SHA-256 hashes cover roster, prompts, schemas, evidence, parents, and artifacts. Sources and artifacts are content addressed. Per-run JSONL events are sequential and previous-hash chained. One-process write serialization is not a distributed transaction guarantee.
 
-### Tool broker
+## Phase 2E research boundary
 
-Every tool call is checked against the agent registry and a registered handler. Publication, purchase, payment, and equivalent external-action tools are denied.
+### Research policy
 
-## Phase 2D persistence
+The fixture policy fixes:
 
-### Canonical hashing
+- `networkAllowed=false`
+- `mutationAllowed=false`
+- only `fixture:` schemes
+- approved source types only
+- maximum result and excerpt sizes
+- no personal data
+- no raw payload storage
+- explicit retention, rights, observed time, and retrieved time
 
-Objects are serialized with recursively sorted object keys and hashed with SHA-256. This allows identical logical content to share one storage address.
+### Source records
 
-### Version manifest
+A source record contains version, ID, type, URL, title, sanitized excerpt, timestamps, synthetic/network flags, policy ID, rights state, retention class, redaction state, product mentions, purchase signals, optional commerce metadata, and content hash.
 
-The runtime manifest contains:
+### Role separation
 
-- roster hash
-- six prompt hashes
-- six schema hashes
-- manifest hash
+Product Scout may use `public_search`, `topic_search`, `trend_lookup`, and `candidate_normalization` through the broker.
 
-### Artifact metadata
+Evidence Verifier may use official/listing lookup, cross-source checks, rights checks, and commerce snapshots.
 
-Persisted artifacts include:
+Writer cannot browse for new facts. Strategist and Guardian read verified evidence rather than discovering new sources.
 
-- format version and agent ID
-- manifest, prompt, and schema hashes
-- parent artifact hashes
-- current evidence hash
-- artifact integrity hash
+### Candidate evidence
 
-A changed prompt/schema/manifest or evidence hash can mark an artifact stale even when its text has not changed.
+Mentions are grouped by normalized brand, model, variant, and product name. Exact-match readiness requires a listing, complete identity hints, at least two records, and at least two source types. Scout readiness remains a proposal; Verifier owns the final exact-match decision.
 
-### Content-addressed objects
+### Dependency index
 
-Sanitized sources and versioned artifacts are stored under paths derived from their content hashes. Stored objects are rehashed when read.
+Artifact-save events record parent and evidence hashes. The index can find artifacts directly linked to an evidence version and recursively collect dependent descendants for invalidation.
 
-### Append-only run events
+## Live-source gate
 
-Each run has an isolated JSONL stream. Events include sequence, previous-event hash, payload hash, and event hash. Mutation or reordering is detectable.
-
-### Concurrency boundary
-
-Writes are serialized per run inside one process. This does not provide distributed or multi-process transaction guarantees. SQLite is the next local durability candidate before worker concurrency.
-
-## Evidence boundary
-
-Scout proposes candidates. Verifier confirms canonical product, exact product identity, claims, media rights, personal-use status, and timestamped commerce evidence. Fixture values remain synthetic.
+No live adapter is enabled. Each future source requires separate review of official access, terms, robots, rate limits, permissions, privacy, retention, rights, recency, citations, failure behavior, and revocation.
 
 ## Next implementation order
 
-1. Source and evidence-record schemas
-2. Claim-to-source indexes and artifact invalidation graph
-3. Read-only fixture research adapter
-4. SQLite compatibility/migration interface
-5. Live source policy, recency, rate-limit, and retention review
-6. Live model provider review
-7. Publishing only after separate explicit approval
+1. Select one candidate live source only after public-policy research
+2. Add source-specific adapter contract tests without credentials
+3. Add partial-line recovery and SQLite migration interface
+4. Add claim-to-source indexes in the dashboard
+5. Evaluate a live model provider separately
+6. Keep publishing disabled until a later explicit gate

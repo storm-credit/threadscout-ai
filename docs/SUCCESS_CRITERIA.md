@@ -2,7 +2,7 @@
 
 ## Product criteria
 
-1. The mobile first screen shows five candidates with reasons, uncertainty, exact-match status, rights status, and risks.
+1. The first mobile screen shows five candidates with reasons, uncertainty, exact-match status, rights status, and risks.
 2. A selected candidate produces four meaningfully different approaches.
 3. The user can edit, approve, hold, reject, and suppress.
 4. No content reaches a queue without Guardian pass and explicit human approval.
@@ -17,53 +17,45 @@
 3. Only Orchestrator delegates.
 4. Specialists return structured artifacts.
 5. Strategist produces four angles and Writer produces four mapped drafts.
-6. Guardian returns pass, revise, or block and cannot be bypassed.
+6. Guardian cannot be bypassed.
 7. Human approval occurs after Guardian pass and before queueing.
-8. Deterministic services remain outside the agent roster.
-9. No agent can publish externally.
-10. Bounded loops prevent circular execution.
+8. No agent can publish externally.
 
-## Practical novel-item criteria
+## Runtime and persistence criteria
 
-1. Problem clarity, demonstration, and utility account for 60% of the score.
-2. Gimmick-only candidates cannot receive recommended status.
-3. Identity confidence and at least two source references are required.
-4. High-risk health claims and blocked categories cannot pass automatically.
-5. Product, seller, price, stock, option, rights, and timestamp are verified together.
+1. Budgets exist for exactly six agents and each run.
+2. Outputs pass semantic and schema validation.
+3. Every invocation creates a receipt.
+4. Sources and artifacts are content addressed.
+5. Stored artifacts contain prompt, schema, manifest, parent, evidence, and integrity hashes.
+6. Every run has an isolated, validated event hash chain.
+7. Changed evidence marks downstream artifacts stale.
 
-## Provider runtime criteria
+## Phase 2E research criteria
 
-1. Runtime config contains budgets for exactly six agents.
-2. Every agent has timeout, attempt, input, and output limits.
-3. Every run has total invocation, elapsed-time, and output limits.
-4. Outputs pass semantic and schema validation before progression.
-5. Every invocation creates a receipt.
-6. Tool broker rejects non-allowlisted and external-action tools.
-7. Replay execution ends local-only.
-
-## Phase 2D persistence criteria
-
-1. Canonical serialization is stable across object key order.
-2. The manifest hashes the roster, six prompts, and six schemas.
-3. Every persisted artifact records version and dependency hashes.
-4. Tampered artifact content fails integrity validation.
-5. Changed evidence marks downstream artifacts stale.
-6. Sources and artifacts are stored by SHA-256 content address.
-7. Every run has an isolated append-only event stream.
-8. Event sequence, payload, previous hash, and event hash are validated.
-9. Concurrent writes in one process remain sequential.
-10. The full replay run stores six artifacts, invocation records, human decision, and local queue event.
-11. Human rejection creates no queue record.
-12. External publishing remains disabled.
+1. Research policy disables network and mutation.
+2. Only approved `fixture:` source schemes and fixture source types pass.
+3. Source records include timestamps, policy, rights, retention, redaction, product mentions, purchase signals, and content hash.
+4. Tampered source records fail validation.
+5. Raw payload and personal-data storage are disabled.
+6. Fixture research is deterministic and refuses writes.
+7. Scout can use brokered search, trend, and normalization tools.
+8. Verifier can use brokered listing, cross-source, rights, and commerce tools.
+9. Writer cannot use public research tools.
+10. Candidate evidence requires at least two source records and two source types for exact-match readiness.
+11. Candidate evidence never replaces Verifier's exact-match decision.
+12. Source records persist to the content-addressed store and hash-chained run events.
+13. Evidence invalidation propagates to dependent artifacts.
+14. No live source or external publication is enabled.
 
 ## Stop conditions
 
 Stop when:
 
-- output, artifact, stored object, or event-chain integrity fails
-- a runtime or orchestration budget is reached
-- exact identity, media rights, or high-risk claims remain unresolved
+- source access would bypass terms, robots, permissions, or rate limits
+- personal data or unlicensed media would be required
+- exact identity relies on one unverified source
+- output, source, artifact, stored object, or event integrity fails
 - an artifact is stale after evidence changes
 - a seventh agent appears necessary
-- a tool cannot be isolated to an existing allowlist
-- credentials, cost, live personal data, or irreversible external action become necessary without approval
+- credentials, cost, or irreversible external action become necessary without approval

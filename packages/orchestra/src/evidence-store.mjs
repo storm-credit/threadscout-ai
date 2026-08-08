@@ -129,7 +129,8 @@ export function createJsonlEvidenceStore({ rootDir, clock = () => new Date().toI
       storageHash: stored.storageHash,
       promptHash: artifact._meta.promptHash,
       schemaHash: artifact._meta.schemaHash,
-      evidenceHash: artifact._meta.evidenceHash
+      evidenceHash: artifact._meta.evidenceHash,
+      parentArtifactHashes: artifact._meta.parentArtifactHashes ?? []
     });
     return { ...stored, event };
   }
@@ -138,8 +139,11 @@ export function createJsonlEvidenceStore({ rootDir, clock = () => new Date().toI
     const stored = await putObject('sources', source);
     const event = await appendRunEvent(runId, 'source_saved', {
       sourceId: source.id ?? stored.storageHash,
+      sourceContentHash: source.contentHash ?? null,
       storageHash: stored.storageHash,
-      observedAt: source.observedAt ?? null
+      policyId: source.policyId ?? null,
+      observedAt: source.observedAt ?? null,
+      synthetic: source.synthetic === true
     });
     return { ...stored, event };
   }

@@ -2,59 +2,48 @@
 
 No live provider, research, affiliate, or publishing integration begins until its blocking items are resolved.
 
-## Product identity and content
+## Product and agent controls
 
-- [x] Distinguish exact, likely, substitute, and unresolved products.
-- [x] Prevent first-hand language without usage confirmation.
-- [x] Keep price/stock/seller/variant in one Verifier snapshot.
-- [ ] Persist claim-level source IDs through every rewrite.
-- [ ] Invalidate every downstream artifact and queue record when evidence changes.
+- [x] Fix six agents and prohibit a price agent.
+- [x] Require four strategy angles and four drafts.
+- [x] Require Guardian pass and explicit human approval.
+- [x] Prevent first-hand language without a usage record.
+- [x] Keep publishing outside agent allowlists.
+- [ ] Add duplicate and near-duplicate indexes across runs.
 - [ ] Recheck volatile commerce evidence immediately before a real post.
-- [ ] Add duplicate and near-duplicate indexing across runs.
 
-## Fixed orchestra
+## Runtime, tools, and persistence
 
-- [x] Fix six agents including Orchestrator.
-- [x] Prohibit a dedicated price agent.
-- [x] Require specialists to return to Orchestrator.
-- [x] Require four angles and four drafts.
-- [x] Require Guardian pass and human approval.
-- [x] Bound Scout/Writer loops and total invocations.
-- [x] Keep publishing outside every agent allowlist.
+- [x] Add replay provider, budgets, receipts, and schema validation.
+- [x] Enforce tool allowlists and block external actions.
+- [x] Add version hashes, content-addressed objects, stale detection, and event chains.
+- [ ] Add provider token/cost and cancellation semantics.
+- [ ] Add handler input/output schemas and mutability classes.
+- [ ] Add partial-line recovery, retention, redaction classes, export, deletion, and garbage collection.
+- [ ] Add SQLite or transactional locking before multi-process workers.
+- [ ] Prevent stale approved/queued artifacts from any future publishing command.
 
-## Provider-neutral runtime and tools
+## Phase 2E research boundary
 
-- [x] Add deterministic replay provider.
-- [x] Add six per-agent budget records and total run budgets.
-- [x] Validate schemas and semantic contracts before progression.
-- [x] Produce invocation receipts.
-- [x] Reject non-allowlisted, publication, purchase, and payment tools.
-- [ ] Add provider token/cost budgets and cancellation semantics.
-- [ ] Redact sensitive provider errors before persistence.
-- [ ] Add input/output schemas and mutability classes per tool.
-- [ ] Review handler implementation, domains, endpoints, robots, terms, and rate limits.
-
-## Phase 2D versioning and storage
-
-- [x] Canonically hash roster, prompts, schemas, evidence, and artifacts.
-- [x] Add artifact integrity metadata and dependency hashes.
-- [x] Detect stale artifacts after evidence changes.
-- [x] Store sources and artifacts by content hash.
-- [x] Add per-run append-only hash-chained events.
-- [x] Serialize concurrent writes per run inside one process.
-- [x] Detect payload and event tampering.
-- [ ] Recover or quarantine a partially written final JSONL line.
-- [ ] Add retention, deletion, export, and content-addressed garbage collection.
-- [ ] Add encryption/redaction classification for stored objects.
-- [ ] Add claim-to-source and dependency indexes.
-- [ ] Add cross-process transactional locking or migrate to SQLite.
-- [ ] Version the canonicalization algorithm explicitly before format changes.
-- [ ] Prevent stale approved/queued artifacts from publication.
+- [x] Disable network and mutation for fixture research.
+- [x] Restrict source scheme and type.
+- [x] Sanitize excerpts and prohibit raw payload/personal-data storage.
+- [x] Require observed/retrieved timestamps, policy, rights, retention, and hashes.
+- [x] Use broker allowlists so only Scout/Verifier research.
+- [x] Require cross-source candidate evidence.
+- [x] Persist sources and index evidence dependencies.
+- [ ] Review official access method for each live source.
+- [ ] Record source-specific terms, robots, rate limits, auth scope, and revocation.
+- [ ] Define robust personal-data detection and redaction tests.
+- [ ] Define quote/excerpt and media-rights limits per source.
+- [ ] Detect reposts and source dependence before counting independent evidence.
+- [ ] Add pagination, transient error, stale cache, and deleted-source behavior.
+- [ ] Add source-specific recency thresholds.
+- [ ] Add a human-readable citation view from claim to source.
 
 ## Publishing safety
 
-- [ ] Verify official Threads permissions and current capabilities.
-- [ ] Define idempotency and remote-state reconciliation.
-- [ ] Separate scheduled, publishing, published, failed, cancelled, and unknown states.
+- [ ] Verify current official Threads publishing permissions and capabilities.
+- [ ] Define idempotency and remote reconciliation.
 - [ ] Add global kill switch.
-- [ ] Never retry an unknown remote publish blindly.
+- [ ] Never retry unknown remote publish state blindly.
