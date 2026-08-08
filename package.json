@@ -1,0 +1,13 @@
+{
+  "name": "threadscout-ai",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Approval-first product discovery and content operations for Threads.",
+  "scripts": {
+    "check:docs": "node scripts/check-docs.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
