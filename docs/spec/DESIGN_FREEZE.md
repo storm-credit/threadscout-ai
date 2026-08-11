@@ -36,7 +36,7 @@ The existing GitHub Actions green check means the prototype regression suite sti
 - analytics learning guardrails
 - safety/privacy/public-figure rules
 - end-to-end design scenarios
-- traceability and behavioral acceptance criteria
+- traceability and behavioral acceptance criteria through AT-28
 - future design-focused GitHub Actions semantics
 
 ## P0 — must resolve before any live implementation
@@ -79,15 +79,15 @@ Implementation resumes only after:
 - user approves Master Spec v1 direction
 - all P0 questions are answered or explicitly deferred behind disabled features
 - affected P1 defaults are documented
-- traceability matrix remains complete
+- traceability matrix remains complete with no orphaned acceptance references
 - architecture/code gap review is current
 - design baseline commit is named in the implementation plan
 
 ## Current design milestone
 
-The design branch is now at **Master Design v1 — reviewable baseline**, not `DESIGN COMPLETE`.
+The design branch is now at **Master Design v1 — detailed reviewable baseline**, not `DESIGN COMPLETE`.
 
-The following detailed design artifacts have been added before code resumes:
+The following detailed design artifacts were added before code resumes:
 
 - `UI_SCREEN_SPEC.md`
 - `RANKING_SCORING_SPEC.md`
@@ -96,6 +96,8 @@ The following detailed design artifacts have been added before code resumes:
 - `DAILY_OPERATING_MODEL.md`
 - `END_TO_END_SCENARIOS.md`
 - `DESIGN_CI_SPEC.md`
+
+`TRACEABILITY_MATRIX.md` and `ACCEPTANCE_TESTS.md` were extended so these new detailed domains are not orphan design documents.
 
 ## Required next work
 
