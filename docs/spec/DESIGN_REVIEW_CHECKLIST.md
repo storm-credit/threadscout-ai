@@ -92,6 +92,7 @@ Use this before declaring design complete.
 - [x] No-good-candidate day defined
 - [x] Disputed/expired issue scenario defined
 - [x] Unsafe analytics pattern scenario defined
+- [x] Acceptance tests AT-25–AT-28 cover ranking/media/issue/daily-operation details
 
 ## Security / operations
 
@@ -110,6 +111,7 @@ Use this before declaring design complete.
 - [x] Runtime/product code freeze is explicit
 - [x] Design PR scope is documentation-only
 - [x] Future Actions design checks are specified
+- [x] Detailed-design requirements are mapped into traceability
 - [ ] Master Design v1 is approved and promoted from draft baseline
 
 ## Resume condition
