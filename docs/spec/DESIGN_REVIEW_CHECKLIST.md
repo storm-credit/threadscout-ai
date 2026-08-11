@@ -8,7 +8,27 @@ Use this before declaring design complete.
 - [x] Primary content lanes defined
 - [x] Issue/public-figure lane bounded
 - [x] Non-goals defined
+- [x] Daily operating model defined
 - [ ] User approves Master Spec direction
+
+## UX / decision support
+
+- [x] Four first-screen layout options compared
+- [x] Opportunity Inbox selected as mobile primary view
+- [x] Detailed screen set S01–S10 defined
+- [x] Critical first-card fields defined for 360 px width
+- [x] Guardian status placed before approval CTA
+- [x] Suppression controls defined
+- [ ] Final visual density and interaction pattern approved
+
+## Ranking
+
+- [x] Four ranking architecture options compared
+- [x] Opportunity score separated from evidence readiness, risk, and freshness
+- [x] Score weights defined conceptually
+- [x] Portfolio diversity behavior defined
+- [x] High score cannot bypass a blocker
+- [ ] Final production thresholds and evidence TTLs approved
 
 ## Orchestra
 
@@ -26,7 +46,12 @@ Use this before declaring design complete.
 - [x] Source roles/independence rule defined
 - [x] Exact product states defined
 - [x] Media analysis vs publication-right distinction defined
+- [x] Media usage scenario matrix defined
+- [x] Owned/licensed/embed/link/text-only fallback order defined
 - [x] Public-figure relationship classes defined
+- [x] Issue source grades G0–G4 defined
+- [x] Product relation grades R0–R5 defined
+- [x] Rumor/private-life content blocked
 - [ ] Exact live issue/news source allowlist approved
 - [ ] Exact media source/action policy reviewed at implementation time
 
@@ -52,18 +77,43 @@ Use this before declaring design complete.
 - [x] Attention/intent/commercial/trust metrics separated
 - [x] Learning output bounded
 - [x] Viral-but-unsafe pattern excluded from learning
+- [x] Daily vs weekly learning behavior defined
 - [ ] Actual available metrics confirmed from live source/account
 
-## Security/operations
+## Scenarios
+
+- [x] Evergreen practical product scenario defined
+- [x] Celebrity/broadcast product scenario defined
+- [x] Viral video without reuse-rights scenario defined
+- [x] Substitute affiliate mapping scenario defined
+- [x] User-owned media scenario defined
+- [x] High-score-but-blocked scenario defined
+- [x] Stale price scenario defined
+- [x] No-good-candidate day defined
+- [x] Disputed/expired issue scenario defined
+- [x] Unsafe analytics pattern scenario defined
+
+## Security / operations
 
 - [x] Secret boundary defined
 - [x] Fail-closed behavior defined
 - [x] Traceability matrix exists
 - [x] Behavioral acceptance tests exist
+- [x] Design-CI target semantics documented
 - [ ] Deployment target selected
 - [ ] Secret manager/environment selected
 - [ ] Retention/TTL defaults approved
 
+## GitHub / design governance
+
+- [x] `docs/spec/` is design authority
+- [x] Runtime/product code freeze is explicit
+- [x] Design PR scope is documentation-only
+- [x] Future Actions design checks are specified
+- [ ] Master Design v1 is approved and promoted from draft baseline
+
 ## Resume condition
 
 Design is not “done” until all P0 items are checked or explicitly deferred behind disabled features and the user approves the Master Spec direction.
+
+Implementation remains frozen even when the existing GitHub Actions prototype regression job is green.
