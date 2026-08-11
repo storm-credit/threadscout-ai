@@ -98,6 +98,30 @@ Research-based drafts use wording such as “확인해보니/찾아보니” rat
 
 Source collection retains only evidence-required fields and respects defined retention/redaction policy.
 
+## AT-25 Ranking cannot override evidence
+
+Given a candidate with opportunity score 94 but unresolved exact-product identity, the first screen may rank it highly but the CTA remains `근거 확인`; strategy generation and affiliate exact mapping stay disabled.
+
+## AT-26 Media fallback
+
+Given a useful candidate whose viral source video has no republication permission, the system keeps the video as analysis evidence and offers owned/licensed/embed-link/text-only fallback. It never treats public visibility as download-and-reupload permission.
+
+## AT-27 Issue source/relation grading
+
+Given a G0/G1 public event source but only R2 product relation, the system may create a product hypothesis but cannot say the public figure endorsed or used the exact product. Given G4 or R5, issue-linked progression is blocked.
+
+## AT-28 Daily operating quality
+
+Given a day where available candidates are repetitive, rumor-heavy, stale, or lack evidence, the system may return fewer than five recommendations or `오늘 추천 없음` instead of lowering standards to fill three slots.
+
 ## Design acceptance gate
 
-Before implementation resumes, every MVP requirement must have at least one acceptance test and no P0/P1 design question may be unresolved.
+Before implementation resumes:
+
+- every MVP requirement has at least one acceptance test
+- user has approved the Master Spec direction
+- all P0 items are resolved or explicitly deferred behind disabled features
+- affected P1 defaults required for the implementation slice are documented
+- traceability has no orphaned requirement/test references
+
+P2 experiments may remain open.
