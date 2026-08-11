@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Completed
+## Existing prototype completed before design freeze
 
 - Phase 0: definition, interviews, success conditions, blind spots, traps, four designs, references
 - Phase 1: mobile local approval workspace
@@ -9,32 +9,35 @@
 - Phase 2C: provider-neutral replay runtime, budgets, receipts, tool broker
 - Phase 2D: versioned content-addressed evidence/artifact store and hash-chained run events
 - Phase 2E: read-only fixture research, validated source records, candidate evidence, invalidation index
+- Phase 2F: official-source readiness registry and disabled Threads/NAVER request contracts
 
-## Phase 2F — implemented on feature branch
+## Current mode — DESIGN ONLY
 
-- official-source review for Meta Threads, NAVER API HUB, Google Trends alpha, and Coupang Seller Open API
-- four live-source stack options and selected readiness plan
-- immutable live-source registry
-- primary/secondary/deferred/rejected/fallback dispositions
-- source-specific endpoint, permission, credential-name, role-owner, and readiness metadata
-- secret-safe readiness evaluation
-- explicit human activation gate
-- redacted disabled request builders for Threads and NAVER
-- tests proving every network source is disabled and read-only
-- credentials-alone activation prevention
+Runtime/product implementation is intentionally frozen while the canonical design is completed.
 
-## Verification
+The design baseline now lives in `docs/spec/` and defines:
 
-```bash
-npm run verify
-npm run research:readiness
-```
+- Master Product & System Specification
+- requirements and complete user flows
+- fixed six-agent contracts and explicit handoffs
+- conceptual data model
+- source strategy
+- image/video discovery and rights pipeline
+- celebrity/broadcast/trend issue pipeline
+- exact product matching
+- content and affiliate strategy
+- publishing/reconciliation design
+- analytics/learning design
+- safety/privacy/compliance rules
+- traceability matrix
+- behavioral acceptance tests
+- design freeze/open questions
+- existing-code gap analysis
 
-## Blocked boundary
+## No code changes in this design cycle
 
-- no live source credentials are stored
-- no Meta/NAVER/Google/Coupang account is created or modified
-- no network request is executed
-- no live model or publishing adapter is enabled
+This design branch must not change `apps/`, `packages/`, `scripts/`, `tests/`, workflows, or runtime dependencies. Existing prototype behavior remains unchanged.
 
-The next implementation phase begins only after explicit source activation approval and credentials are configured outside Git.
+## Implementation-resume gate
+
+See `docs/spec/DESIGN_FREEZE.md`. The next implementation cycle may begin only after the master design direction is approved and P0 gates are answered or explicitly disabled/deferred.

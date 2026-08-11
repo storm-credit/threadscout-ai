@@ -44,40 +44,52 @@ Select a fixture-first read-only adapter contract after four options. Prove sour
 
 ## 2026-08-08 — Prepare Threads + NAVER source stack without activation
 
-### Four options
+Future source stack: Threads as primary discovery, NAVER API HUB trends as Korean corroboration, manual references as fallback; Google Trends alpha deferred and Coupang Seller Open API rejected for general affiliate discovery. Keep every network source disabled until account-specific approval.
 
-1. Threads official API only
-2. Threads official API plus NAVER API HUB trends and manual fallback
-3. Google Trends-led research
-4. scraping/commercial aggregator
+---
+
+## 2026-08-12 — Freeze implementation and establish canonical Master Spec
+
+### Original state
+
+Prototype implementation had progressed through agent orchestration, replay, evidence storage, fixture research, and disabled live-source readiness. Design information was spread across phase documents, code contracts, and discussion.
+
+### Problem
+
+There was no single authoritative end-to-end product/system specification covering media discovery, celebrity/broadcast issue triggers, exact product matching, affiliate mapping, publishing reconciliation, analytics learning, and explicit handoffs.
 
 ### Decision
 
-Select option 2 as the future source stack, but keep every network source disabled.
+Freeze runtime/product code and create `docs/spec/` as the canonical design baseline before further implementation.
 
-### Source dispositions
+### Added design domains
 
-- Meta Threads Keyword Search: selected primary discovery
-- NAVER API HUB Search Trend/Shopping Insight: selected secondary trend signal
-- Google Trends API alpha: deferred limited access
-- Coupang Seller Open API: rejected for general affiliate discovery
-- manual user evidence: enabled offline fallback
+- Master Product & System Specification
+- Product Requirements and User Flows
+- Fixed Agent Contracts and Handoffs
+- Canonical Data Model
+- Source Strategy
+- Photo/Video Media Pipeline
+- Celebrity/Broadcast/Trend Issue Pipeline
+- Exact Product Matching
+- Content Strategy
+- Affiliate Mapping/Disclosure
+- Publishing/Reconciliation
+- Analytics/Learning
+- Safety/Privacy/Compliance
+- Traceability Matrix
+- Acceptance Tests
+- Design Freeze/Open Questions
+- Prototype Gap Analysis
 
-### Reason
+### Public-figure decision
 
-Threads is closest to the target content platform, while NAVER provides a separate Korean search/click trend signal. Neither source alone proves exact product identity. Google access is not generally available, and Coupang's documented seller API does not match arbitrary affiliate-product discovery.
+Celebrity/public-figure/broadcast issues are permitted only as public, product-relevant discovery triggers. The system must not become a rumor/private-life account. Product identity, endorsement relationship, media rights, and affiliate destination remain separately verified facts.
 
 ### Impact
 
-- source registry stores endpoint, credential-name, permission, purpose, owner, official-reference, and readiness metadata
-- credentials alone cannot activate a source
-- explicit human activation approval and a code change are required
-- request builders are redacted and execution-disabled
-- no live source, model, affiliate, or publishing call is made
+Existing code is treated as prototype evidence rather than authority. No runtime/product code changes occur during this design cycle. After design approval, implementation tasks must be created from the traceability/gap analysis rather than ad-hoc coding.
 
 ### Remaining risks
 
-- Meta permission availability/review and rate limits require account-specific confirmation
-- NAVER credentials, quotas, cost, and category mapping require NCP setup
-- live-source privacy and retention need production-grade redaction
-- exact product and commerce verification still needs an authorized listing source or manual evidence
+P0 account-specific questions remain around Threads permissions, authorized product/listing evidence, affiliate network rules, deployment/secret storage, and current media/platform rules. These are explicitly listed in `docs/spec/DESIGN_FREEZE.md` and are not guessed.
