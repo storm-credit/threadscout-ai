@@ -17,7 +17,25 @@ Current steps:
 
 This means the current green check proves the old prototype/test suite still passes after documentation changes. It does **not** yet prove that the new master design is complete, internally linked, approved, or fully traceable.
 
-## 2. Goal for future design CI
+## 2. How to read the current Actions screen
+
+A successful current run should be interpreted as:
+
+> Existing prototype validation assets still work after this design-document change.
+
+It should **not** be interpreted as:
+
+- Master Design v1 approved
+- new screen design implemented
+- celebrity/issue discovery implemented
+- photo/video rights automation implemented
+- candidate ranking v1 implemented
+- live Threads/NAVER access enabled
+- publication enabled
+
+The workflow name `CI` is therefore broader than the actual meaning of the design status. The future workflow should make this distinction visible.
+
+## 3. Goal for future design CI
 
 Before implementation resumes, GitHub Actions should present a separate design-quality job so a green build has a clear meaning.
 
@@ -27,11 +45,12 @@ Proposed jobs:
 - `design-authority`
 - `design-traceability`
 - `design-open-gates`
+- `design-consistency`
 - `prototype-regression`
 
 No workflow change is made while the project is under design-only instruction.
 
-## 3. Job: design-scope
+## 4. Job: design-scope
 
 Purpose: enforce the design freeze on design PRs.
 
@@ -56,7 +75,7 @@ Expected GitHub UI output:
 
 `Design scope: PASS — documentation-only change`
 
-## 4. Job: design-authority
+## 5. Job: design-authority
 
 Purpose: make sure the canonical spec set exists and references are valid.
 
@@ -70,9 +89,9 @@ Checks should eventually include:
 
 Expected output:
 
-`Design authority: 29/29 required specs present`
+`Design authority: required specs present`
 
-## 5. Job: design-traceability
+## 6. Job: design-traceability
 
 Purpose: ensure every product requirement has a design owner and acceptance test.
 
@@ -85,9 +104,9 @@ Checks:
 
 Expected output example:
 
-`Traceability: 24 requirements mapped, 0 orphaned`
+`Traceability: all requirements mapped, 0 orphaned`
 
-## 6. Job: design-open-gates
+## 7. Job: design-open-gates
 
 Purpose: show unresolved design decisions without pretending they are failures that can be guessed away.
 
@@ -105,13 +124,13 @@ Before an implementation-resume PR, unresolved P0 items become blocking.
 Expected output:
 
 ```text
-P0 unresolved: 6
-P0 deferred safely: 0
-P1 unresolved: 7
-Implementation resume: BLOCKED
+P0 unresolved: <count>
+P0 deferred safely: <count>
+P1 unresolved: <count>
+Implementation resume: BLOCKED|READY
 ```
 
-## 7. Job: design-consistency
+## 8. Job: design-consistency
 
 Future checks should detect simple contradictions such as:
 
@@ -122,10 +141,11 @@ Future checks should detect simple contradictions such as:
 - issue rumor/private-life content allowed
 - public media treated as automatically reusable
 - substitute product represented as exact
+- opportunity score used to bypass evidence readiness
 
 This is not intended to replace human design review; it catches structural regressions.
 
-## 8. Job: prototype-regression
+## 9. Job: prototype-regression
 
 The current runtime checks can remain as a separate non-authoritative job:
 
@@ -143,7 +163,7 @@ Label clearly:
 
 This prevents users from misreading prototype tests as proof that the newly written design has been implemented.
 
-## 9. Pull request summary artifact
+## 10. Pull request summary artifact
 
 A future design CI run should generate a short Markdown summary visible in Actions/PR checks:
 
@@ -151,22 +171,23 @@ A future design CI run should generate a short Markdown summary visible in Actio
 ThreadScout Design Status
 -------------------------
 Scope: docs-only PASS
-Canonical specs: 29 present
+Canonical specs: PASS
 Traceability: PASS
 Six-agent invariant: PASS
 Media-rights invariant: PASS
 Issue-rumor invariant: PASS
-P0 unresolved: 6
-P1 unresolved: 7
+Ranking/evidence separation: PASS
+P0 unresolved: <count>
+P1 unresolved: <count>
 Implementation freeze: ACTIVE
 Prototype regression: PASS
 ```
 
-## 10. Merge semantics
+## 11. Merge semantics
 
 ### Draft design PR
 
-May merge only when the team/user intentionally wants to establish a design baseline with unresolved live-environment gates recorded.
+May merge only when the user intentionally wants to establish a design baseline with unresolved live-environment gates recorded.
 
 ### Design finalization PR
 
@@ -182,6 +203,6 @@ Must not claim `DESIGN COMPLETE` until:
 
 Must reference the specific approved design baseline commit and affected requirement IDs.
 
-## 11. Current action
+## 12. Current action
 
 Do not modify `.github/workflows/ci.yml` under the current instruction. This spec records how Actions should be improved after the user permits implementation/configuration work again.
