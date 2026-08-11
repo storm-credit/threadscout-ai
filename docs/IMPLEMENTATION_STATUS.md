@@ -34,8 +34,8 @@ The design baseline lives in `docs/spec/` and now defines:
 - analytics/learning design
 - safety/privacy/compliance rules
 - end-to-end scenarios
-- traceability matrix
-- behavioral acceptance tests
+- traceability matrix through the detailed design requirements
+- behavioral acceptance tests through AT-28
 - future design-focused GitHub Actions semantics
 - design freeze/open questions
 - existing-code gap analysis
@@ -56,9 +56,9 @@ Existing prototype behavior remains unchanged.
 
 ## Current design milestone
 
-**Master Design v1 — reviewable baseline**
+**Master Design v1 — detailed reviewable baseline**
 
-This is more detailed than the initial baseline but is not yet labeled `DESIGN COMPLETE`.
+This is not yet labeled `DESIGN COMPLETE`.
 
 The remaining blocking questions are live/account-specific P0 items plus selected P1 operating defaults documented in `docs/spec/DESIGN_FREEZE.md`.
 
