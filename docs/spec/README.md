@@ -64,6 +64,13 @@ If the prototype conflicts with an approved spec, the prototype is considered ou
 - end-to-end scenarios, traceability, and behavioral acceptance
 - future design-focused GitHub Actions semantics
 
+## Design status terminology
+
+- **reviewable baseline** — enough detail for structured review, but open P0/P1 decisions remain
+- **design approved** — user accepts direction and required unresolved items are explicitly resolved/deferred
+- **design complete for implementation slice** — that slice has requirements, authority, acceptance tests, and no unresolved blocking gate
+- **implemented** — code exists and has passed implementation verification; design documents alone never imply this state
+
 ## Current mode
 
 **Design-only.** No runtime/product code or workflow-logic changes until the implementation-resume gate in `DESIGN_FREEZE.md` is satisfied.
