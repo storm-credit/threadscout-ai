@@ -77,6 +77,14 @@ The current workflow still executes the existing prototype regression/verificati
 
 Future design-specific Actions behavior is defined in `DESIGN_CI_SPEC.md` but intentionally not implemented during the design freeze.
 
+## Current baseline
+
+Branch: `docs/master-design-v1`
+
+PR: #8 (draft design review)
+
+This baseline is intentionally kept separate from `main` until the design direction is accepted.
+
 ## Current mode
 
 **Design-only.** No runtime/product code or workflow-logic changes until the implementation-resume gate in `DESIGN_FREEZE.md` is satisfied.
