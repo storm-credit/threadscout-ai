@@ -71,6 +71,12 @@ If the prototype conflicts with an approved spec, the prototype is considered ou
 - **design complete for implementation slice** — that slice has requirements, authority, acceptance tests, and no unresolved blocking gate
 - **implemented** — code exists and has passed implementation verification; design documents alone never imply this state
 
+## GitHub Actions interpretation
+
+The current workflow still executes the existing prototype regression/verification suite. A green check means the pre-freeze validation assets continue to pass after documentation changes. It does not mean these specs are implemented.
+
+Future design-specific Actions behavior is defined in `DESIGN_CI_SPEC.md` but intentionally not implemented during the design freeze.
+
 ## Current mode
 
 **Design-only.** No runtime/product code or workflow-logic changes until the implementation-resume gate in `DESIGN_FREEZE.md` is satisfied.
