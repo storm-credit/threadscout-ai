@@ -1,128 +1,93 @@
-# Existing Prototype vs Master Spec — Gap Analysis v1
+# Existing Prototype vs Master Spec — Gap Analysis v2
 
 This is design analysis only. It does not authorize code changes.
 
-## 1. Keep conceptually
+## Keep conceptually
 
-The following existing concepts align with the master design and should be preserved unless later evidence contradicts them:
+Preserve these existing concepts unless a later approved design changes them:
 
 - exactly six fixed agents
 - Orchestrator-only delegation
-- Product Scout does discovery, Verifier owns facts
+- Product Scout discovers; Verifier owns factual conclusions
 - no separate price agent
 - four strategy angles and four Writer drafts
-- Guardian before human approval
-- explicit human approval before publication
-- deterministic scheduler/publisher/metrics/audit services
+- Guardian before human review
+- explicit user review before external publication
+- deterministic scheduler/publisher/metrics/audit responsibilities
 - bounded retries and budgets
 - provider-neutral runtime concept
 - artifact/schema validation
-- content-addressed evidence and hash-chained events
+- versioned evidence and run events
 - fail-closed source readiness
-- secret redaction and no credentials in Git
-- fixture/replay testing for deterministic scenarios
+- fixture/replay scenarios
 
-## 2. Modify later after design approval
+## Modify later after design approval
 
-### Discovery model
+### Orchestration
 
-Current prototype is oriented around product-first practical novel items. Future implementation must also model `IssueSignal`, media references, and public-figure/broadcast triggers without changing the fixed six-agent roster.
+Align existing runtime states with `ORCHESTRATOR_STATE_MACHINE.md`, `ROUTING_RULES.md`, and `HANDOFF_VALIDATION_RULES.md`. Add explicit stale routing and role-authority checks at every handoff.
 
-### Source registry
+### Prompts
 
-Current source-readiness structure is useful, but future design requires source evidence tiers, independence/dependency metadata, issue/news source classes, and explicit media-purpose separation.
+Align all six agent prompts with `PROMPT_SYSTEM_SPEC.md`, including context requirements, stop conditions, output schema, role authority, prompt version, and result review.
 
-### Candidate artifact
+### Candidate/discovery
 
-Must evolve to include:
+Add content lane, issue context, media refs, multiple product hypotheses, purchase-intent evidence, freshness, and portfolio-selection reason codes.
 
-- content lane
-- issue context
-- media refs
-- multiple product hypotheses
-- purchase-intent evidence
-- relationship uncertainty
+### Evidence
 
-### Evidence packet
+Add explicit ProductMatch, relationship state, media final-use state, claim evidence class, evidence thresholds, freshness/TTL state, prohibited implications, and exact-versus-alternative commercial eligibility.
 
-Must evolve to include explicit:
+### UI
 
-- ProductMatch entity/reference
-- PublicFigureRelation
-- MediaAsset rights refs
-- stale/TTL state
-- prohibited implications
-- exact vs alternative affiliate eligibility
+Replace prototype-first candidate presentation with the selected Opportunity Inbox hierarchy and `UI_STATE_ACTION_MATRIX.md` behavior. Known blockers must affect the visible CTA before the user opens a detail page.
 
-### Approval model
+### Content/review
 
-Approval should bind draft, evidence, media, and affiliate mapping hashes, not only a general candidate/draft state.
+Use the canonical four-angle output contract and bind the human review decision to exact draft/evidence/media/destination revisions as defined by `CONTENT_OUTPUT_SPEC.md` and `REVIEW_BINDING_SPEC.md`.
 
-### Scheduling
+### Scheduling/analytics
 
-Future implementation needs preflight, invalidated/expired/unknown_remote_state, idempotency and remote reconciliation behavior from `PUBLISHING_SPEC.md`.
+Later align schedule preflight, stale review behavior, result reconciliation, metric separation, and bounded learning with their domain specs.
 
-### Analytics
+## Avoid later
 
-Current prototype does not yet provide the bounded learning model required by `ANALYTICS_SPEC.md`.
+Do not preserve behavior that:
 
-## 3. Remove/avoid later
+- treats fixture values as live truth
+- lets one numeric score hide evidence or risk state
+- treats a research media reference as automatically usable in final content
+- treats a similar listing as exact identity
+- lets a specialist silently exceed its role authority
+- uses high-performing unsafe patterns as a learning target
+- lowers quality gates to fill a daily quota
 
-No existing validated safety mechanism should be removed solely for convenience. However future implementation should avoid or retire any behavior that:
+## Still missing from implementation, but already designed
 
-- treats fixture scores as market truth
-- uses a single numeric score without reasons/uncertainty
-- equates public visibility with media reuse permission
-- treats social observation + similar listing as exact identity
-- lets raw trend performance directly drive copy imitation
-- allows an agent to act as scheduler/publisher
+- worked 20→5 non-numeric portfolio selection
+- issue-to-product routing
+- source/relation/product/media independence
+- claim/evidence thresholds
+- mobile state-to-action matrix
+- prompt lifecycle/version discipline
+- review binding and stale propagation
+- MVP scope boundary
+- configuration authority layers
+- cross-spec edge-case behavior
 
-## 4. Missing capabilities by design domain
+## Still open in design
 
-### User experience
+- final visual styling/interactions
+- production score calibration
+- live source allowlist and actual account capabilities
+- exact listing/commercial source
+- current commercial/disclosure rules
+- deployment and credential-storage choices
+- source-specific final-use media rules
+- actual metric availability
+- promotion of provisional TTL/retention defaults
 
-- issue-triggered candidate card state
-- media rights/usage display
-- simplified evidence lineage
-- exact vs alternative affiliate label
-- stale-evidence preflight UI
-- suppression restore flow
+## Implementation-resume rule
 
-### Discovery / research
-
-- approved live issue/news source classes
-- independent-source detection
-- media metadata/reference pipeline
-- public-event product co-occurrence signals
-
-### Verification
-
-- full product matching dimensions and conflict model
-- public-figure relationship classifier
-- publication-rights decision per asset/action
-- evidence TTL policy
-
-### Content
-
-- issue-linked safe wording classes
-- prohibited implication propagation into strategy/writer
-- account-wide content portfolio/rate guardrails
-
-### Publishing
-
-- live official publisher activation
-- preflight refresh
-- reconciliation after unknown outcome
-- destination/link integrity preflight
-
-### Analytics
-
-- metric snapshots
-- intent vs attention separation
-- trust/quality metrics
-- minimum-sample/confidence logic
-- approved learning summary to Scout
-
-## 5. Design/code mismatch rule
-
-Once Master Spec v1 is approved, create implementation issues from this gap analysis. Each issue must point to requirement IDs and acceptance-test IDs. Code must not be changed directly from this document without that mapping.
+After Master Design v1 is approved, create implementation slices/issues from the approved baseline. Each implementation unit references the relevant requirement and acceptance IDs. Do not resume ad-hoc coding from this gap list alone.
