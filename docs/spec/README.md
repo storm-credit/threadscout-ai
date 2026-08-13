@@ -6,11 +6,11 @@ This directory is the canonical design baseline for the next implementation cycl
 
 1. `MASTER_SPEC.md`
 2. domain specs in this directory
-3. `TRACEABILITY_MATRIX.md` and `ACCEPTANCE_TESTS.md`
+3. traceability and acceptance artifacts
 4. legacy/phase documents under `docs/`
 5. prototype implementation
 
-If the prototype conflicts with an approved spec, the prototype is out of date. Do not rewrite the spec merely to match existing code.
+If the prototype conflicts with an approved spec, the prototype is out of date.
 
 ## Required reading order
 
@@ -42,11 +42,13 @@ If the prototype conflicts with an approved spec, the prototype is out of date. 
 26. `END_TO_END_SCENARIOS.md`
 27. `P0_P1_DECISION_TABLE.md`
 28. `TRACEABILITY_MATRIX.md`
-29. `ACCEPTANCE_TESTS.md`
-30. `DESIGN_CI_SPEC.md`
-31. `DESIGN_REVIEW_CHECKLIST.md`
-32. `DESIGN_FREEZE.md`
-33. `IMPLEMENTATION_GAP_ANALYSIS.md`
+29. `TRACEABILITY_ADDENDUM.md`
+30. `ACCEPTANCE_TESTS.md`
+31. `ACCEPTANCE_TESTS_ADDENDUM.md`
+32. `DESIGN_CI_SPEC.md`
+33. `DESIGN_REVIEW_CHECKLIST.md`
+34. `DESIGN_FREEZE.md`
+35. `IMPLEMENTATION_GAP_ANALYSIS.md`
 
 ## Design domains covered
 
