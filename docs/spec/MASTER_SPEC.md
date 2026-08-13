@@ -193,6 +193,8 @@ Every media object must have:
 
 No asset is publishable while rights state is unresolved.
 
+The selected acquisition strategy is dual-funnel: approved external references may feed internal discovery/verification, while publication media is acquired independently through owned/licensed/permitted treatment or omitted.
+
 ## 11. Product matching rule
 
 The system distinguishes:
@@ -204,7 +206,20 @@ The system distinguishes:
 
 An affiliate link may be attached as “the same product” only at `exact`. `substitute` may be used only with explicit alternative wording. `likely` and `unresolved` cannot be represented as the exact item shown by a celebrity, broadcast, image, or video.
 
-## 12. Approval gates
+## 12. Ranking and daily selection rule
+
+Candidate ranking has four independent states:
+
+- opportunity score
+- evidence readiness
+- risk level
+- freshness state
+
+The daily top five are not the five highest scores. Portfolio selection also considers blockers, suppression, verification workload, lane concentration, issue concentration, repetition, and publication-media feasibility.
+
+A synthetic worked example is maintained in `DAILY_CANDIDATE_SELECTION_EXAMPLE.md` so the 20→5 behavior remains explainable before implementation.
+
+## 13. Approval gates
 
 A draft may enter the human-approval screen only when:
 
@@ -218,7 +233,7 @@ A draft may enter the human-approval screen only when:
 
 External publication additionally requires explicit user approval for that post.
 
-## 13. Staleness and recency
+## 14. Staleness and recency
 
 Volatile fields have timestamps and TTL policies. At minimum:
 
@@ -229,7 +244,9 @@ Volatile fields have timestamps and TTL policies. At minimum:
 
 A stale artifact cannot silently pass forward.
 
-## 14. Human controls
+Provisional simulation defaults live in `P0_P1_DECISION_TABLE.md`; they are not production-approved until explicitly promoted.
+
+## 15. Human controls
 
 The user must be able to:
 
@@ -245,30 +262,51 @@ The user must be able to:
 - cancel scheduled content
 - globally disable publishing
 
-## 15. Design completion gate
+## 16. Design completion gate
 
-Implementation may resume only when this specification set has no unresolved P0/P1 design questions in `DESIGN_FREEZE.md` and the traceability matrix maps every MVP requirement to an owner, artifact, gate, and acceptance test.
+Implementation may resume only when:
 
-## 16. Document map
+- the Master Spec direction is approved
+- all P0 items are resolved or safely deferred behind disabled features
+- P1 values needed for the implementation slice are promoted from provisional to approved
+- the traceability matrix maps every MVP requirement to an owner, artifact, gate, and acceptance test
+- the implementation plan names the approved design baseline commit
 
-This file is the product/system authority. Supporting specs:
+## 17. Document map
+
+This file is the product/system authority. Supporting specs include:
 
 - `PRODUCT_REQUIREMENTS.md`
 - `USER_FLOWS.md`
+- `UI_SCREEN_SPEC.md`
+- `MOBILE_WIREFRAMES.md`
 - `AGENT_CONTRACTS.md`
 - `AGENT_HANDOFFS.md`
 - `DATA_MODEL.md`
 - `SOURCE_STRATEGY.md`
+- `RANKING_SCORING_SPEC.md`
+- `DAILY_CANDIDATE_SELECTION_EXAMPLE.md`
+- `MEDIA_STRATEGY_OPTIONS.md`
+- `MEDIA_ACQUISITION_OPTIONS.md`
 - `MEDIA_PIPELINE.md`
+- `MEDIA_USAGE_SCENARIOS.md`
 - `TREND_ISSUE_PIPELINE.md`
+- `ISSUE_SOURCE_GRADING.md`
+- `ISSUE_PRODUCT_DECISION_TABLE.md`
 - `PRODUCT_MATCHING.md`
 - `CONTENT_STRATEGY.md`
 - `AFFILIATE_SPEC.md`
+- `DAILY_OPERATING_MODEL.md`
 - `PUBLISHING_SPEC.md`
 - `ANALYTICS_SPEC.md`
 - `SAFETY_COMPLIANCE.md`
+- `END_TO_END_SCENARIOS.md`
+- `P0_P1_DECISION_TABLE.md`
 - `TRACEABILITY_MATRIX.md`
 - `ACCEPTANCE_TESTS.md`
+- `DESIGN_CI_SPEC.md`
+- `DESIGN_REVIEW_CHECKLIST.md`
 - `DESIGN_FREEZE.md`
+- `IMPLEMENTATION_GAP_ANALYSIS.md`
 
 If supporting documents conflict with this master spec, this file wins until a recorded design decision changes it.
