@@ -8,6 +8,7 @@ Use this before declaring design complete.
 - [x] Primary content lanes defined
 - [x] Issue-trigger lane bounded
 - [x] Non-goals defined
+- [x] MVP boundary defined
 - [x] Daily operating model defined
 - [x] Worked 20-to-5 selection example defined
 - [ ] User approves Master Spec direction
@@ -19,30 +20,33 @@ Use this before declaring design complete.
 - [x] Opportunity Inbox selected as mobile primary view
 - [x] Detailed screen set S01–S10 defined
 - [x] Critical first-card fields defined for 360 px width
-- [x] Guardian status placed before approval CTA
+- [x] Guardian status placed before review CTA
 - [x] Suppression controls defined
 - [ ] Final visual styling and interaction pattern approved
 
-## Ranking
+## Ranking and evidence
 
 - [x] Opportunity score separated from evidence readiness, risk, and freshness
 - [x] Score weights defined conceptually
 - [x] Portfolio diversity behavior defined
 - [x] Worked selection demonstrates score is not sovereign
+- [x] Claim strength/evidence thresholds defined
 - [x] High score cannot bypass a blocker
 - [ ] Production score threshold calibrated
 
-## Orchestra
+## Orchestra and prompts
 
 - [x] Exactly six agents fixed
 - [x] Agent responsibilities defined
 - [x] Agent inputs/outputs defined
 - [x] Tool boundaries defined
 - [x] Handoff envelope defined
+- [x] Orchestrator state machine defined
 - [x] Retry/escalation rules defined
-- [x] Guardian/human gates defined
+- [x] Prompt lifecycle and version discipline defined
+- [x] Guardian and human review gates defined
 
-## Evidence and media
+## Evidence, media, and issue triggers
 
 - [x] Source hierarchy defined
 - [x] Exact product states defined
@@ -53,16 +57,19 @@ Use this before declaring design complete.
 - [x] Issue source grades G0–G4 defined
 - [x] Product relation grades R0–R5 defined
 - [x] Issue-to-product action matrix defined
+- [x] Edge cases documented
 - [ ] Exact live source allowlist approved
 - [ ] Source-specific final-use policy reviewed at implementation time
 
-## Commerce and publishing
+## Content, commerce, and publishing
 
+- [x] Four-angle content output contract defined
+- [x] Research vs first-hand wording boundary defined
 - [x] Commerce snapshot concept defined
 - [x] Exact vs alternative mapping defined
 - [x] Stale listing behavior defined conceptually
+- [x] Review binding to exact artifact revisions defined
 - [x] Publishing state and reconciliation model defined
-- [x] Human approval binding defined
 - [ ] First affiliate program confirmed
 - [ ] Current disclosure/link rules confirmed
 - [ ] Authorized exact-product listing source confirmed
@@ -76,6 +83,14 @@ Use this before declaring design complete.
 - [x] Daily vs weekly learning behavior defined
 - [ ] Actual available metrics confirmed
 
+## Cross-spec review
+
+- [x] Contradiction review completed
+- [x] Six-agent/no-price-agent rules consistent
+- [x] Ranking/evidence/media rules consistent
+- [x] Product match and alternative wording consistent
+- [x] Daily quota and no-candidate behavior consistent
+
 ## Design governance
 
 - [x] `docs/spec/` is design authority
@@ -85,6 +100,7 @@ Use this before declaring design complete.
 - [x] P0/P1 table added
 - [x] Acceptance addendum AT-29–AT-33 added
 - [x] Traceability addendum added
+- [x] Detailed Review Round 2 recorded
 - [ ] Deployment target selected
 - [ ] Production credential storage selected
 - [ ] Provisional TTL/retention defaults promoted or revised
