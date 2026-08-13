@@ -2,311 +2,77 @@
 
 Status: DESIGN BASELINE — implementation freeze until this spec set is reviewed.
 
-## 1. Product purpose
+## Product purpose
 
 ThreadScout AI is a Korean, mobile-first, approval-first operating system for discovering products worth discussing on Threads, proving what is true about them, creating useful content, and learning from results without turning the account into spam or gossip.
 
-The system is not a generic trend scraper. It must connect a topic to a concrete reader value and a verifiable product or explicitly decide that no product should be attached.
+The system is not a generic trend scraper. It must connect a topic to concrete reader value and a verifiable product, or explicitly decide that no product should be attached.
 
-## 2. Primary outcomes
+## Primary outcomes
 
-The user should be able to open the dashboard and answer four questions quickly:
+The user should quickly answer: what is worth posting today, why it is interesting now, what can safely be claimed or shown, and which draft is worth approving.
 
-1. What is worth posting today?
-2. Why is it interesting now?
-3. What can safely be claimed and shown?
-4. Which draft is worth approving?
+## Content lanes
 
-The system optimizes for trustworthy repeatable operation, not maximum post volume.
+- practical novel items: about 60%
+- family / elementary-school household items: about 20%
+- travel / desk / storage: about 15%
+- curiosity-only: no more than about 5%
+- issue-triggered product discovery: a trigger source only when the product connection is verifiable and useful
 
-## 3. Primary content lanes
+## Fixed six-agent orchestra
 
-### Lane A — practical novel items
-
-Products with an unexpected mechanism that visibly solve an everyday problem. Target share: about 60%.
-
-### Lane B — family / elementary-school household items
-
-Low-risk products relevant to parents and children. Target share: about 20%.
-
-### Lane C — travel / desk / storage
-
-Useful products with a clear before/after or decision point. Target share: about 15%.
-
-### Lane D — curiosity-only items
-
-Novelty with weaker utility. Target share: no more than about 5%.
-
-### Lane E — issue-triggered product discovery
-
-A public celebrity, entertainer, program, sports, event, or cultural moment may create product interest. This lane is a trigger source, not a gossip category. It may enter the product pipeline only if the relationship to the product is verifiable and commercially or practically useful to the reader.
-
-## 4. Non-goals
-
-ThreadScout must not become:
-
-- an automated celebrity-rumor account
-- an unauthorized media re-uploader
-- a fake personal-review generator
-- a medical/health claim generator
-- an engagement-farming bot
-- an automatic purchasing or payment agent
-- an auto-comment, auto-like, or auto-follow system
-- a system that publishes without Guardian pass and human approval
-
-## 5. Fixed six-agent orchestra
-
-Exactly six agents exist:
-
-1. Orchestrator — owns plan, routing, budgets, state, escalation, and human gates
-2. Product Scout — discovers candidates and issue/product signals
-3. Evidence Verifier — owns exact identity, claims, rights, commerce facts, and source conflicts
-4. Content Strategist — turns verified evidence into four distinct reader-value angles
-5. Threads Writer — writes four Korean Threads drafts from approved evidence only
-6. Integrity Guardian — independently checks truth, rights, disclosure, duplication, tone, and platform risk
+Exactly six agents exist: Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, and Integrity Guardian.
 
 There is no price agent. Price, seller, stock, quantity, and variant are volatile commerce evidence owned by Evidence Verifier.
 
-## 6. Deterministic services
+## Deterministic services
 
-These are services, not agents:
+Source adapters, evidence store, media registry, scheduler, publisher adapter, metrics collector, audit/event log, duplicate detector, affiliate mapper, and state machine remain deterministic services.
 
-- source registry and adapters
-- evidence store
-- media registry
-- scheduler
-- publisher adapter
-- metrics collector
-- audit/event log
-- duplicate detector
-- link/affiliate mapper
-- state machine
-
-Deterministic work must remain deterministic unless a future design review proves an agent is necessary.
-
-## 7. Canonical end-to-end flow
+## Canonical flow
 
 ```text
 User/account goals
-      ↓
-Orchestrator intake
-      ↓
-Discovery inputs
-  ├─ Threads/product discussion
-  ├─ search/trend corroboration
-  ├─ public-figure/broadcast issue signal
-  ├─ image/video references
-  └─ user-supplied product/reference
-      ↓
-Product Scout candidate set
-      ↓
-Evidence Verifier
-  ├─ exact product identity
-  ├─ claims/evidence
-  ├─ media rights
-  ├─ public-figure relationship level
-  └─ seller/variant/price/stock snapshot
-      ↓
-Candidate decision
-  ├─ reject
-  ├─ hold for more evidence
-  ├─ discovery-only content
-  └─ verified product content
-      ↓
-Content Strategist — four distinct angles
-      ↓
-Threads Writer — four mapped drafts
-      ↓
-Integrity Guardian — pass / revise / block
-      ↓
-Human edit + explicit approval
-      ↓
-Scheduler / publisher
-      ↓
-Metrics collection
-      ↓
-Analytics summary
-      ↓
-Next Scout run receives only validated learning signals
+→ Orchestrator
+→ discovery inputs
+→ Product Scout
+→ Evidence Verifier
+→ candidate decision
+→ Content Strategist (4 angles)
+→ Threads Writer (4 drafts)
+→ Integrity Guardian
+→ human approval
+→ schedule/publish
+→ metrics/learning
 ```
 
-## 8. Source hierarchy
+## Core truth rules
 
-Evidence strength is not equal across sources.
+Issue source reliability, product relationship, exact product identity, publication media state, commercial mapping, and freshness are independent. A strong signal on one axis cannot compensate for a blocker on another.
 
-Tier 1 — first-party / primary:
-- official brand/product page
-- official retailer/listing controlled by the seller or platform
-- official public-figure/agency/broadcast account or release
-- user-owned photo, receipt, product, or direct-use record
+Finding a photo/video and being allowed to use it in a final post are separate facts. Final media prefers user-owned material, permission-confirmed material, permitted native treatment, text-only, then hold.
 
-Tier 2 — reliable secondary:
-- established reporting describing a public event or appearance
-- platform-native public post with clear original authorship
-- independent search/trend statistics with known semantics
+Product state is `exact`, `likely`, `substitute`, or `unresolved`. A commercial destination may be described as the same product only at `exact`; a substitute must be labeled as an alternative.
 
-Tier 3 — discovery-only:
-- reposts
-- fan accounts
-- community posts
-- comments
-- aggregator pages
+## Ranking and daily selection
 
-Tier 3 can trigger research but cannot by itself support an exact product, endorsement, relationship, or sensitive claim.
+Every candidate exposes opportunity score, evidence readiness, risk level, and freshness separately. The final five are not simply the five highest scores; portfolio selection also considers blockers, suppression, verification workload, repetition, lane concentration, issue concentration, and publication-media feasibility.
 
-## 9. Public-figure and issue rule
+## Approval gates
 
-A public-figure issue enters the product workflow only when all are true:
+A draft reaches human approval only when evidence is current, Guardian passes, disclosure is resolved, publication media state is valid, first-hand wording matches an actual usage record, and product-match wording is accurate. External publication additionally requires explicit human approval for that post.
 
-- the event is public and sourceable
-- the product relationship is relevant to the post
-- the relationship level can be classified
-- the content does not rely on private-life speculation
-- the media can be lawfully referenced or replaced with licensed/original media
+## Staleness
 
-Relationship levels:
+Volatile facts have TTLs and invalidation rules. Provisional design defaults live in `P0_P1_DECISION_TABLE.md`; they are not production-approved until promoted.
 
-- `official_endorsement` — explicitly advertised or officially partnered
-- `confirmed_use` — verifiably used/worn/held in a public context, without implying endorsement
-- `visible_unconfirmed_identity` — product appears visible but exact identity is not proved
-- `reported_association` — reliable reporting connects person/event and product
-- `similar_only` — only a similar product can be found
-- `rumor_or_private` — blocked
+## Design completion gate
 
-Only the first four may appear in factual copy, with wording matched to the evidence level. `similar_only` must be labeled as an alternative. `rumor_or_private` never proceeds.
+Implementation resumes only when the Master Spec direction is approved, P0 items are resolved or safely deferred behind disabled features, required P1 values are promoted, traceability is complete, and the implementation plan names the approved baseline commit.
 
-## 10. Media rule
+## Supporting authority
 
-Finding a photo/video and being allowed to republish it are separate facts.
+The `docs/spec/` set covers product requirements, user flows, UI/wireframes, six-agent contracts/handoffs, data model, source strategy, ranking, daily selection, media strategy/pipeline, issue pipeline/grading/decision rules, product matching, content/affiliate strategy, operations, publishing, analytics, safety/compliance, scenarios, P0/P1 decisions, traceability, acceptance tests, design-CI semantics, design review, freeze rules, and prototype gap analysis.
 
-Every media object must have:
-
-- origin URL/reference
-- creator/owner when known
-- media type
-- capture/observed time
-- relationship to candidate
-- rights state
-- allowed uses
-- transformation history
-- whether the asset can be downloaded, embedded, quoted, linked, or only used for internal analysis
-
-No asset is publishable while rights state is unresolved.
-
-The selected acquisition strategy is dual-funnel: approved external references may feed internal discovery/verification, while publication media is acquired independently through owned/licensed/permitted treatment or omitted.
-
-## 11. Product matching rule
-
-The system distinguishes:
-
-- exact
-- high-confidence likely
-- substitute
-- unresolved
-
-An affiliate link may be attached as “the same product” only at `exact`. `substitute` may be used only with explicit alternative wording. `likely` and `unresolved` cannot be represented as the exact item shown by a celebrity, broadcast, image, or video.
-
-## 12. Ranking and daily selection rule
-
-Candidate ranking has four independent states:
-
-- opportunity score
-- evidence readiness
-- risk level
-- freshness state
-
-The daily top five are not the five highest scores. Portfolio selection also considers blockers, suppression, verification workload, lane concentration, issue concentration, repetition, and publication-media feasibility.
-
-A synthetic worked example is maintained in `DAILY_CANDIDATE_SELECTION_EXAMPLE.md` so the 20→5 behavior remains explainable before implementation.
-
-## 13. Approval gates
-
-A draft may enter the human-approval screen only when:
-
-- evidence packet is valid and current
-- Guardian decision is `pass`
-- no mandatory disclosure is missing
-- rights state for publishable media is resolved
-- first-hand language matches an actual usage record
-- exact/substitute wording matches product-match state
-- sensitive public-figure claims are absent or source-supported
-
-External publication additionally requires explicit user approval for that post.
-
-## 14. Staleness and recency
-
-Volatile fields have timestamps and TTL policies. At minimum:
-
-- price/stock/seller/variant availability: recheck before publication when older than configured threshold
-- issue/trend relevance: mark stale when outside the content window
-- rights state: revalidate if source terms or asset status changes
-- exact product identity: invalidate downstream artifacts if supporting evidence changes
-
-A stale artifact cannot silently pass forward.
-
-Provisional simulation defaults live in `P0_P1_DECISION_TABLE.md`; they are not production-approved until explicitly promoted.
-
-## 15. Human controls
-
-The user must be able to:
-
-- approve
-- edit
-- hold
-- reject
-- suppress a product
-- suppress a category
-- mark personal use
-- attach owned media/evidence
-- select a different draft angle
-- cancel scheduled content
-- globally disable publishing
-
-## 16. Design completion gate
-
-Implementation may resume only when:
-
-- the Master Spec direction is approved
-- all P0 items are resolved or safely deferred behind disabled features
-- P1 values needed for the implementation slice are promoted from provisional to approved
-- the traceability matrix maps every MVP requirement to an owner, artifact, gate, and acceptance test
-- the implementation plan names the approved design baseline commit
-
-## 17. Document map
-
-This file is the product/system authority. Supporting specs include:
-
-- `PRODUCT_REQUIREMENTS.md`
-- `USER_FLOWS.md`
-- `UI_SCREEN_SPEC.md`
-- `MOBILE_WIREFRAMES.md`
-- `AGENT_CONTRACTS.md`
-- `AGENT_HANDOFFS.md`
-- `DATA_MODEL.md`
-- `SOURCE_STRATEGY.md`
-- `RANKING_SCORING_SPEC.md`
-- `DAILY_CANDIDATE_SELECTION_EXAMPLE.md`
-- `MEDIA_STRATEGY_OPTIONS.md`
-- `MEDIA_ACQUISITION_OPTIONS.md`
-- `MEDIA_PIPELINE.md`
-- `MEDIA_USAGE_SCENARIOS.md`
-- `TREND_ISSUE_PIPELINE.md`
-- `ISSUE_SOURCE_GRADING.md`
-- `ISSUE_PRODUCT_DECISION_TABLE.md`
-- `PRODUCT_MATCHING.md`
-- `CONTENT_STRATEGY.md`
-- `AFFILIATE_SPEC.md`
-- `DAILY_OPERATING_MODEL.md`
-- `PUBLISHING_SPEC.md`
-- `ANALYTICS_SPEC.md`
-- `SAFETY_COMPLIANCE.md`
-- `END_TO_END_SCENARIOS.md`
-- `P0_P1_DECISION_TABLE.md`
-- `TRACEABILITY_MATRIX.md`
-- `ACCEPTANCE_TESTS.md`
-- `DESIGN_CI_SPEC.md`
-- `DESIGN_REVIEW_CHECKLIST.md`
-- `DESIGN_FREEZE.md`
-- `IMPLEMENTATION_GAP_ANALYSIS.md`
-
-If supporting documents conflict with this master spec, this file wins until a recorded design decision changes it.
+If supporting documents conflict with this Master Spec, this file wins until a recorded design decision changes it.
