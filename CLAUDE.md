@@ -25,6 +25,8 @@ Use existing context first. Reversible documentation/design work may continue au
 
 Compare four options before major UI, workflow, niche, runtime, provider, storage, research-source, media strategy, or roster decisions. Every task states success criteria, non-goals, verification, and stop conditions.
 
+Do not create four cosmetic variants merely to satisfy this rule. The four options must represent materially different approaches, tradeoffs, or operating models and should be presented so the owner can compare them at a glance.
+
 ## 5. Approval first
 
 No post may be published without explicit human approval. Guardian pass is also required before queueing. Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement.
@@ -89,4 +91,107 @@ Every implementation requirement must map through `docs/spec/TRACEABILITY_MATRIX
 
 ## 14. Verification and deviations
 
-Record where plans fail, the original plan, change, reason, impact, and remaining risks. During design freeze, completion means design artifacts are internally consistent and open P0/P1 questions are visible—not that code has been changed.
+Record where plans fail, the original plan, change, reason, impact, and remaining risks. Do not hide a deviation by rewriting the plan after the fact.
+
+A deviation record must include:
+
+- original plan
+- where the plan stopped matching reality
+- what changed
+- why it changed
+- affected requirements/design/tests
+- remaining risk or follow-up
+
+## 15. Interview gate — ask only for missing high-impact context
+
+Before a major design or implementation slice, perform a context dump from the current conversation, repository, approved specs, decision log, prior user answers, and relevant evidence.
+
+Then identify only unresolved questions that can materially change the result.
+
+- Do not ask the owner to repeat information already present in the current context or repository.
+- Ask at most 3–5 high-impact questions at a time when clarification is genuinely needed.
+- If a safe, reversible default is sufficient, record the assumption and continue automatically instead of blocking.
+- Ask before making a choice that changes product intent, primary user, irreversible scope, spending, credentials, live publication, or another high-impact boundary.
+- Every implementation slice must state the user intent, primary user, job-to-be-done, success conditions, non-goals, and stop conditions before coding begins.
+
+`docs/USER_INTERVIEW.md` is a question bank, not a script that must be repeated every time.
+
+## 16. Reference-first gate — inspect examples before implementing
+
+Before a substantial implementation slice, review 3–5 relevant examples when they can materially reduce design or implementation risk.
+
+Reference type depends on the task:
+
+- software: similar GitHub repositories, official framework examples, or primary documentation
+- UI/UX: comparable product flows and interaction patterns
+- research/source adapters: official source/API documentation and existing safe adapter patterns
+- prompts/agents: relevant agent/prompt systems and evaluation patterns
+- fiction/story work in other repositories: comparable works for structural reference, never copied prose
+
+For each useful reference, record:
+
+- what pattern is worth adopting
+- what should not be adopted
+- why it fits or conflicts with ThreadScout
+- license or reuse constraints when code/content reuse is possible
+- whether the reference changes the implementation plan
+
+Do not cargo-cult code, prompts, architecture, or agent frameworks. Public visibility is not permission to copy. Prefer principles and small patterns over wholesale transplantation.
+
+Existing project references include Karpathy-style simplicity/goal discipline, Superpowers-style design and verification gates, claude-video-style capability preflight/fallback, and agentmemory-style durable decision/evidence memory. Re-check references when the implementation domain changes materially.
+
+## 17. Meta-prompting lifecycle
+
+Use the canonical prompt lifecycle in `docs/spec/PROMPT_SYSTEM_SPEC.md` for substantial AI instructions:
+
+1. context dump
+2. missing-context questions
+3. success criteria and stop conditions
+4. execution-environment conversion
+5. sample execution/failure classification when useful
+6. prompt reduction
+7. result review
+
+Execution-environment conversion must make the instruction fit the actual executor:
+
+- orchestration/goal prompt: objective, authority, budgets, stop conditions
+- coding agent: constraints, repository authority, test/verification requirements
+- image generation: composition, subject, style, lighting, camera/viewpoint, required text/format
+- research agent: source hierarchy, scope/time window, verification method, uncertainty rules
+
+Longer prompts are not automatically better. Remove repetition that does not protect authority, evidence, safety, recurring-failure prevention, output structure, or measurable success.
+
+## 18. Completion proof gate — tests alone are not completion
+
+Never claim a substantial slice is complete merely because code exists or automated tests pass.
+
+Completion requires evidence appropriate to the slice, including all applicable items below:
+
+- requirements and acceptance-test mapping reviewed
+- automated tests passed
+- real user flow exercised end-to-end
+- UI checked at the required mobile width and desktop where applicable
+- every visible button, form, and primary CTA actually works
+- reload/interruption/state-transition/error behavior checked when applicable
+- stale/blocked/unknown states fail closed
+- diff reviewed for unintended scope or duplicated logic
+- blind spots and pre-implementation traps rechecked against the finished behavior
+- plan deviations recorded
+- GitHub Actions checked
+- success conditions compared against observed results
+- unnecessary prompt/code/temporary scaffolding removed or explicitly retained with reason
+
+For UI work, a screenshot that merely renders is insufficient. The primary value and CTA must be understandable on the first mobile screen, and the interactions must work.
+
+For external integrations, mocked success is insufficient to claim live readiness. Live capability remains disabled until its activation/preflight gate is actually satisfied.
+
+## 19. GitHub handoff discipline
+
+GitHub is the persistent project handoff surface.
+
+- Do not work directly on `main` for substantial changes; use a task branch.
+- Commit meaningful checkpoints rather than one opaque final dump.
+- Push source, tests, design updates, decision/deviation records, and verification artifacts that belong in version control.
+- Never commit secrets, tokens, real `.env` values, unnecessary raw third-party media, local databases, caches, or generated junk.
+- Open a PR for a completed substantial slice, inspect the diff, verify GitHub Actions, and fix failures before completion is claimed.
+- Another agent should be able to recover the intent, decisions, current status, and next step from GitHub without relying on hidden local context.
