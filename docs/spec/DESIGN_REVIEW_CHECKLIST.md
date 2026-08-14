@@ -13,6 +13,17 @@ Use this before declaring design complete.
 - [x] Worked 20-to-5 selection example defined
 - [ ] User approves Master Spec direction
 
+## Delivery platform
+
+- [x] Four delivery-platform options compared
+- [x] Mobile-first responsive web selected for v1
+- [x] Desktop support retained for research-heavy review
+- [x] PWA treated as optional enhancement rather than correctness dependency
+- [x] Native iOS/Android excluded from MVP with evidence-based revisit gate
+- [x] Server-authoritative cross-device state defined
+- [ ] Supported browser/device matrix confirmed for implementation slice
+- [ ] Mobile capture/upload constraints validated on target devices
+
 ## UX / decision support
 
 - [x] Four first-screen layout options compared
@@ -22,6 +33,7 @@ Use this before declaring design complete.
 - [x] Critical first-card fields defined for 360 px width
 - [x] Guardian status placed before review CTA
 - [x] Suppression controls defined
+- [x] No hover-only critical behavior allowed
 - [ ] Final visual styling and interaction pattern approved
 
 ## Ranking and evidence
@@ -70,6 +82,7 @@ Use this before declaring design complete.
 - [x] Stale listing behavior defined conceptually
 - [x] Review binding to exact artifact revisions defined
 - [x] Publishing state and reconciliation model defined
+- [x] Browser/PWA excluded from scheduling/publication authority
 - [ ] First affiliate program confirmed
 - [ ] Current disclosure/link rules confirmed
 - [ ] Authorized exact-product listing source confirmed
@@ -83,6 +96,17 @@ Use this before declaring design complete.
 - [x] Daily vs weekly learning behavior defined
 - [ ] Actual available metrics confirmed
 
+## Blind spots / traps
+
+- [x] Legacy blind-spot list exists
+- [x] Final cross-domain blind-spot sweep completed
+- [x] Mobile/PWA/cross-device blind spots explicitly reviewed
+- [x] Celebrity/media/approval-fatigue blind spots explicitly reviewed
+- [x] Publishing/analytics/security/economics blind spots explicitly reviewed
+- [x] Pre-implementation trap checklist expanded for mobile web and cross-device state
+- [x] B0 blind spots require traceability before affected implementation slice
+- [ ] All applicable B0 items mapped/confirmed for the first implementation slice
+
 ## Cross-spec review
 
 - [x] Contradiction review completed
@@ -90,6 +114,7 @@ Use this before declaring design complete.
 - [x] Ranking/evidence/media rules consistent
 - [x] Product match and alternative wording consistent
 - [x] Daily quota and no-candidate behavior consistent
+- [x] Mobile-web platform does not move scheduling/publication authority into the client
 
 ## Design governance
 
@@ -98,8 +123,9 @@ Use this before declaring design complete.
 - [x] Design PR scope is documentation-only
 - [x] Future Actions design checks are specified
 - [x] P0/P1 table added
-- [x] Acceptance addendum AT-29–AT-33 added
-- [x] Traceability addendum added
+- [x] Platform direction promoted separately from provisional P1 values
+- [x] Acceptance addendum extended through AT-39
+- [x] Traceability addendum extended
 - [x] Detailed Review Round 2 recorded
 - [ ] Deployment target selected
 - [ ] Production credential storage selected
@@ -108,4 +134,4 @@ Use this before declaring design complete.
 
 ## Resume condition
 
-Design is not “done” until required P0 items are resolved or explicitly deferred behind disabled features and the Master Spec direction is approved. A green prototype-regression job does not lift the implementation freeze.
+Design is not “done” until required P0 items are resolved or explicitly deferred behind disabled features, applicable B0 blind spots are mapped, required P1 defaults for the first implementation slice are promoted, and the Master Spec direction is approved. A green prototype-regression job does not lift the implementation freeze.
