@@ -15,6 +15,9 @@ The existing GitHub Actions green check means the prototype regression suite sti
 - product purpose and non-goals
 - practical novel-item focus
 - issue/public-figure content boundary
+- mobile-first responsive web v1 delivery platform
+- desktop support and PWA-ready/non-authoritative boundary
+- native-app evidence-based revisit gate
 - fixed six-agent roster
 - deterministic services
 - canonical end-to-end flow
@@ -33,8 +36,10 @@ The existing GitHub Actions green check means the prototype regression suite sti
 - publishing state/reconciliation model
 - analytics learning guardrails
 - safety/privacy/public-figure rules
+- final cross-domain blind-spot sweep
+- expanded implementation trap checklist
 - end-to-end design scenarios
-- traceability and behavioral acceptance criteria
+- traceability and behavioral acceptance criteria through AT-39
 - future design-focused GitHub Actions semantics
 
 ## P0 — must resolve before any live implementation
@@ -51,7 +56,7 @@ These require live/account-specific or current-policy evidence, so design record
 ## P1 — resolve before MVP is feature-complete
 
 1. daily publishing target and maximum commercial-post ratio
-2. first-screen density and interaction pattern
+2. first-screen density and final interaction styling
 3. production opportunity-score threshold
 4. evidence TTL values
 5. issue-source allowlist and source-quality criteria
@@ -59,6 +64,7 @@ These require live/account-specific or current-policy evidence, so design record
 7. suppression UX and restore behavior
 8. retention periods
 9. user-facing wording for source/relation grades
+10. supported browser/device matrix and upload constraints
 
 ## P2 — later experiments
 
@@ -68,6 +74,7 @@ These require live/account-specific or current-policy evidence, so design record
 - advanced A/B testing
 - commercial trend providers
 - cross-platform publishing
+- native application shell if evidence-based revisit conditions are met
 - learned ranking model
 
 ## Implementation-resume gate
@@ -77,6 +84,7 @@ Implementation resumes only after:
 - user approves Master Spec v1 direction
 - all P0 questions are answered or explicitly deferred behind disabled features
 - P1 defaults required by the target implementation slice are documented and approved
+- every applicable B0 item in `FINAL_BLIND_SPOT_SWEEP.md` maps to requirement/design/acceptance behavior
 - traceability has no orphaned references
 - architecture/code gap review is current
 - design baseline commit is named in the implementation plan
@@ -85,8 +93,10 @@ Implementation resumes only after:
 
 The design branch is **Master Design v1 — detailed reviewable baseline**, not `DESIGN COMPLETE`.
 
+The platform direction is now resolved: mobile-first responsive web, desktop supported, PWA-ready, native app outside MVP. This does not lift the freeze because live P0 gates and first-slice P1 values remain open.
+
 ## Required next work
 
-Continue documentation-only review until the direction is accepted. Remaining work should focus on contradiction review, edge cases, and P0/P1 promotion—not runtime code.
+Continue documentation-only review until the direction is accepted. Remaining work should focus on mapping B0 blind spots, contradiction/edge-case re-review, P0/P1 promotion, and consolidation of duplicate/addendum documents—not runtime code.
 
 Do not change `.github/workflows/ci.yml`, runtime code, provider adapters, or live-source flags during this design-only cycle.
