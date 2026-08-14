@@ -37,10 +37,17 @@ The existing GitHub Actions green check means the prototype regression suite sti
 - analytics learning guardrails
 - safety/privacy/public-figure rules
 - final cross-domain blind-spot sweep
+- B0 blind-spot traceability matrix
 - expanded implementation trap checklist
 - end-to-end design scenarios
-- traceability and behavioral acceptance criteria through AT-39
+- traceability and behavioral acceptance criteria through AT-44
 - future design-focused GitHub Actions semantics
+
+### Closed design-review gate
+
+All B0 findings in the current Final Blind-Spot Sweep v1 are mapped to design authority and acceptance behavior in `B0_TRACEABILITY_MATRIX.md`.
+
+This closes the current **B0 design traceability** gate only. It does not prove implementation or live-service safety.
 
 ## P0 — must resolve before any live implementation
 
@@ -89,14 +96,16 @@ Implementation resumes only after:
 - architecture/code gap review is current
 - design baseline commit is named in the implementation plan
 
+The current B0 set satisfies its mapping condition. The remaining blockers are primarily Master Spec approval plus P0/P1 decisions required by the first implementation slice.
+
 ## Current milestone
 
 The design branch is **Master Design v1 — detailed reviewable baseline**, not `DESIGN COMPLETE`.
 
-The platform direction is now resolved: mobile-first responsive web, desktop supported, PWA-ready, native app outside MVP. This does not lift the freeze because live P0 gates and first-slice P1 values remain open.
+The platform direction is resolved: mobile-first responsive web, desktop supported, PWA-ready, native app outside MVP. This does not lift the freeze because live P0 gates and first-slice P1 values remain open.
 
 ## Required next work
 
-Continue documentation-only review until the direction is accepted. Remaining work should focus on mapping B0 blind spots, contradiction/edge-case re-review, P0/P1 promotion, and consolidation of duplicate/addendum documents—not runtime code.
+Continue documentation-only review until the direction is accepted. Remaining work should focus on P0/P1 promotion, final contradiction/edge-case re-review after the platform and blind-spot additions, and consolidation of duplicate/addendum documents—not runtime code.
 
 Do not change `.github/workflows/ci.yml`, runtime code, provider adapters, or live-source flags during this design-only cycle.
