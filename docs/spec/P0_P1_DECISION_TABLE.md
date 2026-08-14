@@ -2,6 +2,14 @@
 
 Status: DESIGN ONLY.
 
+## Promoted design decisions
+
+| ID | Decision | Status |
+|---|---|---|
+| D-01 | v1 delivery platform | approved direction: mobile-first responsive web app; desktop supported; PWA-ready; native apps outside MVP |
+| D-02 | browser authority | approved direction: browser/PWA is never authority for scheduling, publication, or durable approval state |
+| D-03 | native-app revisit | evidence-gated later decision only if browser/PWA friction materially harms capture, notification, approval, share/import, or offline needs |
+
 ## P0 — must be resolved or explicitly deferred before live implementation
 
 | ID | Decision | Current state | Safe fallback |
@@ -35,3 +43,5 @@ Status: DESIGN ONLY.
 A provisional value becomes an approved default only after owner review, acceptance coverage, a decision-log entry, and any required current external-policy verification.
 
 Until promotion, these values are suitable for wireframes and design simulations only.
+
+Platform decisions D-01 through D-03 are architectural direction and do not activate any live feature or lift the implementation freeze.
