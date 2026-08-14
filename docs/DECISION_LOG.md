@@ -245,3 +245,56 @@ Strengthen `CLAUDE.md` with four implementation-workflow gates:
 ### Impact
 
 This changes project execution governance, not the approved product behavior or six-agent architecture. Future coding agents should be able to read `CLAUDE.md` and reconstruct both the product authority and the required work method before implementation begins.
+
+---
+
+## 2026-08-14 — Select the implementation structure for Slice 1
+
+### Context
+
+Master Design v1 is approved and implementation may resume through the `DESIGN_FREEZE.md` gate. The owner selected the first vertical slice: manual product entry → Evidence Verifier → Opportunity Inbox → four strategies → four drafts → Guardian → human approve/hold/reject.
+
+A gap review against the prototype found the decisive problem: all product state lives in `localStorage` and the UI never calls the six-agent runtime. That violates `PLATFORM_DECISION.md` D-02, blind spot BS-06, and acceptance AT-35, and it makes the slice's core requirements untestable.
+
+### Four options
+
+| Option | State authority | Storage | Runtime deps | D-02 / AT-35 | Path to P0-04 managed PostgreSQL |
+|---|---|---|---|---|---|
+| A. Extend the client prototype | `localStorage` | browser | 0 | **violated** | none |
+| B. Server-authoritative, thin | Node HTTP server | orchestrator calls the JSONL store directly | 0 | satisfied | requires rewrite |
+| C. Framework full stack | Fastify/Next + SQL | DB schema + migrations | many, plus a build step | satisfied | already close |
+| D. Domain core behind storage ports | Node HTTP server | port interface; in-memory and JSONL adapters | 0 | satisfied | isolated to one adapter |
+
+### Decision
+
+Select **Option D**: a pure domain core with explicit storage ports, a thin zero-dependency Node HTTP API as the only state authority, in-memory and JSONL adapters, and a vanilla mobile-first client.
+
+### Reason
+
+- Option A is the cheapest and was rejected first: it reproduces the exact defect the slice exists to fix. Keeping browser-owned state would let the acceptance tests pass while the requirement fails.
+- Option C matches the `P0-04` target architecture class, but it opens the deployment, migration, and secret-injection surface now, while `P0-05` (production credential storage) is still a deferred activation gate. Widening the secret surface of a public repository before that gate is resolved is the wrong order (BS-51). It remains the right choice for a later slice.
+- Between B and D the difference is real, not cosmetic. B couples stage transitions to the JSONL file layout; D puts them behind ports. D wins on three counts: an in-memory adapter makes staleness, version-conflict, double-submit, and cross-session tests deterministic and fast; the eventual PostgreSQL move is contained in one adapter instead of the orchestrator; and `SYSTEM_ARCHITECTURE.md`'s required split between mutable operational records and immutable versioned records becomes a structural boundary rather than a convention.
+- D preserves the repository's existing idiom — zero dependencies, ESM, `node:test`, `.threadscout-data/` outside Git — so CI stays fast and the diff stays reviewable.
+
+### Supporting decisions
+
+- **Agent execution: deterministic replay only.** No model provider, no network, no API key. The existing provider-neutral replay runtime supplies budgets, receipts, timeouts, and schema validation. Consequence recorded openly: with rule-based agents, "four angles are not paraphrases" (AT-06) is proven by a distinctness gate plus a negative fixture, not by model output quality.
+- **Slice ends at the human decision.** Approve/hold/reject is the terminal state. The local schedule queue, preflight, and suppression screens are later slices.
+- **Local single process.** No Docker, no hosting, no deployment configuration. Multi-process transactional locking stays an open trap rather than a claimed solution.
+- **User-supplied links are not fetched.** A commercial destination URL is stored as string evidence only. Fetching it would activate a live source, which `P0-02` and `DESIGN_FREEZE.md` keep disabled. Identity therefore comes from owner-entered evidence or stays `unresolved`.
+
+### Guardrails
+
+- The client sends intent, never authoritative state. No request may set match state, evidence readiness, Guardian outcome, or approval validity.
+- Approval binding hashes are computed from server-held artifacts. A client-supplied hash is only a claim to be compared, never a value to be stored.
+- No configuration value may enable external publishing, live sources, or affiliate posting in this slice.
+
+### Impact
+
+`packages/core` and `apps/web` are largely replaced; `packages/orchestra` is extended rather than rewritten; `docs/spec/` is not modified, because design authority is not what this slice changes.
+
+### Remaining risks
+
+- Deterministic agents cannot demonstrate real Korean copy quality. The slice proves the pipeline and its gates, not writing quality.
+- Single-process file storage is adequate for one owner and is explicitly not adequate for concurrent workers; this stays recorded as an open trap.
+- `P0-04` and `P0-05` remain unresolved, so nothing here claims deployment readiness.
