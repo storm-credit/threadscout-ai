@@ -218,3 +218,30 @@ Keep the current workflow untouched during design freeze, but define future jobs
 ### Reason
 
 The current Actions green check proves the existing validation/prototype suite passes. It does not prove the new design has been approved or implemented.
+
+---
+
+## 2026-08-14 — Strengthen the project work constitution before implementation
+
+### Context
+
+The approved Master Design defines what ThreadScout should be, but future coding agents also need an explicit repeatable method for how to work. The owner wants the repository itself to preserve this method so a Claude/Codex/other coding session can recover it from GitHub without relying on conversational memory.
+
+### Decision
+
+Strengthen `CLAUDE.md` with four implementation-workflow gates:
+
+1. **Interview Gate** — context dump first, then ask only unresolved high-impact questions; do not re-ask known answers.
+2. **Reference-first Gate** — before substantial implementation, review relevant GitHub/official/product examples and record what is adopted, rejected, and why; do not cargo-cult or copy without license review.
+3. **Meta-prompt Lifecycle** — context dump → missing-context questions → success/stop conditions → execution-environment conversion → failure classification → prompt reduction → result review.
+4. **Completion Proof Gate** — automated tests alone never prove completion; verify end-to-end behavior, mobile/desktop UI where applicable, buttons/forms/CTAs, state transitions, errors/staleness, diff, blind spots/traps, Actions, and original success criteria.
+
+### Supporting rules
+
+- Four-option review applies to major decisions and must compare materially different approaches rather than cosmetic variants.
+- Plan deviation records preserve original plan, mismatch point, reason, impact, affected requirements/tests, and residual risk.
+- GitHub is the persistent project handoff surface: substantial work uses task branches, meaningful commits, PR/diff/Actions verification, and never stores secrets or unnecessary third-party raw media.
+
+### Impact
+
+This changes project execution governance, not the approved product behavior or six-agent architecture. Future coding agents should be able to read `CLAUDE.md` and reconstruct both the product authority and the required work method before implementation begins.
