@@ -105,7 +105,7 @@ Use this before declaring design complete.
 - [x] Publishing/analytics/security/economics blind spots explicitly reviewed
 - [x] Pre-implementation trap checklist expanded for mobile web and cross-device state
 - [x] B0 blind spots require traceability before affected implementation slice
-- [ ] All applicable B0 items mapped/confirmed for the first implementation slice
+- [x] All current B0 items mapped to design authority and acceptance behavior
 
 ## Cross-spec review
 
@@ -124,8 +124,9 @@ Use this before declaring design complete.
 - [x] Future Actions design checks are specified
 - [x] P0/P1 table added
 - [x] Platform direction promoted separately from provisional P1 values
-- [x] Acceptance addendum extended through AT-39
+- [x] Acceptance addendum extended through AT-44
 - [x] Traceability addendum extended
+- [x] B0 traceability matrix added
 - [x] Detailed Review Round 2 recorded
 - [ ] Deployment target selected
 - [ ] Production credential storage selected
@@ -134,4 +135,4 @@ Use this before declaring design complete.
 
 ## Resume condition
 
-Design is not “done” until required P0 items are resolved or explicitly deferred behind disabled features, applicable B0 blind spots are mapped, required P1 defaults for the first implementation slice are promoted, and the Master Spec direction is approved. A green prototype-regression job does not lift the implementation freeze.
+Design is not “done” until required P0 items are resolved or explicitly deferred behind disabled features, required P1 defaults for the first implementation slice are promoted, and the Master Spec direction is approved. A green prototype-regression job does not lift the implementation freeze.
