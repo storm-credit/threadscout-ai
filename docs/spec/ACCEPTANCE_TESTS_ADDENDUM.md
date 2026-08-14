@@ -45,3 +45,23 @@ The publication candidate must bind the exact approved draft, evidence packet, m
 ## AT-39 Blind-spot B0 coverage
 
 Before an implementation slice begins, every B0 item in `FINAL_BLIND_SPOT_SWEEP.md` that applies to that slice must map to a requirement, design authority, or acceptance behavior. An unmapped B0 item keeps the slice blocked.
+
+## AT-40 Independent-source counting
+
+Given three URLs that all reproduce or quote the same original source, corroboration counts them as one origin rather than three independent pieces of evidence. A second independent origin is required when the applicable evidence rule requires independence.
+
+## AT-41 Agent agreement does not manufacture truth
+
+Given an upstream factual error repeated by Strategist, Writer, and Guardian context, the system must not increase factual confidence merely because multiple agents repeated it. Downstream factual claims remain bounded by the Verifier evidence packet and evidence class.
+
+## AT-42 Approval attention hierarchy
+
+When a review contains both a blocker/material-change notice and several informational warnings, the blocker/change is presented before the approval CTA and cannot be visually buried by low-priority notices. Approval of a stale or materially changed artifact is disabled until re-review.
+
+## AT-43 Dispatch authorization freshness
+
+If publishing authorization is expired, revoked, or invalid at preflight, dispatch stops with an actionable authorization state. It cannot silently refresh with an unapproved identity, bypass the gate, or treat a prior approval as permission to publish through another account.
+
+## AT-44 Affiliate destination mutation
+
+If the same commercial URL now resolves to a different product, variant, package, or materially different seller destination than the approved mapping, preflight invalidates the mapping and requires new verification/reapproval rather than publishing with the old exact-product claim.
