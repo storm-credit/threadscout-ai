@@ -44,40 +44,177 @@ Select a fixture-first read-only adapter contract after four options. Prove sour
 
 ## 2026-08-08 — Prepare Threads + NAVER source stack without activation
 
-### Four options
+Future source stack: Threads as primary discovery, NAVER API HUB trends as Korean corroboration, manual references as fallback; Google Trends alpha deferred and Coupang Seller Open API rejected for general affiliate discovery. Keep every network source disabled until account-specific approval.
 
-1. Threads official API only
-2. Threads official API plus NAVER API HUB trends and manual fallback
-3. Google Trends-led research
-4. scraping/commercial aggregator
+---
+
+## 2026-08-12 — Freeze implementation and establish canonical Master Spec
+
+### Original state
+
+Prototype implementation had progressed through agent orchestration, replay, evidence storage, fixture research, and disabled live-source readiness. Design information was spread across phase documents, code contracts, and discussion.
+
+### Problem
+
+There was no single authoritative end-to-end product/system specification covering media discovery, celebrity/broadcast issue triggers, exact product matching, affiliate mapping, publishing reconciliation, analytics learning, and explicit handoffs.
 
 ### Decision
 
-Select option 2 as the future source stack, but keep every network source disabled.
+Freeze runtime/product code and create `docs/spec/` as the canonical design baseline before further implementation.
 
-### Source dispositions
+### Added design domains
 
-- Meta Threads Keyword Search: selected primary discovery
-- NAVER API HUB Search Trend/Shopping Insight: selected secondary trend signal
-- Google Trends API alpha: deferred limited access
-- Coupang Seller Open API: rejected for general affiliate discovery
-- manual user evidence: enabled offline fallback
+- Master Product & System Specification
+- Product Requirements and User Flows
+- Fixed Agent Contracts and Handoffs
+- Canonical Data Model
+- Source Strategy
+- Photo/Video Media Pipeline
+- Celebrity/Broadcast/Trend Issue Pipeline
+- Exact Product Matching
+- Content Strategy
+- Affiliate Mapping/Disclosure
+- Publishing/Reconciliation
+- Analytics/Learning
+- Safety/Privacy/Compliance
+- Traceability Matrix
+- Acceptance Tests
+- Design Freeze/Open Questions
+- Prototype Gap Analysis
 
-### Reason
+### Public-figure decision
 
-Threads is closest to the target content platform, while NAVER provides a separate Korean search/click trend signal. Neither source alone proves exact product identity. Google access is not generally available, and Coupang's documented seller API does not match arbitrary affiliate-product discovery.
+Celebrity/public-figure/broadcast issues are permitted only as public, product-relevant discovery triggers. The system must not become a rumor/private-life account. Product identity, endorsement relationship, media rights, and affiliate destination remain separately verified facts.
 
 ### Impact
 
-- source registry stores endpoint, credential-name, permission, purpose, owner, official-reference, and readiness metadata
-- credentials alone cannot activate a source
-- explicit human activation approval and a code change are required
-- request builders are redacted and execution-disabled
-- no live source, model, affiliate, or publishing call is made
+Existing code is treated as prototype evidence rather than authority. No runtime/product code changes occur during this design cycle. After design approval, implementation tasks must be created from the traceability/gap analysis rather than ad-hoc coding.
 
 ### Remaining risks
 
-- Meta permission availability/review and rate limits require account-specific confirmation
-- NAVER credentials, quotas, cost, and category mapping require NCP setup
-- live-source privacy and retention need production-grade redaction
-- exact product and commerce verification still needs an authorized listing source or manual evidence
+P0 account-specific questions remain around Threads permissions, authorized product/listing evidence, affiliate network rules, deployment/secret storage, and current media/platform rules. These are explicitly listed in `docs/spec/DESIGN_FREEZE.md` and are not guessed.
+
+---
+
+## 2026-08-12 — Select Opportunity Inbox first-screen design
+
+### Four options
+
+1. chronological feed
+2. numeric scoreboard
+3. kanban operations board
+4. opportunity inbox with five decision cards
+
+### Decision
+
+Select Option 4 for mobile daily operation. Kanban may remain a later desktop operations view.
+
+### Reason
+
+The user needs to decide quickly what is worth inspecting today while seeing why-now, reader value, evidence readiness, risk, media state, and next safe action together.
+
+### Guardrail
+
+A high opportunity score never enables an action that evidence or risk gates block.
+
+---
+
+## 2026-08-12 — Separate ranking from readiness and risk
+
+### Four options
+
+1. one 100-point score
+2. opportunity score plus independent readiness/risk/freshness
+3. rule tiers only
+4. learned ranking model
+
+### Decision
+
+Select Option 2. Keep rule tiers as supporting operational labels and defer learned ranking.
+
+### Reason
+
+One score creates false confidence. Viral or high-intent candidates can still have unresolved identity, rights, or rumor risk.
+
+### Impact
+
+Every candidate exposes:
+
+- opportunity score
+- evidence readiness
+- risk level
+- freshness state
+
+These may disagree by design.
+
+---
+
+## 2026-08-12 — Public-figure issue content is a product trigger, not a gossip lane
+
+### Decision
+
+Use public celebrity, broadcast, sports, event, and cultural moments only when they create a verifiable product-relevant signal.
+
+### Source model
+
+- issue source grades G0–G4
+- product relation grades R0–R5
+- rumor/private-life grade is blocked
+- source reliability, product relation, product identity, and media rights remain separate axes
+
+### Reason
+
+This preserves timely product discovery without turning ThreadScout into a rumor account or allowing celebrity attention to bypass evidence.
+
+---
+
+## 2026-08-12 — Separate media discovery from publication rights
+
+### Decision
+
+A photo/video may be valid as an internal discovery reference while remaining unusable in the final post.
+
+### Preferred publication fallback
+
+`user-owned/original > licensed commercial asset > permitted embed/link > text-only > hold`
+
+Third-party download-and-reupload is not an MVP path.
+
+### Impact
+
+Media records track analyze/store/link/embed/transform/republish/commercial-use permissions independently.
+
+---
+
+## 2026-08-12 — Design three daily planning windows without forcing three posts
+
+### Decision
+
+Support morning, midday, and evening review windows as an operating model. Treat three daily slots as planning capacity, not a posting quota.
+
+### Reason
+
+The product should reduce decision fatigue and may legitimately return fewer recommendations or no publishable candidate when evidence is weak.
+
+### Guardrail
+
+`오늘 추천 없음` is valid. The system must not lower truth or media-rights standards to fill a schedule.
+
+---
+
+## 2026-08-12 — Specify future design-focused GitHub Actions without changing workflow
+
+### Decision
+
+Keep the current workflow untouched during design freeze, but define future jobs for:
+
+- documentation-only scope
+- design authority completeness
+- traceability
+- open P0/P1 gates
+- design consistency
+- prototype regression
+
+### Reason
+
+The current Actions green check proves the existing validation/prototype suite passes. It does not prove the new design has been approved or implemented.
