@@ -21,3 +21,27 @@ At 360 px, the Opportunity Inbox must show candidate name, why-now, opportunity 
 ## AT-33 Design gate visibility
 
 With unresolved P0 items, the design may remain reviewable while implementation resume stays blocked. Provisional P1 values are simulation defaults only until explicitly promoted.
+
+## AT-34 Mobile-first web correctness
+
+At narrow mobile width, every critical status and action required for candidate review and approval is available with touch-only navigation and no horizontal scrolling or hover dependency.
+
+## AT-35 Browser/PWA independence
+
+Closing, suspending, reloading, or failing to install the PWA cannot lose a server-accepted approval decision, cancel a valid schedule, or become the reason background publishing succeeds. Correctness remains server/background-worker authoritative.
+
+## AT-36 Cross-device stale approval
+
+Given a draft/evidence/media/affiliate change on desktop after the same candidate was opened on mobile, a stale mobile approval attempt must be rejected and the material change must be shown before reapproval.
+
+## AT-37 Media/public-figure safety
+
+A public or viral image/video may support discovery without becoming publishable. Generated/transformed media must never imply that a real public figure used, recommended, or endorsed a product without the corresponding verified relation evidence.
+
+## AT-38 Human approval binding
+
+The publication candidate must bind the exact approved draft, evidence packet, media asset set, and affiliate mapping revisions. A material hash/version mismatch invalidates the approval.
+
+## AT-39 Blind-spot B0 coverage
+
+Before an implementation slice begins, every B0 item in `FINAL_BLIND_SPOT_SWEEP.md` that applies to that slice must map to a requirement, design authority, or acceptance behavior. An unmapped B0 item keeps the slice blocked.
