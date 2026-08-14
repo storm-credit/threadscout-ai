@@ -52,20 +52,21 @@ If the prototype conflicts with an approved spec, the prototype is out of date.
 36. `ANALYTICS_SPEC.md`
 37. `SAFETY_COMPLIANCE.md`
 38. `FINAL_BLIND_SPOT_SWEEP.md`
-39. `EDGE_CASES.md`
-40. `END_TO_END_SCENARIOS.md`
-41. `P0_P1_DECISION_TABLE.md`
-42. `TRACEABILITY_MATRIX.md`
-43. `TRACEABILITY_ADDENDUM.md`
-44. `ACCEPTANCE_TESTS.md`
-45. `ACCEPTANCE_TESTS_ADDENDUM.md`
-46. `DESIGN_CONTRADICTION_REVIEW.md`
-47. `DESIGN_REVIEW_ROUND2.md`
-48. `DESIGN_FINALIZATION_PLAN.md`
-49. `DESIGN_CI_SPEC.md`
-50. `DESIGN_REVIEW_CHECKLIST.md`
-51. `DESIGN_FREEZE.md`
-52. `IMPLEMENTATION_GAP_ANALYSIS.md`
+39. `B0_TRACEABILITY_MATRIX.md`
+40. `EDGE_CASES.md`
+41. `END_TO_END_SCENARIOS.md`
+42. `P0_P1_DECISION_TABLE.md`
+43. `TRACEABILITY_MATRIX.md`
+44. `TRACEABILITY_ADDENDUM.md`
+45. `ACCEPTANCE_TESTS.md`
+46. `ACCEPTANCE_TESTS_ADDENDUM.md`
+47. `DESIGN_CONTRADICTION_REVIEW.md`
+48. `DESIGN_REVIEW_ROUND2.md`
+49. `DESIGN_FINALIZATION_PLAN.md`
+50. `DESIGN_CI_SPEC.md`
+51. `DESIGN_REVIEW_CHECKLIST.md`
+52. `DESIGN_FREEZE.md`
+53. `IMPLEMENTATION_GAP_ANALYSIS.md`
 
 ## Design domains covered
 
@@ -88,7 +89,7 @@ If the prototype conflicts with an approved spec, the prototype is out of date.
 - daily operating rhythm and suppression controls
 - publishing states and stale-evidence preflight
 - analytics learning boundaries
-- safety/privacy/compliance, final blind-spot sweep, and edge cases
+- safety/privacy/compliance, final blind-spot sweep, B0 traceability, and edge cases
 - P0 blockers and provisional P1 defaults
 - end-to-end scenarios, contradiction review, finalization gates, traceability, and behavioral acceptance
 - future design-focused GitHub Actions semantics
