@@ -2,18 +2,21 @@
 
 ## Current status
 
-**Master Design v1 is complete and approved as design authority.**
+**Master Design v1 is complete and approved as design authority. Harness Design v1 is also complete as the executable-design handoff.**
 
-The design-only cycle is finished. Runtime/product code remains unchanged and is still treated as a pre-baseline prototype/validation asset.
+The documentation-only design/harness-finalization cycle is finished. Runtime/product code remains unchanged and is still treated as a pre-baseline prototype/validation asset.
 
-Code stays frozen until a separate implementation request selects a bounded slice from this baseline. This prevents implementation from resuming automatically merely because the design PR is merged.
+Code stays frozen until a separate implementation request explicitly starts a bounded slice. The existence of a ready Coding Spike contract does not itself authorize coding.
 
 ## Canonical authority
 
 - `docs/spec/MASTER_SPEC.md` is top-level product/system authority.
 - `docs/spec/` domain specifications refine it.
 - `TRACEABILITY_MATRIX.md`, `B0_TRACEABILITY_MATRIX.md`, and `ACCEPTANCE_TESTS.md` define coverage and behavioral expectations.
-- existing runtime code does not override approved design.
+- `HARNESS_BLUEPRINT.md` and `HARNESS_ACCEPTANCE_MATRIX.md` define how approved behavior is translated into executable scenarios/oracles.
+- `IMPLEMENTATION_GAP_ANALYSIS.md` classifies pre-baseline prototype assets.
+- `CODING_SPIKE_ENTRY.md` defines the default first bounded implementation experiment.
+- existing runtime code does not override approved design or harness contracts.
 
 ## Completed design decisions
 
@@ -37,7 +40,7 @@ Code stays frozen until a separate implementation request selects a bounded slic
 - issue source and product-relation grading
 - content strategy and four-angle rule
 - Coupang Partners as first commercial target
-- user-supplied commercial destination as sufficient MVP entry point for exact-product verification
+- owner-supplied commercial destination as sufficient MVP entry point for exact-product verification
 - daily operating rhythm and suppression model
 - publishing state/reconciliation model
 - analytics learning guardrails
@@ -50,15 +53,28 @@ Code stays frozen until a separate implementation request selects a bounded slic
 - consolidated traceability and behavioral acceptance through AT-44
 - future design-focused GitHub Actions semantics
 
+## Completed Harness Design decisions
+
+- four harness approaches compared
+- selected contract-first adaptation around existing orchestra/replay/store/broker/fixture assets
+- live-provider-first and full rewrite rejected for the first cycle
+- fixture catalog and expected semantic outcomes defined
+- AT-01~44 split across harness/UI/E2E/live/analytics validation layers
+- first Coding Spike AT/fixture subset defined
+- legacy prototype classified `KEEP / MODIFY / RETIRE / MISSING`
+- normal, blocked, budget-exhausted, contaminated-evidence, and stale-approval scenarios defined
+- human approval revision binding and compare-and-set behavior required before UI/live scheduling claims
+- first spike success, failure, stop, allowed-change, and completion-proof conditions fixed
+
 ## Live capabilities that remain disabled until activation preflight
 
-Design completion does not require guessing account-specific facts. The following are designed but fail-closed until configured and verified:
+Design/Harness completion does not require guessing account-specific facts. The following are designed but fail-closed until configured and verified:
 
 1. Threads keyword discovery for the target account/app
 2. Threads insights retrieval for the target account/app
 3. Threads publishing
 4. live Coupang Partners commercial posting
-5. automated product/listing discovery beyond user-supplied destinations
+5. automated product/listing discovery beyond owner-supplied destinations
 6. third-party media download/transform/republish without recorded action-specific rights
 
 ## Activation checks
@@ -76,18 +92,30 @@ Unknown means disabled.
 
 ## Implementation-resume gate
 
-A code task may start only when the user explicitly requests implementation and the task:
+A code task may start only when the owner explicitly requests implementation and the task:
 
-- names Master Design v1 as authority
-- selects a bounded implementation slice
-- maps the slice to requirements and acceptance behavior
+- names the exact current main baseline SHA
+- names Master Design v1 and Harness Design v1 as authority
+- selects a bounded implementation slice or the default `CODING_SPIKE_ENTRY.md`
+- maps the slice to requirements, AT IDs, and Harness fixture IDs
 - checks applicable B0 items and pre-implementation traps
 - declares which live capabilities remain disabled
-- identifies affected prototype code as keep/modify/remove/missing
+- identifies affected prototype code as KEEP/MODIFY/RETIRE/MISSING
+- states files/components allowed to change
+- defines success, rollback, and stop conditions
+- uses the Interview/Reference/Four-options/Completion gates in `CLAUDE.md`
 - defines real verification before completion
 
-## Design baseline state
+## Baseline state
 
-The design baseline itself is no longer `reviewable only`; it is **approved**.
+The product design is **approved**.
 
-This does not label any existing implementation as complete, production-ready, or live-enabled.
+The Harness Design is **complete as design**.
+
+The pre-baseline prototype harness is **executable but not Master-Design-compliant by default**.
+
+The Master-Design-aware harness is **not yet implemented**.
+
+The first Coding Spike is **ready but not started**.
+
+None of these labels imply production readiness or live enablement.
