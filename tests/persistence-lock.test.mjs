@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { LockedAtomicJsonApplicationStore } from '../apps/web/locked-application-store.mjs';
+import { createThreadScoutServer } from '../apps/web/server.mjs';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function withStores(fn, options = {}) {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'threadscout-lock-'));
@@ -114,4 +118,48 @@ test('an old lock owner cannot delete a successor lock during release', async ()
     assert.equal(successor.token, 'successor-token');
     await rm(lockPath);
   });
+});
+
+test('HTTP command boundary returns 503 and an orchestration receipt when storage lock times out', async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), 'threadscout-lock-api-'));
+  const statePath = path.join(dataDir, 'application-state.json');
+  const lockPath = `${statePath}.lock`;
+  const server = createThreadScoutServer({
+    repoRoot,
+    dataDir,
+    storeOptions: { lockTimeoutMs: 25, lockStaleMs: 60000, lockRetryMs: 5 }
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const todayResponse = await fetch(`${baseUrl}/api/today`);
+    assert.equal(todayResponse.status, 200);
+    const today = await todayResponse.json();
+    assert.equal(today.capability.persistence, 'server_atomic_json_local_interprocess_locked');
+    assert.equal(today.capability.persistenceScope, 'single_host_local_filesystem');
+
+    await writeFile(lockPath, `${JSON.stringify({ token: 'api-active-writer', pid: 99997 })}\n`, 'utf8');
+    const response = await fetch(`${baseUrl}/api/commands`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(addRequest('api-blocked-write', 'API에서 저장되면 안 됨'))
+    });
+    const result = await response.json();
+
+    assert.equal(response.status, 503);
+    assert.equal(result.error, 'storage_lock_timeout');
+    assert.equal(result.orchestrationReceipt.status, 'failure');
+    assert.deepEqual(result.orchestrationReceipt.route, ['orchestrator', 'deterministic_application_service', 'orchestrator']);
+
+    await rm(lockPath);
+    const after = await (await fetch(`${baseUrl}/api/today`)).json();
+    assert.equal(after.candidates.some((candidate) => candidate.name === 'API에서 저장되면 안 됨'), false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });
