@@ -35,10 +35,27 @@ export function createReplayModelRuntime({ replays, config: overrides = {} } = {
     const budget = config.agents[agentId];
     attempts[agentId] += 1;
     totalInvocations += 1;
+    const startedAt = new Date().toISOString();
 
-    if (attempts[agentId] > budget.maxAttempts) throw new Error(`${agentId} attempt limit exceeded.`);
-    if (totalInvocations > config.run.maxInvocations) throw new Error('Runtime total invocation limit exceeded.');
-    if (Date.now() - runStartedAt > config.run.maxElapsedMs) throw new Error('Runtime elapsed-time budget exceeded.');
+    const rejectInvocation = (message, inputChars = 0) => {
+      receipts.push({
+        provider: 'replay',
+        agentId,
+        runId,
+        attempt: attempts[agentId],
+        inputChars,
+        outputChars: 0,
+        status: 'failure',
+        error: message,
+        startedAt,
+        completedAt: new Date().toISOString()
+      });
+      throw new Error(message);
+    };
+
+    if (attempts[agentId] > budget.maxAttempts) rejectInvocation(`${agentId} attempt limit exceeded.`);
+    if (totalInvocations > config.run.maxInvocations) rejectInvocation('Runtime total invocation limit exceeded.');
+    if (Date.now() - runStartedAt > config.run.maxElapsedMs) rejectInvocation('Runtime elapsed-time budget exceeded.');
 
     const request = {
       agentId,
@@ -48,11 +65,10 @@ export function createReplayModelRuntime({ replays, config: overrides = {} } = {
       input: structuredClone(input)
     };
     const inputChars = charLength(request);
-    if (inputChars > budget.maxInputChars) throw new Error(`${agentId} input budget exceeded.`);
+    if (inputChars > budget.maxInputChars) rejectInvocation(`${agentId} input budget exceeded.`, inputChars);
 
     const replay = replays[agentId];
-    if (typeof replay !== 'function') throw new Error(`Missing replay handler for ${agentId}.`);
-    const startedAt = new Date().toISOString();
+    if (typeof replay !== 'function') rejectInvocation(`Missing replay handler for ${agentId}.`, inputChars);
 
     try {
       const output = await Promise.race([

@@ -299,3 +299,59 @@ No live Threads, Coupang, paid model requirement, public posting, automated prod
 `Master Design COMPLETE / Harness Design COMPLETE / legacy prototype harness executable / Master-Design harness not yet implemented / Coding Spike READY but not started`.
 
 Coding still requires a separate explicit owner instruction.
+
+---
+
+## 2026-08-15 — Implement and verify Coding Spike 0
+
+### Context
+
+After Harness Design v1 was merged, the owner explicitly authorized implementation. The goal was to answer one bounded technical question before any UI/live work: can the existing six-agent runtime enforce Master Design authority, revision binding, stale invalidation, budgets, receipts, and deterministic acceptance reporting without a rewrite?
+
+### Implementation-shape decision
+
+Repository inspection confirmed the existing `orchestrator`, replay runtime, versioning, dependency, simulation, and fixture assets were reusable. The four implementation shapes were rechecked and **Option 3 — adapt existing runtime behind a canonical harness contract — remained selected**.
+
+Reference review recorded in `docs/implementation/SPIKE0_REFERENCE_REVIEW.md` used upstream LangGraph, Temporal TypeScript SDK, and OpenAI Agents JS only for state/replay/traceability patterns. No framework or dependency was imported.
+
+### Implemented contract spine
+
+`packages/orchestra/src/master-harness.mjs` adds deterministic fixture execution and acceptance reporting for:
+
+- F01 owner-supplied exact product
+- F02 conflicting model
+- F04 high-score unresolved candidate
+- F11 approval followed by material mutation
+- F12 budget exhaustion
+- F13 unsupported endorsement wording
+- F15 fake first-hand wording without UsageRecord
+- F20 repeated unsupported fact
+- F21 stale cross-revision decision
+
+The harness reuses the fixed six-agent roster, permits Scout skip only for the owner-supplied route, binds downstream facts to Verifier evidence, requires four strategies and four mapped drafts, records version/lineage refs, binds human approval to a material revision, and rejects stale compare-and-set decisions.
+
+### Deviation found during verification
+
+**Original plan:** reuse replay-runtime receipts unchanged.
+
+**Mismatch:** F12 showed that a run-level invocation budget rejection occurred before the existing runtime wrote a receipt. The attempt was correctly blocked but was not auditable, violating AT-18 and the Harness Blueprint receipt invariant.
+
+**Change:** `model-runtime.mjs` now records a failure receipt before throwing for preflight attempt/run/elapsed/input-budget rejection and missing replay handler.
+
+**Impact:** observability only within the approved change surface. No provider, network capability, agent authority, product behavior, or dependency was added.
+
+**Residual risk:** later provider-specific runtimes must implement the same rejected-attempt receipt guarantee; Spike 0 proves it only for deterministic replay.
+
+### Verification result
+
+The required Spike 0 acceptance set passed:
+
+`AT-04, AT-06, AT-07, AT-08, AT-09, AT-13, AT-16, AT-17, AT-18, AT-19, AT-20, AT-21, AT-23, AT-25, AT-36, AT-38, AT-39, AT-41`.
+
+GitHub Actions Run #138 passed with 69 tests, 0 failures, the full `npm run verify` chain, deterministic `harness:spike0`, and all legacy simulation/replay/store/research checks green.
+
+### Decision / next boundary
+
+Spike 0 is successful. The existing runtime can be adapted to the Master Design contract spine without a rewrite. This **does not** mean the full AT-01~44 harness, mobile UI, or live integrations are complete.
+
+The next bounded slice is the manual-product C vertical slice. Live Threads/Coupang/public posting and third-party media reuse remain disabled until separate activation work.
