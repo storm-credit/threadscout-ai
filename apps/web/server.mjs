@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AtomicJsonApplicationStore, ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
+import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = path.resolve(currentDir, '../..');
@@ -75,6 +76,7 @@ export function createThreadScoutServer({
   clock
 } = {}) {
   const store = new AtomicJsonApplicationStore({ filePath: path.resolve(dataDir, stateFile), clock });
+  const orchestrator = new ManualProductOrchestratorService({ store });
   let initialized = null;
   const ensureInitialized = () => {
     initialized ??= store.initialize();
@@ -87,7 +89,7 @@ export function createThreadScoutServer({
       const requestUrl = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
       if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
-        return json(res, 200, { ok: true, externalPublishingEnabled: false });
+        return json(res, 200, { ok: true, fixedAgentCount: 6, orchestratorOnlyDispatch: true, externalPublishingEnabled: false });
       }
 
       if (req.method === 'GET' && requestUrl.pathname === '/api/today') {
@@ -99,7 +101,7 @@ export function createThreadScoutServer({
 
       if (req.method === 'POST' && requestUrl.pathname === '/api/commands') {
         const body = await readJsonBody(req);
-        const response = await store.execute(body);
+        const response = await orchestrator.execute(body);
         const safe = assertPublicReadModelSafe(response.today);
         if (!safe.ok) throw new Error(`Unsafe command response: ${safe.leaks.join(', ')}`);
         return json(res, 200, response);
@@ -122,6 +124,7 @@ export function createThreadScoutServer({
           error: error.code,
           message: error.message,
           details: error.details,
+          orchestrationReceipt: error.orchestrationReceipt ?? null,
           ...(today ? { today } : {})
         });
       }
@@ -141,6 +144,6 @@ if (isDirectRun) {
   const server = createThreadScoutServer();
   server.listen(port, '127.0.0.1', () => {
     console.log(`ThreadScout AI running at http://127.0.0.1:${port}`);
-    console.log('Server-authoritative local state enabled; external publishing disabled.');
+    console.log('Server-authoritative state + Orchestrator-only command dispatch enabled; external publishing disabled.');
   });
 }
