@@ -126,6 +126,7 @@ function cardTemplate(candidate) {
   const duplicateBadge = candidate.duplicateAssessment?.state === 'possible_duplicate'
     ? '<span class="status-pill warn">유사 후보</span>'
     : '';
+  const canHoldFromCard = !['approved', 'held', 'rejected', 'duplicate_review'].includes(candidate.workflowState);
   return `
     <article class="candidate-card ${candidate.topBlocker ? 'has-blocker' : ''} ${candidate.workflowState === 'stale' ? 'stale-card' : ''}" data-id="${escapeHtml(candidate.id)}">
       <div class="card-top">
@@ -147,7 +148,7 @@ function cardTemplate(candidate) {
       ${blocker}
       <div class="card-actions">
         <button class="secondary-button card-primary" type="button" data-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
-        ${!['approved', 'held', 'rejected'].includes(candidate.workflowState) ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
+        ${canHoldFromCard ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
       </div>
     </article>`;
 }
@@ -316,8 +317,11 @@ function renderGuardian(candidate) {
 
 function renderApproval(candidate) {
   const review = candidate.review;
+  const duplicatePending = candidate.workflowState === 'duplicate_review';
   els.revisionLabel.textContent = `rev ${candidate.revision}`;
-  if (review) {
+  if (duplicatePending) {
+    els.approvalBinding.textContent = '유사 후보 확인이 끝나기 전에는 보류·거절·승인을 포함한 다른 사람 결정을 적용하지 않습니다.';
+  } else if (review) {
     els.approvalBinding.innerHTML = review.stale
       ? `<strong>기존 ${escapeHtml(review.decision)} 결정은 무효화됨</strong><br />${escapeHtml(review.staleReason || '상위 자료가 변경되었습니다.')}<br /><small>바인딩: ${escapeHtml(review.boundMaterialRevision)}</small>`
       : `<strong>${escapeHtml(review.decision)} · ${escapeHtml(review.actor)}</strong><br />이 결정은 아래 자료 해시에 묶여 있습니다.<br /><small>${escapeHtml(review.boundMaterialRevision)}</small>`;
@@ -327,9 +331,9 @@ function renderApproval(candidate) {
       : 'Guardian pass 전에는 승인할 수 없습니다. 보류·거절은 언제든 가능합니다.';
   }
 
-  document.querySelector('#approve-draft').disabled = candidate.guardian?.decision !== 'pass' || candidate.guardian?.boundMaterialRevision !== candidate.materialRevision || candidate.review?.stale === true || candidate.workflowState === 'approved';
-  document.querySelector('#hold-candidate').disabled = candidate.workflowState === 'held';
-  document.querySelector('#reject-candidate').disabled = candidate.workflowState === 'rejected';
+  document.querySelector('#approve-draft').disabled = duplicatePending || candidate.guardian?.decision !== 'pass' || candidate.guardian?.boundMaterialRevision !== candidate.materialRevision || candidate.review?.stale === true || candidate.workflowState === 'approved';
+  document.querySelector('#hold-candidate').disabled = duplicatePending || candidate.workflowState === 'held';
+  document.querySelector('#reject-candidate').disabled = duplicatePending || candidate.workflowState === 'rejected';
 }
 
 function renderWorkspace() {
@@ -451,11 +455,21 @@ els.evidenceForm.addEventListener('submit', async (event) => {
   const payload = Object.fromEntries(formData.entries());
   payload.affiliate = els.affiliate.checked;
   const result = await sendCommand('request_verification', { candidateId: candidate.id, expectedRevision: candidate.revision, payload });
-  if (result.ok) {
-    const updated = candidateById(candidate.id);
-    showToast(updated.evidenceReadiness === 'ready' ? '사용자 제공 근거 기준으로 다음 단계가 열렸습니다.' : '근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
-    renderWorkspace();
+  if (!result.ok) return;
+
+  if (result.result.result === 'candidate_duplicate_suppressed') {
+    showToast('근거 수정으로 기존 후보와 브랜드·모델·옵션이 같아져 중복 후보로 억제했습니다.');
+    return;
   }
+
+  const updated = candidateById(candidate.id);
+  if (!updated) return;
+  if (updated.workflowState === 'duplicate_review') {
+    showToast('제품 식별값이 바뀌어 유사 후보 확인이 다시 필요합니다.');
+  } else {
+    showToast(updated.evidenceReadiness === 'ready' ? '사용자 제공 근거 기준으로 다음 단계가 열렸습니다.' : '근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
+  }
+  renderWorkspace();
 });
 
 document.querySelector('#create-strategies').addEventListener('click', async () => {
