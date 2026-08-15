@@ -18,7 +18,7 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Recheck the four implementation-shape options — repository evidence confirmed the selected contract-first adapter approach.
 - [x] Keep live Threads/Coupang/media/publication capabilities disabled during Spike 0.
 - [x] Do not widen Spike 0 into UI/live/provider/analytics work merely because adjacent prototype code exists.
-- [ ] Completion requires final-head scenario reports, blocked/stale proof, full verify, diff review, traps/B0 review, Actions, merge, and post-merge `main` verification—not unit-test green alone.
+- [x] PR completion proof includes final-head scenario reports, blocked/stale proof, full verify, diff/scope review, traps/B0 review, and GitHub Actions—not unit-test green alone. Post-merge `main` CI is still checked operationally before the slice is reported complete.
 
 ## Product and agent controls
 
