@@ -115,6 +115,15 @@
         <div id="workspace-alert" class="workspace-alert" hidden role="alert"></div>
         <div id="workspace-status" class="status-grid" aria-label="현재 상태"></div>
 
+        <section id="duplicate-review-section" class="workspace-section" aria-labelledby="duplicate-review-title" hidden>
+          <div class="section-heading"><div><p class="section-kicker">Portfolio guardrail</p><h3 id="duplicate-review-title">유사 후보 확인</h3></div><span class="status-pill warn">사람 판단 필요</span></div>
+          <div id="duplicate-summary" class="binding-summary"></div>
+          <div class="approval-actions">
+            <button id="duplicate-distinct" class="secondary-button" type="button">서로 다른 제품</button>
+            <button id="duplicate-suppress" class="ghost-button danger-text" type="button">중복으로 억제</button>
+          </div>
+        </section>
+
         <section class="workspace-section" aria-labelledby="evidence-title">
           <div class="section-heading"><div><p class="section-kicker">Evidence Verifier</p><h3 id="evidence-title">사용자 제공 근거 확인</h3></div><span id="evidence-basis" class="status-pill"></span></div>
           <form id="evidence-form" class="form-stack compact-stack">
