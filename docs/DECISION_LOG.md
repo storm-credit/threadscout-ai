@@ -245,3 +245,57 @@ Strengthen `CLAUDE.md` with four implementation-workflow gates:
 ### Impact
 
 This changes project execution governance, not the approved product behavior or six-agent architecture. Future coding agents should be able to read `CLAUDE.md` and reconstruct both the product authority and the required work method before implementation begins.
+
+---
+
+## 2026-08-15 — Finalize Harness Design before coding
+
+### Context
+
+Master Design v1 is complete, while the repository still contains executable Phase2A–2F prototype harness assets (`simulate`, `replay`, evidence store, fixture research, readiness checks). Those assets are useful but predate the approved contracts. Calling them the final harness would confuse “executable prototype” with “Master-Design-compliant executable specification.”
+
+### Four options reviewed
+
+1. rewrite the harness from scratch
+2. patch existing scripts independently
+3. wrap/adapt existing runtime behind one contract-first Master Design harness
+4. validate against live providers first
+
+### Decision
+
+Select **Option 3: contract-first harness around existing runtime**.
+
+Preserve provider-neutral runtime, replay, tool brokerage, versioned evidence, fixture research, disabled live adapters, and regression assets where useful. Upgrade them behind canonical routing, handoff, stale/review-binding, fixture, and AT-report semantics.
+
+### Harness authority added
+
+- `docs/spec/HARNESS_BLUEPRINT.md`
+- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
+- refreshed `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
+- `docs/spec/CODING_SPIKE_ENTRY.md`
+
+### Prototype classification
+
+Existing implementation is now explicitly classified as `KEEP / MODIFY / RETIRE / MISSING` rather than vaguely “old code.” RETIRE is not permission to delete; replacement behavior and regression coverage must exist first.
+
+### First Coding Spike
+
+The first future code experiment is a no-network manual-product contract spine:
+
+`owner-supplied fixture → Verifier → Strategist(4) → Writer(4) → Guardian → human-decision domain binding → material mutation → stale approval rejection`.
+
+Scout is skipped only under the explicit-owner-product routing rule; the six-agent roster remains unchanged.
+
+### Why this comes before the C vertical slice
+
+The spike isolates the riskiest migration question — whether legacy orchestration/store/contracts can enforce Master Design revision/authority semantics without a rewrite — before browser/UI and external provider complexity are added.
+
+### Live boundary
+
+No live Threads, Coupang, paid model requirement, public posting, automated product search, or third-party media republication is needed for Harness Design or Spike 0.
+
+### Final status after this decision
+
+`Master Design COMPLETE / Harness Design COMPLETE / legacy prototype harness executable / Master-Design harness not yet implemented / Coding Spike READY but not started`.
+
+Coding still requires a separate explicit owner instruction.
