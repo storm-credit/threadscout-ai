@@ -120,6 +120,33 @@ test('high-overlap name with incomplete identity enters explicit duplicate revie
   });
 });
 
+test('pending duplicate review cannot be bypassed with hold or rejection decisions', async () => {
+  await withServer(async ({ baseUrl }) => {
+    await add(baseUrl, 'decision-guard-first', productPayload());
+    const possible = await add(baseUrl, 'decision-guard-possible', productPayload({
+      name: '싱크대 접이식 물튐 방지 가드',
+      model: '',
+      sourceRef: 'owner-note:decision-guard'
+    }));
+    const candidate = candidateById(possible.today, possible.candidateId);
+
+    for (const decision of ['held', 'rejected']) {
+      const blocked = await command(baseUrl, {
+        requestId: `decision-guard-${decision}`,
+        command: 'review_decision',
+        candidateId: candidate.id,
+        expectedRevision: candidate.revision,
+        payload: { decision }
+      }, 422);
+      assert.equal(blocked.error, 'duplicate_review_required');
+      assert.equal(blocked.orchestrationReceipt.status, 'failure');
+    }
+
+    const today = await (await fetch(`${baseUrl}/api/today`)).json();
+    assert.equal(candidateById(today, candidate.id).workflowState, 'duplicate_review');
+  });
+});
+
 test('known different model or variant is not collapsed by similar display name', async () => {
   await withServer(async ({ baseUrl }) => {
     await add(baseUrl, 'identity-conflict-first', productPayload());
@@ -161,6 +188,118 @@ test('owner can confirm a possible duplicate is distinct and resume verification
       payload: { model: 'SG-101' }
     });
     assert.equal(candidateById(verified.today, candidate.id).workflowState, 'evidence_ready');
+  });
+});
+
+test('an unchanged confirmed-distinct identity is not repeatedly reopened', async () => {
+  await withServer(async ({ baseUrl }) => {
+    await add(baseUrl, 'stable-distinct-first', productPayload());
+    const possible = await add(baseUrl, 'stable-distinct-possible', productPayload({
+      name: '싱크대 접이식 물튐 방지 가드',
+      model: '',
+      sourceRef: 'owner-note:stable-distinct'
+    }));
+    let candidate = candidateById(possible.today, possible.candidateId);
+    const resolved = await command(baseUrl, {
+      requestId: 'stable-distinct-resolve',
+      command: 'resolve_duplicate',
+      candidateId: candidate.id,
+      expectedRevision: candidate.revision,
+      payload: { decision: 'distinct' }
+    });
+    candidate = candidateById(resolved.today, candidate.id);
+
+    const verified = await command(baseUrl, {
+      requestId: 'stable-distinct-verify',
+      command: 'request_verification',
+      candidateId: candidate.id,
+      expectedRevision: candidate.revision,
+      payload: { sourceRef: 'owner-note:stable-distinct-updated-source' }
+    });
+    const updated = candidateById(verified.today, candidate.id);
+    assert.notEqual(updated.workflowState, 'duplicate_review');
+    assert.equal(updated.duplicateAssessment.state, 'confirmed_distinct');
+  });
+});
+
+test('identity changed during verification is rechecked and exact duplicates are suppressed', async () => {
+  await withServer(async ({ baseUrl, dataDir }) => {
+    const canonical = await add(baseUrl, 'mutation-canonical', productPayload());
+    const second = await add(baseUrl, 'mutation-second', productPayload({
+      model: 'SG-200',
+      sourceRef: 'owner-note:mutation-second'
+    }));
+    const candidate = candidateById(second.today, second.candidateId);
+    assert.equal(candidate.duplicateAssessment.state, 'unique');
+
+    const verification = await command(baseUrl, {
+      requestId: 'mutation-becomes-exact',
+      command: 'request_verification',
+      candidateId: candidate.id,
+      expectedRevision: candidate.revision,
+      payload: { model: 'SG-100' }
+    });
+
+    assert.equal(verification.result, 'candidate_duplicate_suppressed');
+    assert.equal(verification.duplicateAssessment.state, 'exact_duplicate_suppressed');
+    assert.equal(verification.duplicateAssessment.matchedCandidate.candidateId, canonical.candidateId);
+    assert.equal(candidateById(verification.today, candidate.id), undefined);
+
+    const state = JSON.parse(await readFile(path.join(dataDir, 'application-state.json'), 'utf8'));
+    const persisted = state.candidates.find((item) => item.id === candidate.id);
+    assert.equal(persisted.workflowState, 'suppressed_duplicate');
+    assert.ok(state.audit.some((entry) => entry.event === 'candidate_exact_duplicate_suppressed_after_verification' && entry.candidateId === candidate.id));
+  });
+});
+
+test('identity changed during verification can reopen possible duplicate review', async () => {
+  await withServer(async ({ baseUrl }) => {
+    await add(baseUrl, 'reopen-canonical', productPayload());
+    const second = await add(baseUrl, 'reopen-second', productPayload({
+      model: 'SG-200',
+      sourceRef: 'owner-note:reopen-second'
+    }));
+    const candidate = candidateById(second.today, second.candidateId);
+
+    const verification = await command(baseUrl, {
+      requestId: 'reopen-clear-model',
+      command: 'request_verification',
+      candidateId: candidate.id,
+      expectedRevision: candidate.revision,
+      payload: { model: '' }
+    });
+    const updated = candidateById(verification.today, candidate.id);
+
+    assert.equal(verification.result, 'candidate_verification_possible_duplicate');
+    assert.equal(updated.workflowState, 'duplicate_review');
+    assert.equal(updated.duplicateAssessment.state, 'possible_duplicate');
+  });
+});
+
+test('possible duplicate review is portfolio-prioritized into the bounded five-card inbox', async () => {
+  await withServer(async ({ baseUrl }) => {
+    await add(baseUrl, 'portfolio-canonical', productPayload({ opportunityScore: 10 }));
+    for (let i = 0; i < 5; i += 1) {
+      await add(baseUrl, `portfolio-high-${i}`, productPayload({
+        name: `고득점 별도 제품 ${i}`,
+        brand: `Distinct Brand ${i}`,
+        model: `D-${i}`,
+        variant: `V-${i}`,
+        sourceRef: `owner-note:portfolio-${i}`,
+        opportunityScore: 100 - i
+      }));
+    }
+
+    const possible = await add(baseUrl, 'portfolio-possible', productPayload({
+      name: '싱크대 접이식 물튐 방지 가드',
+      model: '',
+      sourceRef: 'owner-note:portfolio-possible',
+      opportunityScore: 1
+    }));
+
+    assert.equal(possible.today.candidates.length, 5);
+    assert.ok(possible.today.candidates.some((candidate) => candidate.id === possible.candidateId));
+    assert.equal(candidateById(possible.today, possible.candidateId).workflowState, 'duplicate_review');
   });
 });
 
