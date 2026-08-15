@@ -7,6 +7,8 @@ const els = {
   dialogSubtitle: document.querySelector('#dialog-subtitle'),
   workspaceAlert: document.querySelector('#workspace-alert'),
   workspaceStatus: document.querySelector('#workspace-status'),
+  duplicateReviewSection: document.querySelector('#duplicate-review-section'),
+  duplicateSummary: document.querySelector('#duplicate-summary'),
   evidenceForm: document.querySelector('#evidence-form'),
   evidenceBrand: document.querySelector('#evidence-brand'),
   evidenceModel: document.querySelector('#evidence-model'),
@@ -57,6 +59,7 @@ function showToast(message) {
 
 function statusLabel(value) {
   return {
+    duplicate_review: '유사 후보 검토',
     verification_needed: '근거 필요',
     evidence_partial: '근거 일부',
     evidence_ready: '근거 준비',
@@ -88,6 +91,15 @@ function mediaLabel(value) {
   return { owned: '직접 소유', licensed: '사용 허가', not_required: '미디어 없음', unknown: '권리 미확인' }[value] ?? value;
 }
 
+function duplicateStateLabel(value) {
+  return {
+    unique: '중복 없음',
+    possible_duplicate: '유사 후보',
+    confirmed_distinct: '다른 제품 확인',
+    confirmed_duplicate: '중복 억제'
+  }[value] ?? value;
+}
+
 function candidateById(id) {
   return today?.candidates.find((candidate) => candidate.id === id) ?? null;
 }
@@ -98,6 +110,7 @@ function statusClass(value, kind = 'status') {
   if (kind === 'exact') return value === 'exact' ? 'ok' : 'warn';
   if (kind === 'media') return value === 'unknown' ? 'warn' : 'ok';
   if (value === 'approved' || value === 'guardian_pass' || value === 'evidence_ready') return 'ok';
+  if (value === 'duplicate_review') return 'warn';
   if (value === 'stale' || value === 'blocked' || value === 'rejected' || value === 'guardian_revise') return 'danger';
   return 'info';
 }
@@ -107,6 +120,13 @@ function cardTemplate(candidate) {
   const blocker = candidate.topBlocker
     ? `<p class="blocker-line"><strong>지금 막는 것:</strong> ${escapeHtml(candidate.topBlocker)}</p>`
     : '';
+  const primaryAction = candidate.workflowState === 'duplicate_review'
+    ? { action: 'open_workspace', label: '유사 후보 확인' }
+    : candidate.nextAction;
+  const duplicateBadge = candidate.duplicateAssessment?.state === 'possible_duplicate'
+    ? '<span class="status-pill warn">유사 후보</span>'
+    : '';
+  const canHoldFromCard = !['approved', 'held', 'rejected', 'duplicate_review'].includes(candidate.workflowState);
   return `
     <article class="candidate-card ${candidate.topBlocker ? 'has-blocker' : ''} ${candidate.workflowState === 'stale' ? 'stale-card' : ''}" data-id="${escapeHtml(candidate.id)}">
       <div class="card-top">
@@ -123,24 +143,25 @@ function cardTemplate(candidate) {
         <span class="status-pill ${statusClass(candidate.riskLevel, 'risk')}">${escapeHtml(riskLabel(candidate.riskLevel))}</span>
         <span class="status-pill ${statusClass(candidate.exactMatchStatus, 'exact')}">${escapeHtml(exactLabel(candidate.exactMatchStatus))}</span>
         <span class="status-pill ${statusClass(candidate.mediaRights, 'media')}">${escapeHtml(mediaLabel(candidate.mediaRights))}</span>
+        ${duplicateBadge}
       </div>
       ${blocker}
       <div class="card-actions">
-        <button class="secondary-button card-primary" type="button" data-action="${escapeHtml(candidate.nextAction.action)}">${escapeHtml(candidate.nextAction.label)}</button>
-        ${!['approved', 'held', 'rejected'].includes(candidate.workflowState) ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
+        <button class="secondary-button card-primary" type="button" data-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
+        ${canHoldFromCard ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
       </div>
     </article>`;
 }
 
 function viewPredicate(candidate) {
-  if (viewMode === 'verification') return ['verification_needed', 'evidence_partial', 'stale', 'blocked'].includes(candidate.workflowState);
+  if (viewMode === 'verification') return ['duplicate_review', 'verification_needed', 'evidence_partial', 'stale', 'blocked'].includes(candidate.workflowState);
   if (viewMode === 'drafts') return ['strategy_ready', 'draft_ready', 'guardian_revise', 'guardian_pass'].includes(candidate.workflowState);
   return true;
 }
 
 function filterPredicate(candidate) {
   const value = els.filter.value;
-  if (value === 'verification') return ['verification_needed', 'evidence_partial', 'stale', 'blocked'].includes(candidate.workflowState);
+  if (value === 'verification') return ['duplicate_review', 'verification_needed', 'evidence_partial', 'stale', 'blocked'].includes(candidate.workflowState);
   if (value === 'content') return ['evidence_ready', 'strategy_ready', 'draft_ready'].includes(candidate.workflowState);
   if (value === 'review') return ['guardian_revise', 'guardian_pass', 'approved'].includes(candidate.workflowState);
   return true;
@@ -158,7 +179,7 @@ function renderMetrics() {
   if (!today) return;
   document.querySelector('#metric-total').textContent = today.counters.observed;
   document.querySelector('#metric-ready').textContent = today.counters.recommended;
-  document.querySelector('#metric-verification').textContent = today.counters.verificationNeeded;
+  document.querySelector('#metric-verification').textContent = today.counters.verificationNeeded + (today.counters.duplicateReview ?? 0);
   document.querySelector('#metric-approved').textContent = today.counters.approved;
 }
 
@@ -182,8 +203,8 @@ function renderView() {
   els.capabilityView.hidden = true;
   if (viewMode === 'verification') {
     els.viewKicker.textContent = 'Evidence';
-    els.inboxTitle.textContent = '근거 확인이 필요한 후보';
-    els.viewDescription.textContent = '점수가 높아도 제품 일치·권리·승인 버전이 해결되지 않으면 여기 남습니다.';
+    els.inboxTitle.textContent = '근거·유사 후보 확인이 필요한 후보';
+    els.viewDescription.textContent = '점수가 높아도 중복 가능성·제품 일치·권리·승인 버전이 해결되지 않으면 여기 남습니다.';
   } else if (viewMode === 'drafts') {
     els.viewKicker.textContent = 'Drafts';
     els.inboxTitle.textContent = '전략·초안·Guardian 작업';
@@ -191,7 +212,7 @@ function renderView() {
   } else {
     els.viewKicker.textContent = 'Today';
     els.inboxTitle.textContent = '오늘의 Opportunity Inbox';
-    els.viewDescription.textContent = '최대 5개 후보만 보여주고, 점수와 근거 준비도를 따로 표시합니다.';
+    els.viewDescription.textContent = '최대 5개 후보만 보여주고, 점수와 근거 준비도·중복 가능성을 따로 표시합니다.';
   }
   renderCandidates();
 }
@@ -231,12 +252,35 @@ async function sendCommand(command, { candidateId = null, expectedRevision = nul
 }
 
 function renderWorkspaceStatus(candidate) {
-  els.workspaceStatus.innerHTML = [
+  const duplicateState = candidate.duplicateAssessment?.state;
+  const rows = [
     ['기회 점수', `${candidate.opportunityScore}점`],
     ['근거', evidenceLabel(candidate.evidenceReadiness)],
     ['위험', riskLabel(candidate.riskLevel)],
     ['제품', exactLabel(candidate.exactMatchStatus)]
-  ].map(([label, value]) => `<div class="status-tile"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+  ];
+  if (duplicateState && duplicateState !== 'unique') rows.push(['중복', duplicateStateLabel(duplicateState)]);
+  els.workspaceStatus.innerHTML = rows.map(([label, value]) => `<div class="status-tile"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+}
+
+function renderDuplicateReview(candidate) {
+  const assessment = candidate.duplicateAssessment;
+  const pending = candidate.workflowState === 'duplicate_review' && assessment?.state === 'possible_duplicate';
+  els.duplicateReviewSection.hidden = !pending;
+  document.querySelector('#duplicate-distinct').disabled = !pending;
+  document.querySelector('#duplicate-suppress').disabled = !pending;
+  if (!pending) {
+    els.duplicateSummary.textContent = '';
+    return;
+  }
+
+  const match = assessment.matchedCandidate ?? {};
+  const identity = [match.brand, match.model, match.variant].filter(Boolean).join(' · ') || '세부 식별값 일부 없음';
+  const score = Math.round(Number(assessment.similarity ?? 0) * 100);
+  els.duplicateSummary.innerHTML = `
+    <strong>${escapeHtml(match.name || '기존 후보')}</strong><br />
+    ${escapeHtml(identity)}<br />
+    <small>이름 유사도 ${escapeHtml(score)}% · 이 신호는 제품 동일성 검증이 아니라 반복 후보 방지용입니다. 같은 제품인지 애매하면 자동 병합하지 말고 서로 다른 제품으로 남긴 뒤 Verifier에서 모델·옵션을 확인하세요.</small>`;
 }
 
 function renderStrategies(candidate) {
@@ -273,8 +317,11 @@ function renderGuardian(candidate) {
 
 function renderApproval(candidate) {
   const review = candidate.review;
+  const duplicatePending = candidate.workflowState === 'duplicate_review';
   els.revisionLabel.textContent = `rev ${candidate.revision}`;
-  if (review) {
+  if (duplicatePending) {
+    els.approvalBinding.textContent = '유사 후보 확인이 끝나기 전에는 보류·거절·승인을 포함한 다른 사람 결정을 적용하지 않습니다.';
+  } else if (review) {
     els.approvalBinding.innerHTML = review.stale
       ? `<strong>기존 ${escapeHtml(review.decision)} 결정은 무효화됨</strong><br />${escapeHtml(review.staleReason || '상위 자료가 변경되었습니다.')}<br /><small>바인딩: ${escapeHtml(review.boundMaterialRevision)}</small>`
       : `<strong>${escapeHtml(review.decision)} · ${escapeHtml(review.actor)}</strong><br />이 결정은 아래 자료 해시에 묶여 있습니다.<br /><small>${escapeHtml(review.boundMaterialRevision)}</small>`;
@@ -284,9 +331,9 @@ function renderApproval(candidate) {
       : 'Guardian pass 전에는 승인할 수 없습니다. 보류·거절은 언제든 가능합니다.';
   }
 
-  document.querySelector('#approve-draft').disabled = candidate.guardian?.decision !== 'pass' || candidate.guardian?.boundMaterialRevision !== candidate.materialRevision || candidate.review?.stale === true || candidate.workflowState === 'approved';
-  document.querySelector('#hold-candidate').disabled = candidate.workflowState === 'held';
-  document.querySelector('#reject-candidate').disabled = candidate.workflowState === 'rejected';
+  document.querySelector('#approve-draft').disabled = duplicatePending || candidate.guardian?.decision !== 'pass' || candidate.guardian?.boundMaterialRevision !== candidate.materialRevision || candidate.review?.stale === true || candidate.workflowState === 'approved';
+  document.querySelector('#hold-candidate').disabled = duplicatePending || candidate.workflowState === 'held';
+  document.querySelector('#reject-candidate').disabled = duplicatePending || candidate.workflowState === 'rejected';
 }
 
 function renderWorkspace() {
@@ -301,6 +348,7 @@ function renderWorkspace() {
   els.workspaceAlert.hidden = !candidate.topBlocker;
   els.workspaceAlert.textContent = candidate.topBlocker ?? '';
   renderWorkspaceStatus(candidate);
+  renderDuplicateReview(candidate);
 
   els.evidenceBrand.value = candidate.brand;
   els.evidenceModel.value = candidate.model;
@@ -318,10 +366,12 @@ function renderWorkspace() {
   renderGuardian(candidate);
   renderApproval(candidate);
 
-  document.querySelector('#create-strategies').disabled = candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact';
-  document.querySelector('#create-drafts').disabled = candidate.strategies?.angles?.length !== 4;
-  document.querySelector('#save-draft').disabled = !candidate.drafts?.length;
-  document.querySelector('#run-guardian').disabled = candidate.drafts?.length !== 4;
+  const duplicatePending = candidate.workflowState === 'duplicate_review';
+  document.querySelector('#verify-evidence').disabled = duplicatePending;
+  document.querySelector('#create-strategies').disabled = duplicatePending || candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact';
+  document.querySelector('#create-drafts').disabled = duplicatePending || candidate.strategies?.angles?.length !== 4;
+  document.querySelector('#save-draft').disabled = duplicatePending || !candidate.drafts?.length;
+  document.querySelector('#run-guardian').disabled = duplicatePending || candidate.drafts?.length !== 4;
 }
 
 function openWorkspace(candidateId) {
@@ -364,10 +414,38 @@ els.candidateForm.addEventListener('submit', async (event) => {
     els.candidateDialog.close();
     viewMode = 'today';
     render();
-    showToast('제품 후보를 추가했습니다. 다음 단계는 근거 확인입니다.');
+
+    if (result.result.result === 'candidate_duplicate_suppressed') {
+      showToast('같은 브랜드·모델·옵션 후보가 이미 있어 새 후보를 만들지 않았습니다.');
+    } else if (result.result.result === 'candidate_added_possible_duplicate') {
+      showToast('비슷한 기존 후보가 있습니다. 같은 제품인지 먼저 확인하세요.');
+      if (candidateById(result.result.candidateId)) openWorkspace(result.result.candidateId);
+    } else {
+      showToast('제품 후보를 추가했습니다. 다음 단계는 근거 확인입니다.');
+    }
     document.querySelector('#inbox-view').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
+
+async function resolveDuplicate(decision) {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('resolve_duplicate', {
+    candidateId: candidate.id,
+    expectedRevision: candidate.revision,
+    payload: { decision }
+  });
+  if (!result.ok) return;
+  if (decision === 'duplicate') {
+    showToast('중복 후보로 억제했습니다. 기록은 서버 감사 상태에 남습니다.');
+  } else {
+    showToast('서로 다른 제품으로 확인했습니다. 이제 근거 확인을 진행할 수 있습니다.');
+    renderWorkspace();
+  }
+}
+
+document.querySelector('#duplicate-distinct').addEventListener('click', () => resolveDuplicate('distinct'));
+document.querySelector('#duplicate-suppress').addEventListener('click', () => resolveDuplicate('duplicate'));
 
 els.evidenceForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -377,11 +455,21 @@ els.evidenceForm.addEventListener('submit', async (event) => {
   const payload = Object.fromEntries(formData.entries());
   payload.affiliate = els.affiliate.checked;
   const result = await sendCommand('request_verification', { candidateId: candidate.id, expectedRevision: candidate.revision, payload });
-  if (result.ok) {
-    const updated = candidateById(candidate.id);
-    showToast(updated.evidenceReadiness === 'ready' ? '사용자 제공 근거 기준으로 다음 단계가 열렸습니다.' : '근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
-    renderWorkspace();
+  if (!result.ok) return;
+
+  if (result.result.result === 'candidate_duplicate_suppressed') {
+    showToast('근거 수정으로 기존 후보와 브랜드·모델·옵션이 같아져 중복 후보로 억제했습니다.');
+    return;
   }
+
+  const updated = candidateById(candidate.id);
+  if (!updated) return;
+  if (updated.workflowState === 'duplicate_review') {
+    showToast('제품 식별값이 바뀌어 유사 후보 확인이 다시 필요합니다.');
+  } else {
+    showToast(updated.evidenceReadiness === 'ready' ? '사용자 제공 근거 기준으로 다음 단계가 열렸습니다.' : '근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
+  }
+  renderWorkspace();
 });
 
 document.querySelector('#create-strategies').addEventListener('click', async () => {

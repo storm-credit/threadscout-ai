@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
-import { LockedAtomicJsonApplicationStore } from './locked-application-store.mjs';
+import { CandidateDedupeApplicationStore } from './candidate-dedupe-store.mjs';
 import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -77,7 +77,7 @@ export function createThreadScoutServer({
   clock,
   storeOptions = {}
 } = {}) {
-  const store = new LockedAtomicJsonApplicationStore({
+  const store = new CandidateDedupeApplicationStore({
     filePath: path.resolve(dataDir, stateFile),
     clock,
     ...storeOptions
@@ -101,6 +101,7 @@ export function createThreadScoutServer({
           orchestratorOnlyDispatch: true,
           persistence: 'server_atomic_json_local_interprocess_locked',
           persistenceScope: 'single_host_local_filesystem',
+          duplicateGuardrail: 'deterministic_exact_plus_human_reviewed_possible_duplicate',
           externalPublishingEnabled: false
         });
       }
@@ -157,6 +158,6 @@ if (isDirectRun) {
   const server = createThreadScoutServer();
   server.listen(port, '127.0.0.1', () => {
     console.log(`ThreadScout AI running at http://127.0.0.1:${port}`);
-    console.log('Server-authoritative state + local interprocess write lock + Orchestrator-only command dispatch enabled; external publishing disabled.');
+    console.log('Server-authoritative state + local interprocess write lock + candidate dedupe guardrail + Orchestrator-only command dispatch enabled; external publishing disabled.');
   });
 }
