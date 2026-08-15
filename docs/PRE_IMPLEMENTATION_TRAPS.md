@@ -11,14 +11,14 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Existing prototype assets are classified `KEEP / MODIFY / RETIRE / MISSING`.
 - [x] Canonical fixture families and AT ownership are documented.
 - [x] First Coding Spike has explicit in-scope/out-of-scope behavior, success conditions, stop conditions, and preferred change surface.
-- [ ] At actual coding start, record the exact current `main` SHA as the baseline.
-- [ ] At actual coding start, select the exact fixture IDs and AT IDs in the implementation PR/plan.
-- [ ] Re-read affected prototype modules before editing; do not trust the gap table as a substitute for code inspection.
-- [ ] Perform the Reference-first Gate for any unresolved technical mechanism that materially affects implementation risk.
-- [ ] Recheck the four implementation-shape options if repository evidence invalidates the recommended adapter approach.
-- [ ] Keep live Threads/Coupang/media/publication capabilities disabled during Spike 0.
-- [ ] Do not widen Spike 0 into UI/live/provider/analytics work merely because adjacent prototype code exists.
-- [ ] Completion requires scenario reports, blocked/stale proof, full verify, diff review, traps/B0 review, and Actions—not unit-test green alone.
+- [x] At actual coding start, record the exact current `main` SHA as the baseline — `691aad24cd307c7094ed1531f06e5b1d2976b088`.
+- [x] At actual coding start, select the exact fixture IDs and AT IDs in the implementation PR/plan — F01/F02/F04/F11/F12/F13/F15/F20/F21 and the Spike 0 AT set.
+- [x] Re-read affected prototype modules before editing; do not trust the gap table as a substitute for code inspection.
+- [x] Perform the Reference-first Gate for unresolved technical mechanisms — recorded in `docs/implementation/SPIKE0_REFERENCE_REVIEW.md`.
+- [x] Recheck the four implementation-shape options — repository evidence confirmed the selected contract-first adapter approach.
+- [x] Keep live Threads/Coupang/media/publication capabilities disabled during Spike 0.
+- [x] Do not widen Spike 0 into UI/live/provider/analytics work merely because adjacent prototype code exists.
+- [ ] Completion requires final-head scenario reports, blocked/stale proof, full verify, diff review, traps/B0 review, Actions, merge, and post-merge `main` verification—not unit-test green alone.
 
 ## Product and agent controls
 
@@ -50,12 +50,13 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Add replay provider, budgets, receipts, and schema validation.
 - [x] Enforce tool allowlists and block external actions.
 - [x] Add version hashes, content-addressed objects, stale detection, and event chains.
+- [x] Prove domain-level material revision binding and stale compare-and-set rejection in Spike 0 fixtures F11/F21; persistent application/server binding remains a later slice.
 - [ ] Add provider token/cost and cancellation semantics.
 - [ ] Add handler input/output schemas and mutability classes.
 - [ ] Add partial-line recovery, retention, redaction classes, export, deletion, and garbage collection.
 - [ ] Add SQLite or transactional locking before multi-process workers.
 - [ ] Prevent stale approved/queued artifacts from any future publishing command.
-- [ ] Add compare-and-set/version checks around user decisions and state transitions.
+- [ ] Add persistent compare-and-set/version checks around application user decisions and state transitions.
 - [ ] Verify audit storage remains complete when a worker crashes between external action and event persistence.
 
 ## Research boundary
@@ -97,7 +98,8 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 ## Human approval
 
 - [x] Bind approval conceptually to draft/evidence/media/affiliate revisions.
-- [ ] Implement exact hash/version binding before any live scheduling.
+- [x] Prove exact domain-revision binding and stale rejection in the deterministic Spike 0 harness.
+- [ ] Implement durable application/server hash-version binding before any live scheduling.
 - [ ] Surface material changes since last review before asking for reapproval.
 - [ ] Prevent warning overload by distinguishing blocker, required action, warning, and informational state.
 - [ ] Ensure approval cannot be triggered by accidental double tap or repeated browser submission.
