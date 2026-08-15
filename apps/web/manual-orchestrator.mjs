@@ -54,6 +54,19 @@ function validateSpecialistRoute(command, today, request) {
   if (!candidate) {
     throw new ApplicationCommandError('Candidate not found for specialist dispatch.', { code: 'not_found', statusCode: 404 });
   }
+
+  if (command === 'request_strategies' && (candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact')) {
+    throw new ApplicationCommandError('Evidence is not ready for content strategy.', {
+      code: 'evidence_not_ready',
+      statusCode: 422,
+      details: {
+        evidenceReadiness: candidate.evidenceReadiness,
+        exactMatchStatus: candidate.exactMatchStatus,
+        blockers: candidate.blockers
+      }
+    });
+  }
+
   const states = allowedStates(command);
   if (states && !states.has(candidate.workflowState)) {
     throw new ApplicationCommandError(`Orchestrator cannot dispatch ${specialistId} from ${candidate.workflowState}.`, {
