@@ -23,7 +23,7 @@ The browser is a renderer/command client. Durable candidate/review state lives i
 | AT-34 | mobile-first CSS and touch-oriented card/nav layout | structural automated pass; device matrix not claimed |
 | AT-35 | no localStorage/sessionStorage authority; state survives server/browser reload; publishing/background work remains outside browser | pass for local application state boundary |
 | AT-36 | expected revision conflicts return 409 + latest read model; stale decision rejected | pass for server/domain cross-client semantics |
-| AT-38 | material draft change invalidates prior approval; stale recovery requires current evidence/new strategy | pass for local/server binding |
+| AT-38 | material change invalidates prior approval; draft-only stale state requires a new Guardian review, while evidence-changing stale state rebuilds downstream content from current evidence | pass for local/server binding |
 | AT-42 | top blocker is first-class on card/workspace and approval stays disabled until Guardian/current revision is valid | pass for implemented UI state hierarchy |
 
 Regression coverage continues to prove Spike 0 ATs for product identity, four outputs, Guardian independence, fail-closed behavior, secret handling, and agent agreement not manufacturing truth.
@@ -42,7 +42,7 @@ The C-slice test suite covers:
 - no credential-name leakage / publishing disabled
 - Orchestrator-only specialist dispatch receipts
 - invalid specialist-state dispatch rejection
-- stale review recovery through current evidence + new Orchestrator dispatch
+- draft-only stale recovery through a fresh Guardian review and owner decision
 - Opportunity Inbox/mobile navigation/static safety and 360px structural checks
 
 ## Blind-spot recheck
