@@ -1,80 +1,84 @@
 # Implementation Status
 
-## Existing prototype completed before Master Design v1
+## Canonical design status
 
-- Phase 0: definition, interviews, success conditions, blind spots, traps, four designs, references
-- Phase 1: mobile local approval workspace
-- Phase 2A: fixed six-agent orchestra and bounded state machine
-- Phase 2B: practical novel-item niche, prompts/schemas, synthetic full simulation
-- Phase 2C: provider-neutral replay runtime, budgets, receipts, tool broker
-- Phase 2D: versioned content-addressed evidence/artifact store and hash-chained run events
-- Phase 2E: read-only fixture research, validated source records, candidate evidence, invalidation index
-- Phase 2F: official-source readiness registry and disabled Threads/NAVER request contracts
+- **Master Design v1: COMPLETE** — product/platform/six-agent/evidence/media/matching/content/approval/publishing/analytics/security design and AT-01~44 are canonical in `docs/spec/`.
+- **Harness Design v1: COMPLETE** — `HARNESS_BLUEPRINT`, `HARNESS_ACCEPTANCE_MATRIX`, gap analysis, and coding entry rules define the executable-specification approach.
+- Live-account/policy/deployment items remain capability-gated; design completion does not mean production activation.
 
-These assets predate Master Design v1 and remain prototype/regression evidence unless explicitly promoted by a Master-Design implementation slice.
+## Existing prototype / regression assets
 
-## Master Design v1 — COMPLETE
+Before Master Design v1, the repository implemented Phase 1 through Phase 2F: mobile prototype, fixed six-agent orchestra, practical-novel niche simulation, replay runtime/budgets/receipts/tool broker, versioned evidence store, fixture research, and disabled live-source readiness contracts.
 
-The canonical product/system design in `docs/spec/` is approved and covers the product, platform, six-agent contracts, handoffs, evidence, media, public-event/product matching, content, approval, publishing, analytics, security/privacy, blind spots, P0/P1 disposition, traceability, and AT-01 through AT-44.
-
-## Harness Design v1 — COMPLETE
-
-The canonical harness handoff is defined by:
-
-- `docs/spec/HARNESS_BLUEPRINT.md`
-- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
-- `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
-- `docs/spec/CODING_SPIKE_ENTRY.md`
-
-The selected approach is contract-first adaptation of the existing orchestra/replay/versioning assets, not a rewrite and not live-provider-first.
+Those assets remain regression evidence unless a later Master-Design slice explicitly promotes/adapts them.
 
 ## Coding Spike 0 — IMPLEMENTED AND VERIFIED
 
-The owner explicitly resumed implementation on 2026-08-15. Spike 0 implements the no-network Master Harness Contract Spine around the existing runtime.
-
-Implemented execution path:
+Spike 0 proved the no-network Master Harness Contract Spine:
 
 `owner-supplied fixture → Orchestrator → Scout skipped by approved exception → Verifier → Strategist(4) → Writer(4) → Guardian → bound human decision → material mutation → stale/CAS rejection`
 
-Implemented harness evidence:
+It implements F01/F02/F04/F11/F12/F13/F15/F20/F21 and the required Spike 0 acceptance set. It also corrected replay-runtime preflight rejection receipts so budget/attempt failures are auditable. This answered the migration question: the existing runtime can be adapted to Master Design authority/revision semantics without a rewrite.
 
-- canonical deterministic fixture runner in `packages/orchestra/src/master-harness.mjs`
-- F01, F02, F04, F11, F12, F13, F15, F20, F21
-- exact-vs-unresolved ProductMatch gate
-- Verifier-bounded factual-authority checks
-- four-strategy / four-draft 1:1 mapping
-- Guardian revise for unsupported endorsement and fake first-hand wording
-- prompt/schema/config manifest hashes and immutable parent/evidence refs
-- human approval revision binding at domain level
-- material upstream mutation invalidating prior approval
-- compare-and-set rejection for stale revision decisions
-- deterministic semantic replay digest
-- explicit receipts for successful and preflight-rejected replay invocations
-- AT-linked suite/report via `npm run harness:spike0`
+## Manual-product C vertical slice — IMPLEMENTED ON THE CURRENT IMPLEMENTATION BRANCH
 
-Required Spike 0 AT set is green:
+PR #12 implements the first user-facing application slice:
 
-`AT-04, AT-06, AT-07, AT-08, AT-09, AT-13, AT-16, AT-17, AT-18, AT-19, AT-20, AT-21, AT-23, AT-25, AT-36, AT-38, AT-39, AT-41`.
+`manual product input → Opportunity Inbox → owner-supplied evidence verification → four strategies → four drafts → Guardian → owner approve/hold/reject`
 
-GitHub Actions PR verification passed with 69 tests and the full `npm run verify` chain, including the new harness runner. Legacy simulation/replay/store/research checks also remained green.
+### Server/application boundary
 
-## Deviation found and resolved during Spike 0
+- `GET /api/today` exposes a bounded read model.
+- `POST /api/commands` accepts explicit intent commands with request IDs and expected revisions.
+- browser `localStorage`/`sessionStorage` is not application authority.
+- state is persisted in atomic JSON under `.threadscout-data/` for this local, single-process slice.
+- duplicate request IDs are idempotent; reused IDs with different commands are rejected.
+- stale expected revisions return HTTP 409 and the current read model.
+- material evidence/draft changes invalidate earlier approval.
+- stale approval recovery requires current evidence and a new strategy/review cycle.
 
-Original plan: reuse the existing replay runtime receipts unchanged.
+### Six-agent authority boundary
 
-Mismatch: F12 budget exhaustion showed that an invocation rejected by the runtime's preflight budget check threw before a receipt was written. That violated AT-18 and the Harness Design requirement that every attempted specialist invocation be auditable.
+The first C-slice pass made specialist-shaped deterministic operations server-side but did not make Orchestrator-only dispatch explicit enough. Before merge, this was corrected with `apps/web/manual-orchestrator.mjs`.
 
-Change: `model-runtime.mjs` now records a failure receipt for attempt/run/elapsed/input-budget and missing-handler preflight rejection before throwing.
+Specialist commands now:
 
-Impact: this is a narrow observability correction inside the approved allowed-change surface. It does not widen agent authority, add a provider, activate network access, or change product behavior.
+- map only to Verifier / Strategist / Writer / Guardian
+- validate the fixed six-agent registry
+- validate allowed workflow state
+- return control to Orchestrator
+- emit success/failure orchestration receipts
+- never invoke a live model/provider in this slice
 
-Residual risk: provider-specific live runtimes will need the same receipt guarantee when they are implemented; Spike 0 proves it only for the deterministic replay runtime.
+The deterministic local role adapters are implementation doubles. They are not evidence that live AI-provider execution exists.
+
+### Opportunity Inbox / mobile UI
+
+The old localStorage prototype was replaced by a mobile-first Opportunity Inbox that shows, separately:
+
+- why-now
+- reader value
+- opportunity score
+- evidence readiness
+- risk
+- exact-product state
+- media-rights state
+- top blocker/material stale state
+- one safe next action
+
+The workspace exposes Evidence Verifier → Strategy 4 → Draft 4 → Guardian → Human Approval. The bottom navigation provides Today / Verification / Drafts plus explicit read-only Queue and Performance capability states; those latter capabilities remain disabled rather than simulated as complete.
+
+### Automated proof
+
+`tests/c-vertical-slice.test.mjs`, `tests/c-orchestrator-bridge.test.mjs`, and updated web smoke tests cover the application path, stale/CAS behavior, idempotency, reload persistence, high-score gating, fake-first-hand Guardian rejection, Orchestrator-only dispatch, stale recovery, no browser storage authority, no credential leakage, and 360px structural rules.
+
+`docs/implementation/C_VERTICAL_SLICE_ACCEPTANCE.md` records the exact AT scope and limitations.
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / MASTER HARNESS CONTRACT SPINE IMPLEMENTED / SPIKE 0 VERIFIED / FULL MASTER-DESIGN HARNESS + C VERTICAL SLICE NOT YET COMPLETE / LIVE CAPABILITIES OFF.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE IMPLEMENTED UNDER LOCAL SERVER-AUTHORITATIVE ASSUMPTIONS / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
 
-This means the highest-risk harness migration question is answered: the existing runtime can be adapted to Master Design authority/revision semantics without a rewrite. It does not mean all AT-01~44 are executable or the product UI/live stack is complete.
+This status intentionally does **not** claim production readiness. Automated responsive/accessibility structure is tested, but a real-device/browser/assistive-technology acceptance matrix is still a later verification item.
 
 ## Live capability state
 
@@ -86,13 +90,11 @@ Still intentionally disabled:
 - live Coupang Partners commercial posting
 - automated listing discovery beyond owner-supplied destinations
 - third-party media download/transform/republish without action-specific rights evidence
+- schedule dispatch/reconciliation
+- analytics learning
 
-No credential, network enablement, public publishing, dependency, or workflow-file change was required for Spike 0.
+No credential, new dependency/framework, workflow-file change, or live network enablement is required by the C slice.
 
-## Next implementation entry
+## Next implementation boundary after C slice
 
-The next bounded product slice unlocked by Spike 0 is the manual-product C vertical slice:
-
-`input → verified candidate → Opportunity Inbox → four strategies → four drafts → Guardian → owner approve/hold/reject`
-
-External publishing stays stubbed/off. Before that slice starts, refresh its applicable `KEEP / MODIFY / RETIRE / MISSING` map, B0/trap mapping, UI acceptance IDs, and 360px completion proof.
+Do not jump directly to public posting. The next slice should be chosen from the remaining Master Design gaps with its own P0/B0/trap check. Before multi-process/background work, replace or harden local atomic JSON with transactional persistence/locking. Before any live source or publishing slice, verify current account permissions/policies, credential storage, idempotency/reconciliation, preflight freshness, destination integrity, disclosure, and kill-switch behavior.

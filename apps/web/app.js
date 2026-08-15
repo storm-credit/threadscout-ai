@@ -1,66 +1,39 @@
-import {
-  CANDIDATE_STATES,
-  canApprove,
-  createAuditEvent,
-  createQueueItem,
-  generateDrafts,
-  transitionCandidate
-} from '/packages/core/src/index.mjs';
-import { fixtureCandidates } from '/packages/core/src/fixtures.mjs';
-
-const STORAGE_KEY = 'threadscout-demo-v1';
-
 const els = {
   list: document.querySelector('#candidate-list'),
-  queueList: document.querySelector('#queue-list'),
-  dialog: document.querySelector('#workspace-dialog'),
-  form: document.querySelector('#workspace-form'),
+  candidateDialog: document.querySelector('#candidate-dialog'),
+  candidateForm: document.querySelector('#candidate-form'),
+  workspace: document.querySelector('#workspace-dialog'),
   dialogTitle: document.querySelector('#dialog-title'),
-  draftList: document.querySelector('#draft-list'),
-  exactMatch: document.querySelector('#exact-match'),
+  dialogSubtitle: document.querySelector('#dialog-subtitle'),
+  workspaceAlert: document.querySelector('#workspace-alert'),
+  workspaceStatus: document.querySelector('#workspace-status'),
+  evidenceForm: document.querySelector('#evidence-form'),
+  evidenceBrand: document.querySelector('#evidence-brand'),
+  evidenceModel: document.querySelector('#evidence-model'),
+  evidenceVariant: document.querySelector('#evidence-variant'),
+  evidenceSource: document.querySelector('#evidence-source'),
   mediaRights: document.querySelector('#media-rights'),
   personalUse: document.querySelector('#personal-use'),
   affiliate: document.querySelector('#affiliate'),
   disclosure: document.querySelector('#disclosure'),
-  validation: document.querySelector('#validation-result'),
-  schedulePanel: document.querySelector('#schedule-panel'),
-  scheduleTime: document.querySelector('#schedule-time'),
+  evidenceBasis: document.querySelector('#evidence-basis'),
+  strategyList: document.querySelector('#strategy-list'),
+  draftList: document.querySelector('#draft-list'),
+  guardianResult: document.querySelector('#guardian-result'),
+  approvalBinding: document.querySelector('#approval-binding'),
+  revisionLabel: document.querySelector('#revision-label'),
+  capabilityView: document.querySelector('#capability-view'),
+  inboxView: document.querySelector('#inbox-view'),
   filter: document.querySelector('#state-filter'),
+  viewKicker: document.querySelector('#view-kicker'),
+  inboxTitle: document.querySelector('#inbox-title'),
+  viewDescription: document.querySelector('#view-description'),
   toast: document.querySelector('#toast')
 };
 
-let state = loadState();
+let today = null;
 let activeCandidateId = null;
-
-function freshState() {
-  return {
-    candidates: structuredClone(fixtureCandidates),
-    queue: [],
-    audit: []
-  };
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : freshState();
-  } catch {
-    return freshState();
-  }
-}
-
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  render();
-}
-
-function activeCandidate() {
-  return state.candidates.find((candidate) => candidate.id === activeCandidateId);
-}
-
-function replaceCandidate(updated) {
-  state.candidates = state.candidates.map((candidate) => candidate.id === updated.id ? updated : candidate);
-}
+let viewMode = 'today';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -71,253 +44,422 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function statusLabel(status) {
-  return {
-    discovered: '추천됨', drafted: '초안 작성', held: '보류', rejected: '거절',
-    blocked: '차단', approved: '승인', queued: '대기열'
-  }[status] ?? status;
-}
-
-function evidenceLabel(candidate) {
-  const exact = candidate.exactMatchStatus === 'exact' ? '제품 일치' : '제품 확인 필요';
-  const rights = ['owned', 'licensed', 'not_required'].includes(candidate.mediaRights) ? '권리 확인' : '권리 미확인';
-  return { exact, rights };
-}
-
-function candidateCard(candidate) {
-  const evidence = evidenceLabel(candidate);
-  const safeState = Object.values(CANDIDATE_STATES).includes(candidate.state) ? candidate.state : CANDIDATE_STATES.DISCOVERED;
-  const blocked = candidate.riskLevel === 'blocked' || candidate.exactMatchStatus !== 'exact' || candidate.mediaRights === 'unknown';
-  return `
-    <article class="candidate-card ${blocked ? 'needs-evidence' : ''}" data-id="${escapeHtml(candidate.id)}">
-      <div class="candidate-main">
-        <div class="score-ring" aria-label="추천 점수 ${escapeHtml(candidate.score)}점"><strong>${escapeHtml(candidate.score)}</strong><span>점</span></div>
-        <div class="candidate-copy">
-          <div class="card-meta"><span>${escapeHtml(candidate.category)} · 예시 데이터</span><span class="state-badge state-${safeState}">${escapeHtml(statusLabel(safeState))}</span></div>
-          <h3>${escapeHtml(candidate.name)}</h3>
-          <p>${escapeHtml(candidate.reasons[0])}</p>
-          <div class="evidence-row">
-            <span class="evidence ${candidate.exactMatchStatus === 'exact' ? 'ok' : 'warn'}">${evidence.exact}</span>
-            <span class="evidence ${candidate.mediaRights === 'unknown' ? 'warn' : 'ok'}">${evidence.rights}</span>
-            <span class="evidence ${candidate.personalUse === 'confirmed' ? 'ok' : ''}">${candidate.personalUse === 'confirmed' ? '직접 사용' : '발견형 문구만'}</span>
-          </div>
-          <p class="risk-line"><strong>주의:</strong> ${escapeHtml(candidate.risks[0])}</p>
-        </div>
-      </div>
-      <div class="card-actions">
-        <button class="secondary-button open-workspace" type="button">${candidate.drafts?.length ? '초안 검토' : '초안 4개 만들기'}</button>
-        ${(candidate.state === CANDIDATE_STATES.DISCOVERED || candidate.state === CANDIDATE_STATES.DRAFTED) ? '<button class="ghost-button quick-hold" type="button">보류</button>' : ''}
-      </div>
-    </article>`;
-}
-
-function renderCandidates() {
-  const filter = els.filter.value;
-  const candidates = state.candidates
-    .filter((candidate) => filter === 'all' || candidate.state === filter)
-    .sort((a, b) => b.score - a.score);
-
-  els.list.innerHTML = candidates.length
-    ? candidates.map(candidateCard).join('')
-    : '<div class="empty-state">이 상태의 제품이 없습니다.</div>';
-}
-
-function renderMetrics() {
-  document.querySelector('#metric-total').textContent = state.candidates.length;
-  document.querySelector('#metric-ready').textContent = state.candidates.filter((c) => c.exactMatchStatus === 'exact' && c.mediaRights !== 'unknown' && c.riskLevel !== 'blocked').length;
-  document.querySelector('#metric-blocked').textContent = state.candidates.filter((c) => c.exactMatchStatus !== 'exact' || c.mediaRights === 'unknown' || c.riskLevel === 'blocked').length;
-  document.querySelector('#metric-queued').textContent = state.queue.length;
-}
-
-function renderQueue() {
-  els.queueList.innerHTML = state.queue.length
-    ? state.queue.map((item) => `
-        <article class="queue-card">
-          <div><strong>${escapeHtml(item.productName)}</strong><span>${new Date(item.scheduledFor).toLocaleString('ko-KR')}</span></div>
-          <span class="queue-status">로컬 저장 · 게시 안 됨</span>
-        </article>`).join('')
-    : '<div class="empty-state">승인 후 예약한 글이 아직 없습니다.</div>';
-}
-
-function render() {
-  renderMetrics();
-  renderCandidates();
-  renderQueue();
+function requestId(prefix) {
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
 function showToast(message) {
   els.toast.textContent = message;
   els.toast.classList.add('show');
   clearTimeout(showToast.timeout);
-  showToast.timeout = setTimeout(() => els.toast.classList.remove('show'), 2600);
+  showToast.timeout = setTimeout(() => els.toast.classList.remove('show'), 2800);
+}
+
+function statusLabel(value) {
+  return {
+    verification_needed: '근거 필요',
+    evidence_partial: '근거 일부',
+    evidence_ready: '근거 준비',
+    strategy_ready: '전략 준비',
+    draft_ready: '초안 준비',
+    guardian_revise: '수정 필요',
+    guardian_pass: 'Guardian 통과',
+    approved: '사람 승인',
+    held: '보류',
+    rejected: '거절',
+    blocked: '차단',
+    stale: '승인 무효화'
+  }[value] ?? value;
+}
+
+function evidenceLabel(value) {
+  return { ready: '근거 준비', partial: '근거 일부', weak: '근거 약함' }[value] ?? value;
+}
+
+function riskLabel(value) {
+  return { low: '낮은 위험', review: '검토 필요', high: '높은 위험', blocked: '차단' }[value] ?? value;
+}
+
+function exactLabel(value) {
+  return { exact: '제품 일치', likely: '일치 가능', substitute: '대체 상품', unresolved: '제품 미확인' }[value] ?? value;
+}
+
+function mediaLabel(value) {
+  return { owned: '직접 소유', licensed: '사용 허가', not_required: '미디어 없음', unknown: '권리 미확인' }[value] ?? value;
+}
+
+function candidateById(id) {
+  return today?.candidates.find((candidate) => candidate.id === id) ?? null;
+}
+
+function statusClass(value, kind = 'status') {
+  if (kind === 'risk') return value === 'low' ? 'ok' : value === 'review' ? 'warn' : 'danger';
+  if (kind === 'evidence') return value === 'ready' ? 'ok' : 'warn';
+  if (kind === 'exact') return value === 'exact' ? 'ok' : 'warn';
+  if (kind === 'media') return value === 'unknown' ? 'warn' : 'ok';
+  if (value === 'approved' || value === 'guardian_pass' || value === 'evidence_ready') return 'ok';
+  if (value === 'stale' || value === 'blocked' || value === 'rejected' || value === 'guardian_revise') return 'danger';
+  return 'info';
+}
+
+function cardTemplate(candidate) {
+  const sourceBadge = candidate.synthetic ? '예시 데이터' : '사용자 제공';
+  const blocker = candidate.topBlocker
+    ? `<p class="blocker-line"><strong>지금 막는 것:</strong> ${escapeHtml(candidate.topBlocker)}</p>`
+    : '';
+  return `
+    <article class="candidate-card ${candidate.topBlocker ? 'has-blocker' : ''} ${candidate.workflowState === 'stale' ? 'stale-card' : ''}" data-id="${escapeHtml(candidate.id)}">
+      <div class="card-top">
+        <div class="card-copy">
+          <div class="card-meta"><span class="card-kicker">${escapeHtml(candidate.lane)} · ${sourceBadge}</span><span class="status-pill ${statusClass(candidate.workflowState)}">${escapeHtml(statusLabel(candidate.workflowState))}</span></div>
+          <h3>${escapeHtml(candidate.name)}</h3>
+          <p><strong>왜 지금:</strong> ${escapeHtml(candidate.whyNow)}</p>
+          <p><strong>독자 가치:</strong> ${escapeHtml(candidate.readerValue)}</p>
+        </div>
+        <div class="score-box" aria-label="기회 점수 ${escapeHtml(candidate.opportunityScore)}점"><strong>${escapeHtml(candidate.opportunityScore)}</strong><span>기회 점수</span></div>
+      </div>
+      <div class="status-row" aria-label="근거와 위험 상태">
+        <span class="status-pill ${statusClass(candidate.evidenceReadiness, 'evidence')}">${escapeHtml(evidenceLabel(candidate.evidenceReadiness))}</span>
+        <span class="status-pill ${statusClass(candidate.riskLevel, 'risk')}">${escapeHtml(riskLabel(candidate.riskLevel))}</span>
+        <span class="status-pill ${statusClass(candidate.exactMatchStatus, 'exact')}">${escapeHtml(exactLabel(candidate.exactMatchStatus))}</span>
+        <span class="status-pill ${statusClass(candidate.mediaRights, 'media')}">${escapeHtml(mediaLabel(candidate.mediaRights))}</span>
+      </div>
+      ${blocker}
+      <div class="card-actions">
+        <button class="secondary-button card-primary" type="button" data-action="${escapeHtml(candidate.nextAction.action)}">${escapeHtml(candidate.nextAction.label)}</button>
+        ${!['approved', 'held', 'rejected'].includes(candidate.workflowState) ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
+      </div>
+    </article>`;
+}
+
+function viewPredicate(candidate) {
+  if (viewMode === 'verification') return ['verification_needed', 'evidence_partial', 'stale', 'blocked'].includes(candidate.workflowState);
+  if (viewMode === 'drafts') return ['strategy_ready', 'draft_ready', 'guardian_revise', 'guardian_pass'].includes(candidate.workflowState);
+  return true;
+}
+
+function filterPredicate(candidate) {
+  const value = els.filter.value;
+  if (value === 'verification') return ['verification_needed', 'evidence_partial', 'stale', 'blocked'].includes(candidate.workflowState);
+  if (value === 'content') return ['evidence_ready', 'strategy_ready', 'draft_ready'].includes(candidate.workflowState);
+  if (value === 'review') return ['guardian_revise', 'guardian_pass', 'approved'].includes(candidate.workflowState);
+  return true;
+}
+
+function renderCandidates() {
+  if (!today) return;
+  const candidates = today.candidates.filter(viewPredicate).filter(filterPredicate);
+  els.list.innerHTML = candidates.length
+    ? candidates.map(cardTemplate).join('')
+    : '<div class="empty-state">이 화면에서 지금 처리할 후보가 없습니다.<br />근거 기준을 낮춰 채우지 않습니다.</div>';
+}
+
+function renderMetrics() {
+  if (!today) return;
+  document.querySelector('#metric-total').textContent = today.counters.observed;
+  document.querySelector('#metric-ready').textContent = today.counters.recommended;
+  document.querySelector('#metric-verification').textContent = today.counters.verificationNeeded;
+  document.querySelector('#metric-approved').textContent = today.counters.approved;
+}
+
+function renderView() {
+  document.querySelectorAll('.nav-item').forEach((button) => {
+    const active = button.dataset.view === viewMode;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+  });
+
+  if (viewMode === 'queue' || viewMode === 'performance') {
+    els.inboxView.hidden = true;
+    els.capabilityView.hidden = false;
+    els.capabilityView.innerHTML = viewMode === 'queue'
+      ? `<p class="section-kicker">Schedule</p><h2>예약은 아직 외부 실행하지 않습니다.</h2><p>현재 C 슬라이스는 사람 승인까지 증명합니다. 브라우저나 서비스 워커가 예약·게시 권한을 갖지 않으며, 다음 게시 슬라이스 전까지 외부 게시 기능은 OFF입니다.</p><div class="capability-list"><div class="capability-item"><strong>외부 게시</strong><span>disabled</span></div><div class="capability-item"><strong>서버 상태</strong><span>${escapeHtml(today?.capability.persistence ?? 'loading')}</span></div></div>`
+      : `<p class="section-kicker">Performance</p><h2>게시 전에는 성과를 학습하지 않습니다.</h2><p>실제 게시와 귀속 가능한 지표가 없으므로 성과 점수나 학습 추천을 만들어내지 않습니다. 안전하지 않은 고성과 패턴을 학습하는 기능도 현재 비활성화 상태입니다.</p><div class="capability-list"><div class="capability-item"><strong>학습 상태</strong><span>측정 데이터 없음</span></div><div class="capability-item"><strong>외부 게시</strong><span>disabled</span></div></div>`;
+    return;
+  }
+
+  els.inboxView.hidden = false;
+  els.capabilityView.hidden = true;
+  if (viewMode === 'verification') {
+    els.viewKicker.textContent = 'Evidence';
+    els.inboxTitle.textContent = '근거 확인이 필요한 후보';
+    els.viewDescription.textContent = '점수가 높아도 제품 일치·권리·승인 버전이 해결되지 않으면 여기 남습니다.';
+  } else if (viewMode === 'drafts') {
+    els.viewKicker.textContent = 'Drafts';
+    els.inboxTitle.textContent = '전략·초안·Guardian 작업';
+    els.viewDescription.textContent = '검증된 근거를 바탕으로 4개 전략과 4개 초안을 거쳐 사람 승인 전까지 진행합니다.';
+  } else {
+    els.viewKicker.textContent = 'Today';
+    els.inboxTitle.textContent = '오늘의 Opportunity Inbox';
+    els.viewDescription.textContent = '최대 5개 후보만 보여주고, 점수와 근거 준비도를 따로 표시합니다.';
+  }
+  renderCandidates();
+}
+
+function render() {
+  renderMetrics();
+  renderView();
+  if (activeCandidateId && els.workspace.open) renderWorkspace();
+}
+
+async function loadToday() {
+  const response = await fetch('/api/today', { headers: { accept: 'application/json' }, cache: 'no-store' });
+  if (!response.ok) throw new Error('서버 상태를 불러오지 못했습니다.');
+  today = await response.json();
+  render();
+}
+
+async function sendCommand(command, { candidateId = null, expectedRevision = null, payload = {}, id = requestId(command) } = {}) {
+  const response = await fetch('/api/commands', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ requestId: id, command, candidateId, expectedRevision, payload })
+  });
+  const result = await response.json();
+  if (result.today) today = result.today;
+  if (!response.ok) {
+    render();
+    if (response.status === 409 && result.error === 'version_conflict') {
+      showToast('다른 화면에서 상태가 바뀌었습니다. 최신 버전으로 다시 불러왔습니다.');
+      return { ok: false, conflict: true, result };
+    }
+    showToast(result.message || '요청을 처리하지 못했습니다.');
+    return { ok: false, result };
+  }
+  render();
+  return { ok: true, result };
+}
+
+function renderWorkspaceStatus(candidate) {
+  els.workspaceStatus.innerHTML = [
+    ['기회 점수', `${candidate.opportunityScore}점`],
+    ['근거', evidenceLabel(candidate.evidenceReadiness)],
+    ['위험', riskLabel(candidate.riskLevel)],
+    ['제품', exactLabel(candidate.exactMatchStatus)]
+  ].map(([label, value]) => `<div class="status-tile"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+}
+
+function renderStrategies(candidate) {
+  const angles = candidate.strategies?.angles ?? [];
+  els.strategyList.innerHTML = angles.length
+    ? angles.map((angle, index) => `<article class="strategy-card"><strong>${index + 1}. ${escapeHtml(angle.title)}</strong><p><b>훅:</b> ${escapeHtml(angle.hook)}</p><p><b>독자 약속:</b> ${escapeHtml(angle.readerPromise)}</p><p><b>한계:</b> ${escapeHtml(angle.limitation)}</p></article>`).join('')
+    : '<div class="empty-state">근거가 준비되면 서로 다른 전략 4개를 만들 수 있습니다.</div>';
 }
 
 function renderDrafts(candidate) {
-  els.draftList.innerHTML = candidate.drafts.map((draft, index) => `
-    <label class="draft-card">
-      <div class="draft-card-head">
-        <span class="draft-number">${index + 1}</span>
-        <strong>${escapeHtml(draft.angle)}</strong>
-        <input type="radio" name="selected-draft" value="${escapeHtml(draft.id)}" ${candidate.selectedDraftId === draft.id || (!candidate.selectedDraftId && index === 0) ? 'checked' : ''} />
-      </div>
-      <textarea data-draft-id="${escapeHtml(draft.id)}" rows="7">${escapeHtml(draft.text)}</textarea>
-    </label>`).join('');
+  const drafts = candidate.drafts ?? [];
+  els.draftList.innerHTML = drafts.length
+    ? drafts.map((draft, index) => `
+        <article class="draft-card ${candidate.selectedDraftId === draft.id ? 'selected' : ''}" data-draft-id="${escapeHtml(draft.id)}">
+          <div class="draft-head"><label><input type="radio" name="active-draft" value="${escapeHtml(draft.id)}" ${candidate.selectedDraftId === draft.id || (!candidate.selectedDraftId && index === 0) ? 'checked' : ''} />${index + 1}. ${escapeHtml(draft.title)}</label><span class="status-pill">${escapeHtml(draft.angleId)}</span></div>
+          <textarea rows="6" data-draft-text="${escapeHtml(draft.id)}">${escapeHtml(draft.text)}</textarea>
+          ${draft.disclosure ? `<p class="muted"><strong>고지:</strong> ${escapeHtml(draft.disclosure)}</p>` : ''}
+        </article>`).join('')
+    : '<div class="empty-state">전략 4개가 준비되면 초안 4개를 만들 수 있습니다.</div>';
+}
+
+function renderGuardian(candidate) {
+  const guardian = candidate.guardian;
+  if (!guardian) {
+    els.guardianResult.className = 'review-result';
+    els.guardianResult.textContent = '초안이 준비된 뒤 Guardian이 근거·체험 표현·과장·고지를 독립 검수합니다.';
+    return;
+  }
+  els.guardianResult.className = `review-result ${guardian.decision}`;
+  const blockers = guardian.blockers?.length ? `<ul>${guardian.blockers.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '';
+  const warnings = guardian.warnings?.length ? `<p>${guardian.warnings.map(escapeHtml).join(' · ')}</p>` : '';
+  els.guardianResult.innerHTML = `<strong>${guardian.decision === 'pass' ? 'Guardian 통과' : guardian.decision === 'block' ? 'Guardian 차단' : '수정 필요'}</strong>${blockers}${warnings}`;
+}
+
+function renderApproval(candidate) {
+  const review = candidate.review;
+  els.revisionLabel.textContent = `rev ${candidate.revision}`;
+  if (review) {
+    els.approvalBinding.innerHTML = review.stale
+      ? `<strong>기존 ${escapeHtml(review.decision)} 결정은 무효화됨</strong><br />${escapeHtml(review.staleReason || '상위 자료가 변경되었습니다.')}<br /><small>바인딩: ${escapeHtml(review.boundMaterialRevision)}</small>`
+      : `<strong>${escapeHtml(review.decision)} · ${escapeHtml(review.actor)}</strong><br />이 결정은 아래 자료 해시에 묶여 있습니다.<br /><small>${escapeHtml(review.boundMaterialRevision)}</small>`;
+  } else {
+    els.approvalBinding.textContent = candidate.guardian?.decision === 'pass'
+      ? 'Guardian 통과 버전과 현재 자료 버전이 일치합니다. 승인하면 이 material revision에 결정이 묶입니다.'
+      : 'Guardian pass 전에는 승인할 수 없습니다. 보류·거절은 언제든 가능합니다.';
+  }
+
+  document.querySelector('#approve-draft').disabled = candidate.guardian?.decision !== 'pass' || candidate.guardian?.boundMaterialRevision !== candidate.materialRevision || candidate.review?.stale === true || candidate.workflowState === 'approved';
+  document.querySelector('#hold-candidate').disabled = candidate.workflowState === 'held';
+  document.querySelector('#reject-candidate').disabled = candidate.workflowState === 'rejected';
+}
+
+function renderWorkspace() {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) {
+    els.workspace.close();
+    activeCandidateId = null;
+    return;
+  }
+  els.dialogTitle.textContent = candidate.name;
+  els.dialogSubtitle.textContent = `${candidate.synthetic ? '예시 데이터' : '사용자 제공'} · ${statusLabel(candidate.workflowState)} · 서버 revision ${candidate.revision}`;
+  els.workspaceAlert.hidden = !candidate.topBlocker;
+  els.workspaceAlert.textContent = candidate.topBlocker ?? '';
+  renderWorkspaceStatus(candidate);
+
+  els.evidenceBrand.value = candidate.brand;
+  els.evidenceModel.value = candidate.model;
+  els.evidenceVariant.value = candidate.variant;
+  els.evidenceSource.value = candidate.sourceRef;
+  els.mediaRights.value = candidate.mediaRights;
+  els.personalUse.value = candidate.personalUse;
+  els.affiliate.checked = candidate.affiliate;
+  els.disclosure.value = candidate.disclosure;
+  els.evidenceBasis.textContent = candidate.sourceMode === 'synthetic_fixture' ? '예시 근거' : '사용자 제공 · 네트워크 미검증';
+  els.evidenceBasis.className = `status-pill ${candidate.evidenceReadiness === 'ready' ? 'ok' : 'warn'}`;
+
+  renderStrategies(candidate);
+  renderDrafts(candidate);
+  renderGuardian(candidate);
+  renderApproval(candidate);
+
+  document.querySelector('#create-strategies').disabled = candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact';
+  document.querySelector('#create-drafts').disabled = candidate.strategies?.angles?.length !== 4;
+  document.querySelector('#save-draft').disabled = !candidate.drafts?.length;
+  document.querySelector('#run-guardian').disabled = candidate.drafts?.length !== 4;
 }
 
 function openWorkspace(candidateId) {
   activeCandidateId = candidateId;
-  let candidate = activeCandidate();
-  if (!candidate.drafts?.length) {
-    candidate = transitionCandidate({ ...candidate, drafts: generateDrafts(candidate) }, CANDIDATE_STATES.DRAFTED);
-    candidate.selectedDraftId = candidate.drafts[0].id;
-    replaceCandidate(candidate);
-    state.audit.push(createAuditEvent('drafts_generated', candidate.id, { count: 4 }));
-    saveState();
-  }
-
-  els.dialogTitle.textContent = candidate.name;
-  els.exactMatch.value = candidate.exactMatchStatus;
-  els.mediaRights.value = candidate.mediaRights;
-  els.personalUse.value = candidate.personalUse;
-  els.affiliate.checked = candidate.affiliate;
-  els.disclosure.value = candidate.disclosure ?? '';
-  els.validation.textContent = '';
-  els.validation.className = 'validation-result';
-  els.schedulePanel.hidden = candidate.state !== CANDIDATE_STATES.APPROVED;
-  const isTerminal = candidate.state === CANDIDATE_STATES.BLOCKED;
-  document.querySelector('#approve-draft').disabled = isTerminal || candidate.state === CANDIDATE_STATES.QUEUED;
-  document.querySelector('#hold-candidate').disabled = isTerminal || candidate.state === CANDIDATE_STATES.HELD;
-  document.querySelector('#reject-candidate').disabled = isTerminal || candidate.state === CANDIDATE_STATES.REJECTED;
-  document.querySelector('#block-candidate').disabled = isTerminal;
-  renderDrafts(candidate);
-  els.dialog.showModal();
+  renderWorkspace();
+  if (!els.workspace.open) els.workspace.showModal();
 }
 
-function syncWorkspace() {
-  const candidate = activeCandidate();
-  if (!candidate) return null;
-
-  const selected = els.form.querySelector('input[name="selected-draft"]:checked');
-  const drafts = candidate.drafts.map((draft) => {
-    const textarea = [...els.form.querySelectorAll('textarea[data-draft-id]')]
-      .find((element) => element.dataset.draftId === draft.id);
-    return { ...draft, text: textarea?.value.trim() ?? draft.text };
-  });
-
-  const updated = {
-    ...candidate,
-    exactMatchStatus: els.exactMatch.value,
-    mediaRights: els.mediaRights.value,
-    personalUse: els.personalUse.value,
-    affiliate: els.affiliate.checked,
-    disclosure: els.disclosure.value.trim(),
-    drafts,
-    selectedDraftId: selected?.value ?? drafts[0]?.id
-  };
-  replaceCandidate(updated);
-  return updated;
-}
-
-function selectedDraft(candidate) {
-  return candidate.drafts.find((draft) => draft.id === candidate.selectedDraftId) ?? candidate.drafts[0];
-}
-
-function validateWorkspace() {
-  const candidate = syncWorkspace();
-  const draft = selectedDraft(candidate);
-  const result = canApprove(candidate, draft?.text ?? '');
-  els.validation.className = `validation-result ${result.ok ? 'success' : 'error'}`;
-  els.validation.innerHTML = result.ok
-    ? '<strong>승인 가능</strong><span>제품·권리·고지·표현 검사를 통과했습니다.</span>'
-    : `<strong>승인 불가</strong><ul>${result.blockers.map((item) => `<li>${item}</li>`).join('')}</ul>`;
-  return { candidate, draft, result };
-}
-
-function moveCandidate(nextState, action) {
-  const candidate = syncWorkspace();
-  try {
-    if (candidate.state === CANDIDATE_STATES.QUEUED) {
-      state.queue = state.queue.filter((item) => item.candidateId !== candidate.id);
-    }
-    const updated = transitionCandidate(candidate, nextState);
-    replaceCandidate(updated);
-    state.audit.push(createAuditEvent(action, candidate.id));
-    saveState();
-    els.dialog.close();
-    showToast(`${candidate.name}: ${statusLabel(nextState)} 처리했습니다.`);
-  } catch (error) {
-    showToast(error.message);
+async function runCandidateAction(candidate, action) {
+  if (action === 'open_workspace') return openWorkspace(candidate.id);
+  const command = action;
+  const result = await sendCommand(command, { candidateId: candidate.id, expectedRevision: candidate.revision });
+  if (result.ok) {
+    showToast({ request_strategies: '전략 4개를 만들었습니다.', request_drafts: '초안 4개를 만들었습니다.', run_guardian: 'Guardian 검수를 완료했습니다.' }[command] ?? '처리했습니다.');
+    openWorkspace(candidate.id);
   }
 }
 
-els.list.addEventListener('click', (event) => {
+els.list.addEventListener('click', async (event) => {
   const card = event.target.closest('.candidate-card');
   if (!card) return;
-  if (event.target.closest('.open-workspace')) openWorkspace(card.dataset.id);
-  if (event.target.closest('.quick-hold')) {
-    const candidate = state.candidates.find((item) => item.id === card.dataset.id);
-    if (candidate.state === CANDIDATE_STATES.DISCOVERED || candidate.state === CANDIDATE_STATES.DRAFTED) {
-      replaceCandidate(transitionCandidate(candidate, CANDIDATE_STATES.HELD));
-      state.audit.push(createAuditEvent('held', candidate.id));
-      saveState();
-      showToast(`${candidate.name}: 보류했습니다.`);
-    }
+  const candidate = candidateById(card.dataset.id);
+  if (!candidate) return;
+  if (event.target.closest('.card-primary')) {
+    await runCandidateAction(candidate, event.target.closest('.card-primary').dataset.action);
+  } else if (event.target.closest('.card-hold')) {
+    const result = await sendCommand('review_decision', { candidateId: candidate.id, expectedRevision: candidate.revision, payload: { decision: 'held' } });
+    if (result.ok) showToast('후보를 보류했습니다.');
   }
 });
+
+els.candidateForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formData = new FormData(els.candidateForm);
+  const payload = Object.fromEntries(formData.entries());
+  payload.affiliate = formData.has('affiliate');
+  const result = await sendCommand('add_manual_candidate', { payload });
+  if (result.ok) {
+    els.candidateForm.reset();
+    els.candidateDialog.close();
+    viewMode = 'today';
+    render();
+    showToast('제품 후보를 추가했습니다. 다음 단계는 근거 확인입니다.');
+    document.querySelector('#inbox-view').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+});
+
+els.evidenceForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const formData = new FormData(els.evidenceForm);
+  const payload = Object.fromEntries(formData.entries());
+  payload.affiliate = els.affiliate.checked;
+  const result = await sendCommand('request_verification', { candidateId: candidate.id, expectedRevision: candidate.revision, payload });
+  if (result.ok) {
+    const updated = candidateById(candidate.id);
+    showToast(updated.evidenceReadiness === 'ready' ? '사용자 제공 근거 기준으로 다음 단계가 열렸습니다.' : '근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
+    renderWorkspace();
+  }
+});
+
+document.querySelector('#create-strategies').addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('request_strategies', { candidateId: candidate.id, expectedRevision: candidate.revision });
+  if (result.ok) { showToast('서로 다른 전략 4개를 만들었습니다.'); renderWorkspace(); }
+});
+
+document.querySelector('#create-drafts').addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('request_drafts', { candidateId: candidate.id, expectedRevision: candidate.revision });
+  if (result.ok) { showToast('전략과 1:1로 연결된 초안 4개를 만들었습니다.'); renderWorkspace(); }
+});
+
+document.querySelector('#save-draft').addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate?.drafts?.length) return;
+  const selected = els.draftList.querySelector('input[name="active-draft"]:checked');
+  const draftId = selected?.value ?? candidate.selectedDraftId ?? candidate.drafts[0].id;
+  const textarea = els.draftList.querySelector(`textarea[data-draft-text="${CSS.escape(draftId)}"]`);
+  const result = await sendCommand('edit_draft', { candidateId: candidate.id, expectedRevision: candidate.revision, payload: { draftId, text: textarea?.value ?? '' } });
+  if (result.ok) { showToast('초안 변경을 서버에 저장했습니다. Guardian 검수는 다시 필요합니다.'); renderWorkspace(); }
+});
+
+els.draftList.addEventListener('change', (event) => {
+  if (!event.target.matches('input[name="active-draft"]')) return;
+  els.draftList.querySelectorAll('.draft-card').forEach((card) => card.classList.toggle('selected', card.dataset.draftId === event.target.value));
+});
+
+document.querySelector('#run-guardian').addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('run_guardian', { candidateId: candidate.id, expectedRevision: candidate.revision });
+  if (result.ok) {
+    const updated = candidateById(candidate.id);
+    showToast(updated.guardian?.decision === 'pass' ? 'Guardian 검수를 통과했습니다.' : '수정 또는 차단 사유가 있습니다.');
+    renderWorkspace();
+  }
+});
+
+async function decide(decision) {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('review_decision', { candidateId: candidate.id, expectedRevision: candidate.revision, payload: { decision } });
+  if (result.ok) {
+    showToast({ approved: '이 버전을 승인했습니다. 외부 게시 기능은 여전히 꺼져 있습니다.', held: '보류했습니다.', rejected: '거절했습니다.' }[decision]);
+    renderWorkspace();
+  }
+}
+
+document.querySelector('#approve-draft').addEventListener('click', () => decide('approved'));
+document.querySelector('#hold-candidate').addEventListener('click', () => decide('held'));
+document.querySelector('#reject-candidate').addEventListener('click', () => decide('rejected'));
+
+document.querySelector('#open-add-candidate').addEventListener('click', () => els.candidateDialog.showModal());
+document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => document.querySelector(`#${button.dataset.closeDialog}`).close()));
 
 els.filter.addEventListener('change', renderCandidates);
-document.querySelector('#reset-demo').addEventListener('click', () => {
-  if (!confirm('저장된 데모 상태를 모두 초기화할까요?')) return;
-  state = freshState();
-  localStorage.removeItem(STORAGE_KEY);
-  render();
-  showToast('데모 데이터를 초기화했습니다.');
-});
+document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => {
+  viewMode = button.dataset.view;
+  if (viewMode === 'verification') els.filter.value = 'all';
+  if (viewMode === 'drafts') els.filter.value = 'all';
+  renderView();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}));
 
-document.querySelector('#validate-draft').addEventListener('click', validateWorkspace);
-document.querySelector('#approve-draft').addEventListener('click', () => {
-  const { candidate, draft, result } = validateWorkspace();
-  if (!result.ok) return;
-  try {
-    if (candidate.state === CANDIDATE_STATES.APPROVED) {
-      showToast('이미 승인된 초안입니다. 예약 시각을 선택해 주세요.');
-      els.schedulePanel.hidden = false;
-      return;
-    }
-    const approved = transitionCandidate(candidate, CANDIDATE_STATES.APPROVED);
-    replaceCandidate(approved);
-    state.audit.push(createAuditEvent('approved', candidate.id, { draftId: draft.id }));
-    els.schedulePanel.hidden = false;
-    saveState();
-    showToast('초안을 승인했습니다. 이제 로컬 대기열에 예약할 수 있습니다.');
-  } catch (error) {
-    showToast(error.message);
+document.querySelector('#reset-demo').addEventListener('click', async () => {
+  if (!confirm('서버에 저장된 로컬 C 슬라이스 상태를 예시 초기값으로 되돌릴까요?')) return;
+  const result = await sendCommand('reset_demo');
+  if (result.ok) {
+    activeCandidateId = null;
+    if (els.workspace.open) els.workspace.close();
+    showToast('서버 예시 상태를 초기화했습니다.');
   }
 });
 
-document.querySelector('#hold-candidate').addEventListener('click', () => moveCandidate(CANDIDATE_STATES.HELD, 'held'));
-document.querySelector('#reject-candidate').addEventListener('click', () => moveCandidate(CANDIDATE_STATES.REJECTED, 'rejected'));
-document.querySelector('#block-candidate').addEventListener('click', () => moveCandidate(CANDIDATE_STATES.BLOCKED, 'blocked'));
-
-document.querySelector('#add-to-queue').addEventListener('click', () => {
-  const candidate = syncWorkspace();
-  const draft = selectedDraft(candidate);
-  try {
-    const item = createQueueItem(candidate, draft.text, els.scheduleTime.value);
-    state.queue.push(item);
-    replaceCandidate(transitionCandidate(candidate, CANDIDATE_STATES.QUEUED));
-    state.audit.push(createAuditEvent('queued_locally', candidate.id, { scheduledFor: item.scheduledFor }));
-    saveState();
-    els.dialog.close();
-    showToast('로컬 대기열에 추가했습니다. 외부 게시 기능은 꺼져 있습니다.');
-  } catch (error) {
-    showToast(error.message);
-  }
+loadToday().catch((error) => {
+  els.list.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}<br />서버가 실행 중인지 확인해 주세요.</div>`;
 });
-
-els.form.addEventListener('submit', (event) => {
-  event.preventDefault();
-  els.dialog.close();
-});
-
-render();
