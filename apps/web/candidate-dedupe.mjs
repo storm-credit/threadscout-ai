@@ -38,6 +38,12 @@ function normalizedDimension(candidate, key) {
   return compact(candidate?.[key]);
 }
 
+export function candidateIdentitySignature(candidate) {
+  return ['name', 'brand', 'model', 'variant']
+    .map((key) => normalizedDimension(candidate, key))
+    .join('|');
+}
+
 export function exactIdentityKey(candidate) {
   const brand = normalizedDimension(candidate, 'brand');
   const model = normalizedDimension(candidate, 'model');
@@ -89,20 +95,23 @@ function possibleSimilarity(candidate, target) {
   return { similarity, reasons: ['high_name_token_overlap'] };
 }
 
-export function uniqueDuplicateAssessment(checkedAt = null) {
+export function uniqueDuplicateAssessment(checkedAt = null, candidate = null) {
   return {
     state: DUPLICATE_STATES.UNIQUE,
     matchedCandidate: null,
     similarity: 0,
     reasons: [],
     checkedAt,
-    resolvedAt: null
+    resolvedAt: null,
+    candidateIdentitySignature: candidate ? candidateIdentitySignature(candidate) : null,
+    resolvedIdentitySignature: null
   };
 }
 
 export function assessCandidateDuplicate(candidate, existingCandidates, { checkedAt = null } = {}) {
   const targets = (existingCandidates ?? []).filter((target) => target.id !== candidate.id && eligibleTarget(target));
   const identity = exactIdentityKey(candidate);
+  const signature = candidateIdentitySignature(candidate);
 
   if (identity) {
     const exact = targets.find((target) => exactIdentityKey(target) === identity);
@@ -113,7 +122,9 @@ export function assessCandidateDuplicate(candidate, existingCandidates, { checke
         similarity: 1,
         reasons: ['brand_model_variant_match'],
         checkedAt,
-        resolvedAt: checkedAt
+        resolvedAt: checkedAt,
+        candidateIdentitySignature: signature,
+        resolvedIdentitySignature: signature
       };
     }
   }
@@ -127,14 +138,16 @@ export function assessCandidateDuplicate(candidate, existingCandidates, { checke
     }
   }
 
-  if (!best) return uniqueDuplicateAssessment(checkedAt);
+  if (!best) return uniqueDuplicateAssessment(checkedAt, candidate);
   return {
     state: DUPLICATE_STATES.POSSIBLE,
     matchedCandidate: targetSummary(best.target),
     similarity: Number(best.similarity.toFixed(3)),
     reasons: best.reasons,
     checkedAt,
-    resolvedAt: null
+    resolvedAt: null,
+    candidateIdentitySignature: signature,
+    resolvedIdentitySignature: null
   };
 }
 
