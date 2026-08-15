@@ -61,7 +61,7 @@ Implemented safety behavior:
 
 PR #13 merged to `main` as `97fc8c7b340728dcc13756366f86fba3a4b099ce`. Post-merge main CI Run #170 completed successfully. `docs/implementation/PERSISTENCE_LOCK_HARDENING_PLAN.md`, `PERSISTENCE_LOCK_HARDENING_REFERENCE_REVIEW.md`, and `PERSISTENCE_LOCK_HARDENING_ACCEPTANCE.md` record the decision, proof and limitations.
 
-## Candidate dedupe guardrail — IMPLEMENTED AND VERIFIED ON PR #14
+## Candidate dedupe guardrail — IMPLEMENTED AND FINAL-PR VERIFIED ON PR #14
 
 PR #14 adds a deterministic duplicate/near-duplicate portfolio guardrail over the persisted manual-candidate history without changing Verifier's product-truth authority.
 
@@ -92,17 +92,17 @@ The mobile workspace exposes matched candidate identity, similarity rationale, `
 
 ### Automated proof
 
-GitHub Actions Run #178 (`31899973399`) on implementation head `2526921154d62d58954c66bd7a1f40e5948f34ac` completed successfully with **102 tests / 102 pass / 0 fail** plus `npm run orchestra:demo` success.
+Final PR-head GitHub Actions Run #182 (`31900089520`) on head `2ecb8811f96cdc35e070b6bbc31f591a728e86d9` completed successfully with **102 tests / 102 pass / 0 fail** plus `npm run orchestra:demo` success.
 
 The suite covers exact suppression, source-URL mutation boundaries, known model/variant conflicts, possible duplicate review, specialist/human-decision bypass prevention, explicit resolution, identity-bound rechecks, post-verification suppression/reopening, portfolio priority inclusion, stale CAS, reload/idempotency, mobile controls, persistence locking, C-slice/Spike 0 regressions, fixture research and disabled live-source readiness.
 
 `docs/implementation/CANDIDATE_DEDUPE_GUARDRAIL_PLAN.md`, `CANDIDATE_DEDUPE_REFERENCE_REVIEW.md`, and `CANDIDATE_DEDUPE_ACCEPTANCE.md` record four options, implementation self-review findings, source/reference boundaries, acceptance proof and limitations.
 
-Final documentation-head PR CI, merge, and post-merge main CI are still required before PR #14 is reported merged/complete.
+PR-head verification is complete. Merge and post-merge `main` CI remain required before PR #14 is reported fully merged/complete.
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL IMPLEMENTED+PR-VERIFIED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL IMPLEMENTED+FINAL-PR-VERIFIED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
 
 This status intentionally does **not** claim production readiness. The current persistence bridge is single-host/local-filesystem only. Dedupe compares current persisted local manual-candidate history, not a global catalog or live Scout stream. Automated responsive/accessibility structure is tested, but a real-device/browser/assistive-technology acceptance matrix remains a separate verification item.
 
