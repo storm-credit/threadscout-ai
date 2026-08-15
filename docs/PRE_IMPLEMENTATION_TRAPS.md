@@ -13,7 +13,7 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] First Coding Spike has explicit in-scope/out-of-scope behavior, success conditions, stop conditions, and preferred change surface.
 - [x] Spike 0 recorded the exact starting main SHA, fixture IDs, and AT IDs.
 - [x] Re-read affected prototype modules before editing; do not trust the gap table as a substitute for code inspection.
-- [x] Perform the Reference-first Gate for unresolved technical mechanisms — Spike 0 and C-slice records exist under `docs/implementation/`.
+- [x] Perform the Reference-first Gate for unresolved technical mechanisms — Spike 0, C-slice, and persistence-hardening records exist under `docs/implementation/`.
 - [x] Recheck four materially different implementation shapes before a major implementation choice.
 - [x] Keep live Threads/Coupang/media/publication capabilities disabled during pre-live slices.
 - [x] Do not widen a bounded slice merely because adjacent prototype code exists.
@@ -53,13 +53,16 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Add version hashes, content-addressed objects, stale detection, and event chains.
 - [x] Prove domain-level material revision binding and stale compare-and-set rejection in Spike 0 fixtures F11/F21.
 - [x] Implement local/server application compare-and-set checks for C-slice user decisions and state-changing commands.
-- [x] Persist C-slice state atomically in server-owned JSON for the explicitly single-process local slice.
+- [x] Persist C-slice state atomically in server-owned JSON; the initial implementation used in-process serialization only.
+- [x] Harden local same-host persistence with a bounded ownership-aware interprocess lock around the entire read → idempotency/CAS → mutate → atomic persist critical section. Cross-instance lost-update, duplicate-request, timeout, stale-lock recovery, successor-lock ownership, and HTTP fail-closed behavior are automated-tested.
+- [ ] Migrate to database-backed transactional persistence before multi-host/production background workers, network-filesystem deployment, production retention/query requirements, or any design that would place long-running provider/network work inside the current short-lived file-lock critical section.
 - [ ] Add provider token/cost and cancellation semantics before provider-backed execution.
 - [ ] Add handler input/output schemas and mutability classes for later live/background adapters.
 - [ ] Add partial-line/recovery, retention, redaction classes, export, deletion, and garbage collection for production storage.
-- [ ] Replace/harden atomic JSON with SQLite or another transactional store/locking strategy before multi-process workers.
 - [ ] Prevent stale approved/queued artifacts from any future publishing command; there is no publishing command in the C slice.
 - [ ] Verify audit storage remains complete when a future worker crashes between external action and event persistence.
+
+The local lock is explicitly **single-host/local-filesystem only**. It is not a network-filesystem or distributed lock, and it is not a substitute for the approved production transactional store.
 
 ## Research boundary
 
@@ -107,6 +110,7 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Implement C-slice server material-revision binding; editing/reverification invalidates prior approval and stale client revisions are rejected.
 - [x] Surface the top blocker/material stale reason before approval and disable approval unless current Guardian pass matches the current material revision.
 - [x] Use request-ID idempotency so repeated browser submission does not apply the same logical command twice.
+- [x] Preserve request-ID idempotency and candidate CAS across independent local store/server instances by serializing the full state mutation critical section.
 - [ ] Add stronger accidental-double-tap/confirmation UX if later high-impact external actions are introduced.
 
 ## Publishing safety
@@ -119,7 +123,7 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [ ] Preflight issue freshness, exact-product mapping, destination integrity, media rights, disclosure, and volatile commerce facts.
 - [ ] Store explicit timezone and server-normalized schedule time.
 
-The C slice deliberately has **no publication command**. Therefore these unchecked publishing items do not block the local manual-product slice, but they block any future live publishing activation.
+The C slice and persistence-hardening slice deliberately have **no publication command**. Therefore these unchecked publishing items do not block the local application path, but they block any future live publishing activation.
 
 ## Analytics / learning
 
@@ -134,5 +138,5 @@ The C slice deliberately has **no publication command**. Therefore these uncheck
 
 - [x] Keep MVP one-owner/one-account and exclude multi-tenant SaaS/billing.
 - [x] Treat zero posts as a valid day.
-- [x] Keep the C slice dependency-free and local rather than introducing a framework/database before its need is demonstrated.
+- [x] Keep the C slice and local persistence hardening dependency-free rather than introducing a framework/database before its need is demonstrated.
 - [ ] Measure manual review time, model/source cost, and attributable commercial value before increasing automation or agent budgets.
