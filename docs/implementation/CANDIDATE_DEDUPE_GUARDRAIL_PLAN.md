@@ -34,6 +34,8 @@ A newly submitted manual candidate is automatically suppressed only when an exis
 
 The server does not create a second candidate. It returns `candidate_duplicate_suppressed`, points to the existing candidate, records an application audit event, and keeps request-id idempotency.
 
+If later verification changes an already-created candidate's identity dimensions, the guardrail runs again inside the same server mutation boundary. A candidate that becomes an exact duplicate is suppressed while its persisted audit/history remains available.
+
 ### Possible duplicate
 
 A candidate may be marked `possible_duplicate` only when:
@@ -48,16 +50,28 @@ The owner can resolve:
 - `distinct`: keep the candidate and continue to normal verification
 - `duplicate`: mark it `suppressed_duplicate`; it remains auditable server state but is excluded from the primary Opportunity Inbox
 
+A `distinct` decision is bound to the candidate's normalized name/brand/model/variant identity signature. Routine evidence edits that do not change those dimensions do not repeatedly reopen the same review. If the identity later changes, dedupe is reassessed and can reopen review or suppress an exact duplicate.
+
+While `duplicate_review` is pending, specialist work and ordinary hold/reject/approval decisions are all blocked. The only resolving decision is `resolve_duplicate`.
+
+### Portfolio visibility
+
+A pending duplicate review is a correctness task, not merely a low scoring recommendation. Pending duplicate-review candidates are therefore priority-included in the bounded five-card Opportunity Inbox before the remaining slots are filled by opportunity score. This preserves the max-five contract while preventing a low-score blocking review from becoming unreachable.
+
 ## In scope
 
 - deterministic Unicode-aware normalization and token similarity module
 - exact duplicate suppression at manual-candidate ingestion
+- duplicate reassessment after verification changes product identity
 - possible-duplicate assessment against persisted non-synthetic candidate history
+- identity-bound `distinct` resolution so unchanged identity is not repeatedly reopened
 - explicit `resolve_duplicate` server command with expected-revision CAS
+- fail-closed prevention of specialist/human-decision bypass while duplicate review is pending
 - read-model duplicate metadata and counters
+- priority inclusion of pending duplicate reviews in the bounded five-card portfolio
 - mobile workspace review controls for possible duplicates
 - automatic exclusion of confirmed duplicate records from the top-five primary inbox
-- tests for exact suppression, punctuation/spacing normalization, variant/model conflicts, possible duplicate resolution, persistence/reload, idempotency, stale CAS, and no live-capability widening
+- tests for exact suppression, punctuation/spacing normalization, variant/model conflicts, post-verification identity change, possible duplicate resolution/reopening, review bypass, portfolio inclusion, persistence/reload, idempotency, stale CAS, and no live-capability widening
 - status/trap/acceptance documentation
 
 ## Out of scope
@@ -77,20 +91,25 @@ The owner can resolve:
 2. Duplicate suppression does not rely on seller/source URL because a URL can mutate to another product.
 3. Same/similar name with missing identity becomes `possible_duplicate`, not `exact` or auto-suppressed.
 4. Known different model or variant is not auto-flagged as the same product merely because the display name is similar.
-5. Possible duplicate cannot generate strategy/drafts until owner resolves it.
+5. Possible duplicate cannot generate specialist content work or receive ordinary hold/reject/approval decisions until owner resolves it.
 6. `distinct` returns the candidate to its normal verification state; `duplicate` removes it from the top-five inbox while preserving audit/state.
 7. `resolve_duplicate` requires current candidate revision and stale decisions fail with existing HTTP 409 CAS behavior.
-8. Duplicate behavior survives server reload because it is encoded in server-owned candidate state/history.
-9. Existing six-agent, Guardian, human approval, persistence-lock, Spike 0 and C-slice regressions remain green.
-10. All live capabilities remain disabled; no credentials/dependencies/workflow changes are introduced.
+8. A confirmed-distinct decision remains stable while product identity is unchanged, but an identity change during verification triggers a fresh dedupe assessment.
+9. A candidate that becomes exact-duplicate after verification is suppressed and retained audibly in persisted state.
+10. A pending possible duplicate is visible in the max-five Opportunity Inbox even when its opportunity score is below five other candidates.
+11. Duplicate behavior survives server reload because it is encoded in server-owned candidate state/history.
+12. Existing six-agent, Guardian, human approval, persistence-lock, Spike 0 and C-slice regressions remain green.
+13. All live capabilities remain disabled; no credentials/dependencies/workflow changes are introduced.
 
 ## Stop / rollback conditions
 
 Stop and redesign rather than tuning fuzzy thresholds if:
 
 - a known different model/variant is auto-suppressed
-- a possible duplicate can bypass the review gate into strategy generation
+- a possible duplicate can bypass the review gate into strategy generation or another human decision state
 - exact-product truth begins depending on fuzzy similarity
+- a confirmed-distinct candidate is repeatedly reopened without an identity change
+- pending correctness reviews become unreachable because of portfolio ranking
 - candidate volume makes O(n) local comparison materially slow
 - production candidate history exceeds the bounded local-state model
 
@@ -100,17 +119,29 @@ Rollback is local: remove the dedupe module/metadata and command path. Existing 
 
 - `BS-58`: repetitive content/product candidates are guarded before content generation.
 - `AT-28`: repetitive candidates may reduce useful recommendations rather than fill slots.
-- `AT-29`: portfolio/inclusion reasoning can expose duplicate suppression/review as a reason; opportunity score alone cannot override it.
+- `AT-29`: portfolio/inclusion reasoning exposes duplicate review as a reason; opportunity score alone cannot hide a pending correctness task.
 - `BS-16`: same seller URL is explicitly not an exact-duplicate key.
 - `AT-25`: a high score cannot bypass the duplicate-review/evidence gate.
 - `AT-36` / `AT-38`: duplicate-resolution commands use the existing expected-revision CAS and do not weaken downstream approval binding.
+
+## Implementation self-review findings
+
+The initial implementation pass exposed three adjacent bypasses that were not explicit enough in the first draft of this plan. They were corrected before completion rather than deferred:
+
+1. a pending duplicate could otherwise have been moved to `held`/`rejected`, stranding the dedicated review state;
+2. product identity can change during Verifier work, so ingestion-only dedupe could be bypassed by later edits;
+3. a low-score pending duplicate could otherwise fall outside the top-five read model and become unreachable.
+
+The correction keeps the original Option A architecture. It does not add a new provider, database, agent, source, or publishing path; it strengthens the same deterministic guardrail and records the change here as the deviation/blind-spot log.
 
 ## Allowed change surface
 
 Preferred files:
 
 - `apps/web/candidate-dedupe.mjs` (new)
-- `apps/web/application-state.mjs`
+- `apps/web/candidate-dedupe-store.mjs` (new)
+- `apps/web/manual-orchestrator.mjs`
+- `apps/web/server.mjs`
 - `apps/web/app.js`
 - `apps/web/index.html`
 - `apps/web/styles.css` only if required for the compact review control
