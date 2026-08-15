@@ -2,7 +2,8 @@ import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AtomicJsonApplicationStore, ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
+import { ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
+import { LockedAtomicJsonApplicationStore } from './locked-application-store.mjs';
 import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -73,9 +74,14 @@ export function createThreadScoutServer({
   repoRoot = defaultRepoRoot,
   dataDir = process.env.THREADSCOUT_DATA_DIR || path.resolve(repoRoot, '.threadscout-data'),
   stateFile = 'application-state.json',
-  clock
+  clock,
+  storeOptions = {}
 } = {}) {
-  const store = new AtomicJsonApplicationStore({ filePath: path.resolve(dataDir, stateFile), clock });
+  const store = new LockedAtomicJsonApplicationStore({
+    filePath: path.resolve(dataDir, stateFile),
+    clock,
+    ...storeOptions
+  });
   const orchestrator = new ManualProductOrchestratorService({ store });
   let initialized = null;
   const ensureInitialized = () => {
@@ -89,7 +95,14 @@ export function createThreadScoutServer({
       const requestUrl = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
       if (req.method === 'GET' && requestUrl.pathname === '/api/health') {
-        return json(res, 200, { ok: true, fixedAgentCount: 6, orchestratorOnlyDispatch: true, externalPublishingEnabled: false });
+        return json(res, 200, {
+          ok: true,
+          fixedAgentCount: 6,
+          orchestratorOnlyDispatch: true,
+          persistence: 'server_atomic_json_local_interprocess_locked',
+          persistenceScope: 'single_host_local_filesystem',
+          externalPublishingEnabled: false
+        });
       }
 
       if (req.method === 'GET' && requestUrl.pathname === '/api/today') {
@@ -144,6 +157,6 @@ if (isDirectRun) {
   const server = createThreadScoutServer();
   server.listen(port, '127.0.0.1', () => {
     console.log(`ThreadScout AI running at http://127.0.0.1:${port}`);
-    console.log('Server-authoritative state + Orchestrator-only command dispatch enabled; external publishing disabled.');
+    console.log('Server-authoritative state + local interprocess write lock + Orchestrator-only command dispatch enabled; external publishing disabled.');
   });
 }
