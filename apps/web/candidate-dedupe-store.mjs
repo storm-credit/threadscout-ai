@@ -1,6 +1,11 @@
 import { AtomicJsonApplicationStore, ApplicationCommandError, VersionConflictError, toTodayReadModel } from './application-state.mjs';
 import { LockedAtomicJsonApplicationStore } from './locked-application-store.mjs';
-import { assessCandidateDuplicate, DUPLICATE_STATES, uniqueDuplicateAssessment } from './candidate-dedupe.mjs';
+import {
+  assessCandidateDuplicate,
+  candidateIdentitySignature,
+  DUPLICATE_STATES,
+  uniqueDuplicateAssessment
+} from './candidate-dedupe.mjs';
 import { sha256 } from '../../packages/orchestra/src/versioning.mjs';
 
 const MAX_COMMAND_HISTORY = 100;
@@ -73,10 +78,14 @@ function duplicateBlocker(assessment) {
   return `${DUPLICATE_BLOCKER_PREFIX} ${match?.name ?? match?.candidateId ?? '기존 후보'}${identity ? ` (${identity})` : ''}`;
 }
 
+function suppressedBlocker(assessment) {
+  return `중복 후보로 억제됨: ${assessment.matchedCandidate?.name ?? assessment.matchedCandidate?.candidateId ?? '기존 후보'}`;
+}
+
 function decorateCandidateReadModel(readCandidate, stateCandidate) {
   return {
     ...readCandidate,
-    duplicateAssessment: structuredClone(stateCandidate?.duplicateAssessment ?? uniqueDuplicateAssessment(null))
+    duplicateAssessment: structuredClone(stateCandidate?.duplicateAssessment ?? uniqueDuplicateAssessment(null, stateCandidate))
   };
 }
 
@@ -84,22 +93,39 @@ function activeCandidates(state) {
   return state.candidates.filter((candidate) => candidate.workflowState !== 'suppressed_duplicate');
 }
 
+function selectInboxCandidates(candidates) {
+  const pending = candidates
+    .filter((candidate) => candidate.workflowState === 'duplicate_review')
+    .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
+  const pendingIds = new Set(pending.map((candidate) => candidate.id));
+  const remainder = candidates
+    .filter((candidate) => !pendingIds.has(candidate.id))
+    .sort((a, b) => b.opportunityScore - a.opportunityScore);
+  return [...pending, ...remainder].slice(0, 5);
+}
+
 function todayFromState(state) {
   const active = activeCandidates(state);
-  const base = toTodayReadModel({ ...state, candidates: active });
+  const fullBase = toTodayReadModel({ ...state, candidates: active });
+  const selected = selectInboxCandidates(active);
+  const selectedBase = toTodayReadModel({ ...state, candidates: selected });
   const byId = new Map(state.candidates.map((candidate) => [candidate.id, candidate]));
-  base.candidates = base.candidates.map((candidate) => decorateCandidateReadModel(candidate, byId.get(candidate.id)));
-  base.counters.observed = state.candidates.length;
-  base.counters.duplicateReview = state.candidates.filter((candidate) => candidate.workflowState === 'duplicate_review').length;
-  base.counters.duplicateSuppressed = state.candidates.filter((candidate) => candidate.workflowState === 'suppressed_duplicate').length;
-  base.capability = {
-    ...base.capability,
+
+  fullBase.candidates = selectedBase.candidates.map((candidate) => decorateCandidateReadModel(candidate, byId.get(candidate.id)));
+  fullBase.counters.observed = state.candidates.length;
+  fullBase.counters.recommended = active.filter((candidate) =>
+    candidate.evidenceReadiness === 'ready' && !['duplicate_review', 'held', 'rejected', 'blocked'].includes(candidate.workflowState)
+  ).length;
+  fullBase.counters.duplicateReview = state.candidates.filter((candidate) => candidate.workflowState === 'duplicate_review').length;
+  fullBase.counters.duplicateSuppressed = state.candidates.filter((candidate) => candidate.workflowState === 'suppressed_duplicate').length;
+  fullBase.capability = {
+    ...fullBase.capability,
     persistence: 'server_atomic_json_local_interprocess_locked',
     persistenceScope: 'single_host_local_filesystem',
     crossProcessWriteSerialization: true,
     duplicateGuardrail: 'deterministic_exact_plus_human_reviewed_possible_duplicate'
   };
-  return base;
+  return fullBase;
 }
 
 function assertExpectedRevision(candidate, expectedRevision) {
@@ -138,11 +164,14 @@ function resolvePossibleDuplicate(state, request, clock) {
   }
 
   const at = nowIso(clock);
+  const identitySignature = candidateIdentitySignature(candidate);
   candidate.duplicateAssessment = {
     ...candidate.duplicateAssessment,
     state: decision === 'distinct' ? DUPLICATE_STATES.CONFIRMED_DISTINCT : DUPLICATE_STATES.CONFIRMED_DUPLICATE,
     resolvedAt: at,
-    resolution: decision
+    resolution: decision,
+    candidateIdentitySignature: identitySignature,
+    resolvedIdentitySignature: identitySignature
   };
   candidate.revision += 1;
   candidate.updatedAt = at;
@@ -154,7 +183,7 @@ function resolvePossibleDuplicate(state, request, clock) {
     candidate.audit.push({ event: 'duplicate_review_resolved_distinct', at, revision: candidate.revision, matchedCandidateId: candidate.duplicateAssessment.matchedCandidate?.candidateId ?? null });
   } else {
     candidate.workflowState = 'suppressed_duplicate';
-    candidate.blockers = [`중복 후보로 억제됨: ${candidate.duplicateAssessment.matchedCandidate?.name ?? candidate.duplicateAssessment.matchedCandidate?.candidateId ?? '기존 후보'}`];
+    candidate.blockers = [suppressedBlocker(candidate.duplicateAssessment)];
     candidate.audit.push({ event: 'candidate_suppressed_duplicate', at, revision: candidate.revision, matchedCandidateId: candidate.duplicateAssessment.matchedCandidate?.candidateId ?? null });
   }
   candidate.audit = candidate.audit.slice(-60);
@@ -169,6 +198,64 @@ function resolvePossibleDuplicate(state, request, clock) {
     revision: candidate.revision,
     duplicateAssessment: structuredClone(candidate.duplicateAssessment)
   };
+}
+
+function assertDuplicateReviewDoesNotGetBypassed(state, request) {
+  if (request.command !== 'review_decision') return;
+  const candidate = getCandidate(state, request.candidateId);
+  if (candidate.workflowState !== 'duplicate_review') return;
+  throw new ApplicationCommandError('Resolve the possible duplicate before hold/reject/approval decisions.', {
+    code: 'duplicate_review_required',
+    statusCode: 422,
+    details: {
+      candidateId: candidate.id,
+      duplicateAssessment: candidate.duplicateAssessment
+    }
+  });
+}
+
+function shouldReassessAfterIdentityMutation(candidate) {
+  if (candidate.duplicateAssessment?.state !== DUPLICATE_STATES.CONFIRMED_DISTINCT) return true;
+  const resolved = candidate.duplicateAssessment.resolvedIdentitySignature;
+  return !resolved || resolved !== candidateIdentitySignature(candidate);
+}
+
+function applyPostVerificationDedupe(state, candidate, clock) {
+  if (!shouldReassessAfterIdentityMutation(candidate)) return null;
+  const checkedAt = nowIso(clock);
+  const assessment = assessCandidateDuplicate(
+    candidate,
+    state.candidates.filter((item) => item.id !== candidate.id),
+    { checkedAt }
+  );
+  candidate.duplicateAssessment = assessment;
+
+  if (assessment.state === DUPLICATE_STATES.EXACT_SUPPRESSED) {
+    candidate.workflowState = 'suppressed_duplicate';
+    candidate.blockers = [suppressedBlocker(assessment)];
+    candidate.audit.push({ event: 'candidate_suppressed_duplicate_after_identity_change', at: checkedAt, revision: candidate.revision, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null });
+    state.audit.push({ event: 'candidate_exact_duplicate_suppressed_after_verification', candidateId: candidate.id, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null, at: checkedAt });
+    return {
+      result: 'candidate_duplicate_suppressed',
+      candidateId: candidate.id,
+      duplicateAssessment: assessment
+    };
+  }
+
+  if (assessment.state === DUPLICATE_STATES.POSSIBLE) {
+    candidate.workflowState = 'duplicate_review';
+    candidate.blockers = [duplicateBlocker(assessment), ...candidate.blockers.filter((blocker) => !blocker.startsWith(DUPLICATE_BLOCKER_PREFIX))];
+    candidate.audit.push({ event: 'duplicate_review_reopened_after_identity_change', at: checkedAt, revision: candidate.revision, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null, similarity: assessment.similarity });
+    state.audit.push({ event: 'possible_duplicate_detected_after_verification', candidateId: candidate.id, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null, at: checkedAt });
+    return {
+      result: 'candidate_verification_possible_duplicate',
+      candidateId: candidate.id,
+      duplicateAssessment: assessment
+    };
+  }
+
+  candidate.blockers = candidate.blockers.filter((blocker) => !blocker.startsWith(DUPLICATE_BLOCKER_PREFIX));
+  return null;
 }
 
 export class CandidateDedupeApplicationStore extends LockedAtomicJsonApplicationStore {
@@ -190,9 +277,25 @@ export class CandidateDedupeApplicationStore extends LockedAtomicJsonApplication
         return { ...response, idempotentReplay: false, today: todayFromState(state) };
       }
 
+      assertDuplicateReviewDoesNotGetBypassed(state, request);
+
       if (request.command !== 'add_manual_candidate') {
         const response = await AtomicJsonApplicationStore.prototype.execute.call(this, request);
         state = await this.readState();
+
+        if (request.command === 'request_verification') {
+          const candidate = getCandidate(state, request.candidateId);
+          const dedupeResponse = applyPostVerificationDedupe(state, candidate, this.clock);
+          if (dedupeResponse) {
+            state.updatedAt = nowIso(this.clock);
+            state.audit = state.audit.slice(-200);
+            recordExtendedCommand(state, request, dedupeResponse);
+            await this.persist(state);
+            return { ...dedupeResponse, revision: candidate.revision, idempotentReplay: false, today: todayFromState(state) };
+          }
+          await this.persist(state);
+        }
+
         return { ...response, today: todayFromState(state) };
       }
 
