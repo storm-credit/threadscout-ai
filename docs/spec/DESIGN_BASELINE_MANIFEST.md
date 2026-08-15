@@ -1,8 +1,8 @@
 # Master Design v1 Baseline Manifest
 
-Status: **APPROVED DESIGN BASELINE**.
+Status: **APPROVED DESIGN BASELINE + HARNESS DESIGN COMPLETE.**
 
-Purpose: provide one compact handoff document for the next implementation cycle. This manifest does not replace `MASTER_SPEC.md`; it identifies what is fixed, what is configurable, what is disabled until activation, and what implementation must prove.
+Purpose: provide one compact handoff document for the next implementation cycle. This manifest does not replace `MASTER_SPEC.md`; it identifies what is fixed, what is configurable, what is disabled until activation, what the executable harness must prove, and how the first Coding Spike is bounded.
 
 ## Product identity
 
@@ -16,13 +16,7 @@ Purpose: provide one compact handoff document for the next implementation cycle.
 
 ## Fixed architecture invariants
 
-1. Exactly six agents exist:
-   - Orchestrator
-   - Product Scout
-   - Evidence Verifier
-   - Content Strategist
-   - Threads Writer
-   - Integrity Guardian
+1. Exactly six agents exist: Orchestrator, Product Scout, Evidence Verifier, Content Strategist, Threads Writer, Integrity Guardian.
 2. There is no price agent.
 3. Factual confidence comes from evidence, not from multiple agents repeating the same statement.
 4. Verifier owns downstream factual authority through versioned evidence packets.
@@ -58,7 +52,7 @@ Purpose: provide one compact handoff document for the next implementation cycle.
 ## Commercial baseline
 
 - first affiliate target: Coupang Partners
-- MVP commercial entry path: user-supplied destination URL + versioned product/variant/seller snapshot
+- MVP commercial entry path: owner-supplied destination URL + versioned product/variant/seller snapshot
 - automated product search: not required for v1
 - seller-management APIs or undocumented scraping: not substitutes for authorized affiliate discovery
 - live commercial posting: disabled until current account/program disclosure/link rules are reviewed
@@ -67,36 +61,55 @@ Purpose: provide one compact handoff document for the next implementation cycle.
 
 ### Threads
 
-Architecture includes separate adapters for:
-
-- keyword discovery
-- insights
-- publishing
-
-Meta-published Threads API material reviewed for this baseline documents OAuth authorization, keyword search, publishing, and insight endpoints. Actual target app/account permission and token state remain activation-time facts.
+Architecture includes separate adapters for keyword discovery, insights, and publishing. Actual target app/account permission and token state remain activation-time facts.
 
 ### NAVER
 
-NAVER search-trend/shopping-insight corroboration is designed against the current NAVER API HUB direction. Legacy NAVER Developers shopping-search API is not an exact-product source for this design.
+NAVER search-trend/shopping-insight corroboration follows the approved API-HUB direction in the source strategy. Legacy shopping-search behavior is not an exact-product authority.
 
 ### Media
 
 Unknown publication rights are blocked. Discovery/viewability does not imply download, transform, or republication rights.
 
-## Capability states at design completion
+## Harness Design v1
 
-| Capability | Designed | Configured | Enabled | Live verified |
+The selected harness architecture is **contract-first adaptation of existing runtime assets**.
+
+It does not rewrite the Phase2A–2F prototype from scratch and does not jump directly to live providers. It wraps/adapts the existing orchestra, replay, store, broker, fixture research, and readiness concepts behind Master Design contracts and deterministic acceptance oracles.
+
+Canonical harness handoff:
+
+- `HARNESS_BLUEPRINT.md` — architecture, layers, modes, success/stop conditions
+- `HARNESS_ACCEPTANCE_MATRIX.md` — fixture catalog, AT-01~44 validation ownership, first-spike subset
+- `IMPLEMENTATION_GAP_ANALYSIS.md` — prototype `KEEP / MODIFY / RETIRE / MISSING`
+- `CODING_SPIKE_ENTRY.md` — exact first spike boundary
+
+## Capability states at harness-design completion
+
+| Capability | Designed | Harness contract specified | Implemented to Master Design | Enabled/live verified |
 |---|---:|---:|---:|---:|
-| local/manual opportunity workflow | yes | no | no | no |
-| user-supplied destination verification | yes | no | no | no |
-| six-agent orchestration against approved contracts | yes | no | no | no |
-| Threads keyword discovery | yes | no | no | no |
-| Threads insights | yes | no | no | no |
-| Threads publishing | yes | no | no | no |
-| Coupang live affiliate publishing | yes | no | no | no |
-| third-party media republication | policy designed | asset-specific | fail-closed | no |
+| local/manual opportunity workflow | yes | yes | no | no |
+| owner-supplied destination verification | yes | yes | no | no |
+| six-agent orchestration against approved contracts | yes | yes | no | no |
+| deterministic replay/store prototype | pre-baseline | migration specified | legacy only | n/a |
+| stale review/approval binding | yes | yes | no | no |
+| Threads keyword discovery | yes | later harness slice | no | no |
+| Threads insights | yes | later harness slice | no | no |
+| Threads publishing | yes | later preflight/reconciliation slice | no | no |
+| Coupang live affiliate publishing | yes | later commercial slice | no | no |
+| third-party media republication | policy designed | fail-closed scenario specified | no | no |
 
-Design completion does not collapse these columns.
+Design, harness specification, implementation, configuration, enablement, and live verification are distinct states.
+
+## First Coding Spike contract
+
+When the owner explicitly resumes coding, Spike 0 must prove the no-network contract spine:
+
+`owner-supplied fixture product → Verifier → Strategist(4) → Writer(4) → Guardian → human-decision domain binding → material upstream mutation → stale approval rejection`.
+
+Scout is skipped only through the explicit-owner-product routing exception. The roster still contains exactly six agents.
+
+The spike excludes live Threads/Coupang, public posting, automated product search, third-party media reuse, analytics learning, and full UI redesign.
 
 ## Canonical verification artifacts
 
@@ -104,6 +117,10 @@ Design completion does not collapse these columns.
 - `B0_TRACEABILITY_MATRIX.md`
 - `TRACEABILITY_MATRIX.md`
 - `ACCEPTANCE_TESTS.md` (AT-01 through AT-44)
+- `HARNESS_BLUEPRINT.md`
+- `HARNESS_ACCEPTANCE_MATRIX.md`
+- `IMPLEMENTATION_GAP_ANALYSIS.md`
+- `CODING_SPIKE_ENTRY.md`
 - `DESIGN_CONTRADICTION_REVIEW.md`
 - `DESIGN_REVIEW_CHECKLIST.md`
 - `DESIGN_FINALIZATION_PLAN.md`
@@ -113,29 +130,33 @@ Design completion does not collapse these columns.
 
 ## Prototype treatment
 
-Anything under the repository that predates this baseline is one of:
+Anything under the repository that predates this baseline is classified as:
 
-- `keep` — already compatible with the approved design
-- `modify` — useful but does not satisfy the approved contract
-- `remove` — conflicts with the approved design or is temporary scaffolding
-- `missing` — approved design capability not yet implemented
+- `KEEP` — compatible/reusable foundation
+- `MODIFY` — useful but insufficient for the approved contract
+- `RETIRE` — obsolete behavior after replacement and regression coverage; no automatic deletion
+- `MISSING` — approved capability not sufficiently implemented
 
-`IMPLEMENTATION_GAP_ANALYSIS.md` is the starting point; every future implementation slice must refresh the relevant gap classification before coding.
+`IMPLEMENTATION_GAP_ANALYSIS.md` is the current authoritative migration classification.
 
 ## Implementation entry contract
 
 A future code task must state:
 
-- baseline: Master Design v1 / PR #8 merge
-- chosen implementation slice
+- exact current main baseline SHA
+- chosen implementation slice / Spike ID
 - requirements and acceptance IDs in scope
+- Harness fixtures in scope
 - B0 items applicable to the slice
 - pre-implementation traps checked
 - live capabilities intentionally disabled/enabled
 - files/components allowed to change
 - tests/verification to run
 - rollback/stop conditions
+- reference review and four-option decision when a major implementation choice remains
 
 ## Completion meaning
 
-This manifest certifies **design completion only**. It makes no claim that ThreadScout is production-ready, live-connected, or capable of posting to Threads today.
+This manifest certifies **Master Design completion and Harness Design completion only**.
+
+It does not claim that ThreadScout is production-ready, live-connected, or capable of posting to Threads today. The pre-baseline prototype harness is executable, but the Master-Design-aware harness defined here is not yet implemented.
