@@ -28,13 +28,18 @@ The slice does not introduce a new protocol, database, model provider, or browse
 
 Repository evidence did not invalidate Option 2.
 
-## Implementation correction found during review
+## Implementation corrections found during review
 
 The first C-slice pass placed deterministic Verifier/Strategist/Writer/Guardian behavior behind server state but did not make the Orchestrator boundary explicit enough: application commands could call the specialist-shaped operation directly inside the state service.
 
 That was corrected before merge by adding `apps/web/manual-orchestrator.mjs` and routing `POST /api/commands` through it. Specialist commands now have a fixed command→role mapping, validate the six-agent registry, validate allowed workflow state, return control to Orchestrator, and emit an orchestration receipt. The local specialist behavior remains a deterministic no-provider adapter; it must not be represented as a live model invocation.
 
-A second edge case was found in stale recovery. Reverification after a prior approval correctly invalidated review state but could leave the operational workflow in `stale` after a new strategy was generated. The Orchestrator now owns the recovery transition: only current exact/ready evidence may dispatch Strategist from `stale`, and a successful new strategy moves the operational state to `strategy_ready` while the old review remains removed.
+A second edge case appeared while testing stale recovery. The initial recovery test assumed every stale state should regenerate strategy. Repository behavior showed two materially different stale causes and they should not be collapsed:
+
+- a **draft-only change** after approval keeps current exact/ready evidence and four drafts, so the safe recovery is a new Guardian review of the changed draft, followed by a new owner decision;
+- an **evidence change** clears downstream strategy/drafts, so it must re-enter through Verifier and then regenerate strategy/drafts before Guardian/approval.
+
+The Orchestrator route rules were corrected accordingly. Guardian may be dispatched from `stale` only when exact/ready evidence and four current drafts still exist; otherwise stale content must rebuild from the appropriate upstream stage. This preserves review binding without adding an artificial state mutation outside the application service.
 
 ## License / source authority
 
