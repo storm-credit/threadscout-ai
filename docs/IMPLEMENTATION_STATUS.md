@@ -11,59 +11,74 @@
 - Phase 2E: read-only fixture research, validated source records, candidate evidence, invalidation index
 - Phase 2F: official-source readiness registry and disabled Threads/NAVER request contracts
 
-These runtime assets predate the approved Master Design v1 and are **prototype/validation assets**, not product authority.
+These assets predate Master Design v1 and remain prototype/regression evidence unless explicitly promoted by a Master-Design implementation slice.
 
 ## Master Design v1 — COMPLETE
 
 The canonical product/system design in `docs/spec/` is approved and covers the product, platform, six-agent contracts, handoffs, evidence, media, public-event/product matching, content, approval, publishing, analytics, security/privacy, blind spots, P0/P1 disposition, traceability, and AT-01 through AT-44.
 
-## Harness Design v1 — COMPLETE AS DESIGN
+## Harness Design v1 — COMPLETE
 
-The remaining pre-coding ambiguity has now been translated into an explicit harness handoff:
+The canonical harness handoff is defined by:
 
-- `docs/spec/HARNESS_BLUEPRINT.md` — selected contract-first harness architecture and execution modes
-- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md` — canonical fixture families, AT ownership, first-spike coverage
-- `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md` — current prototype `KEEP / MODIFY / RETIRE / MISSING` classification
-- `docs/spec/CODING_SPIKE_ENTRY.md` — bounded first implementation experiment with success/stop/completion criteria
+- `docs/spec/HARNESS_BLUEPRINT.md`
+- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
+- `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
+- `docs/spec/CODING_SPIKE_ENTRY.md`
 
-The selected harness approach is **not** a rewrite and **not** live-provider-first. It adapts the existing orchestra/replay/store/broker/fixture assets behind Master Design contracts and deterministic acceptance oracles.
+The selected approach is contract-first adaptation of the existing orchestra/replay/versioning assets, not a rewrite and not live-provider-first.
+
+## Coding Spike 0 — IMPLEMENTED AND VERIFIED
+
+The owner explicitly resumed implementation on 2026-08-15. Spike 0 implements the no-network Master Harness Contract Spine around the existing runtime.
+
+Implemented execution path:
+
+`owner-supplied fixture → Orchestrator → Scout skipped by approved exception → Verifier → Strategist(4) → Writer(4) → Guardian → bound human decision → material mutation → stale/CAS rejection`
+
+Implemented harness evidence:
+
+- canonical deterministic fixture runner in `packages/orchestra/src/master-harness.mjs`
+- F01, F02, F04, F11, F12, F13, F15, F20, F21
+- exact-vs-unresolved ProductMatch gate
+- Verifier-bounded factual-authority checks
+- four-strategy / four-draft 1:1 mapping
+- Guardian revise for unsupported endorsement and fake first-hand wording
+- prompt/schema/config manifest hashes and immutable parent/evidence refs
+- human approval revision binding at domain level
+- material upstream mutation invalidating prior approval
+- compare-and-set rejection for stale revision decisions
+- deterministic semantic replay digest
+- explicit receipts for successful and preflight-rejected replay invocations
+- AT-linked suite/report via `npm run harness:spike0`
+
+Required Spike 0 AT set is green:
+
+`AT-04, AT-06, AT-07, AT-08, AT-09, AT-13, AT-16, AT-17, AT-18, AT-19, AT-20, AT-21, AT-23, AT-25, AT-36, AT-38, AT-39, AT-41`.
+
+GitHub Actions PR verification passed with 69 tests and the full `npm run verify` chain, including the new harness runner. Legacy simulation/replay/store/research checks also remained green.
+
+## Deviation found and resolved during Spike 0
+
+Original plan: reuse the existing replay runtime receipts unchanged.
+
+Mismatch: F12 budget exhaustion showed that an invocation rejected by the runtime's preflight budget check threw before a receipt was written. That violated AT-18 and the Harness Design requirement that every attempted specialist invocation be auditable.
+
+Change: `model-runtime.mjs` now records a failure receipt for attempt/run/elapsed/input-budget and missing-handler preflight rejection before throwing.
+
+Impact: this is a narrow observability correction inside the approved allowed-change surface. It does not widen agent authority, add a provider, activate network access, or change product behavior.
+
+Residual risk: provider-specific live runtimes will need the same receipt guarantee when they are implemented; Spike 0 proves it only for the deterministic replay runtime.
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / LEGACY PROTOTYPE HARNESS EXECUTABLE / MASTER-DESIGN HARNESS NOT YET IMPLEMENTED / CODING SPIKE READY BUT NOT STARTED.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / MASTER HARNESS CONTRACT SPINE IMPLEMENTED / SPIKE 0 VERIFIED / FULL MASTER-DESIGN HARNESS + C VERTICAL SLICE NOT YET COMPLETE / LIVE CAPABILITIES OFF.**
 
-This distinction is intentional:
-
-- existing `simulate/replay/store/fixture/readiness` commands are executable prototype validation assets
-- the Master-Design-aware contract harness specified by Harness Design v1 does not yet exist in code
-- no new runtime/product code was changed during this harness-finalization pass
-
-## First future Coding Spike
-
-The first authorized target, when the owner explicitly resumes coding, is the no-network **Master Harness Contract Spine** in `docs/spec/CODING_SPIKE_ENTRY.md`:
-
-`owner-supplied fixture product → Verifier → Strategist(4) → Writer(4) → Guardian → human-decision domain binding → material mutation → stale approval rejection`
-
-Scout is skipped only under the approved explicit-owner-product routing exception; the roster remains exactly six.
-
-The spike deliberately excludes live Threads, live Coupang, public posting, automated product search, third-party media reuse, analytics learning, and full UI redesign.
-
-## Runtime code state
-
-No runtime/product code changes are part of the Master Design or Harness Design finalization passes. The following remain pre-baseline prototype assets until a separately authorized implementation PR changes them:
-
-- `apps/`
-- `packages/`
-- `scripts/`
-- `tests/`
-- workflow logic
-- runtime dependencies
-- live-source enablement
-- credentials
+This means the highest-risk harness migration question is answered: the existing runtime can be adapted to Master Design authority/revision semantics without a rewrite. It does not mean all AT-01~44 are executable or the product UI/live stack is complete.
 
 ## Live capability state
 
-The following remain designed but disabled until activation preflight:
+Still intentionally disabled:
 
 - Threads keyword discovery for the target app/account
 - Threads insights
@@ -72,30 +87,12 @@ The following remain designed but disabled until activation preflight:
 - automated listing discovery beyond owner-supplied destinations
 - third-party media download/transform/republish without action-specific rights evidence
 
-## GitHub Actions interpretation
-
-The current Actions workflow still runs the existing prototype verification suite and orchestra demo. A green check means the pre-baseline prototype validation assets were not broken by documentation changes.
-
-It does **not** prove:
-
-- Master Design v1 implementation
-- Harness Design v1 implementation
-- server-authoritative review binding
-- current live permissions/configuration
-- production readiness
+No credential, network enablement, public publishing, dependency, or workflow-file change was required for Spike 0.
 
 ## Next implementation entry
 
-A future coding agent must begin with:
+The next bounded product slice unlocked by Spike 0 is the manual-product C vertical slice:
 
-1. `CLAUDE.md`
-2. `docs/spec/MASTER_SPEC.md`
-3. `docs/spec/DESIGN_BASELINE_MANIFEST.md`
-4. `docs/spec/HARNESS_BLUEPRINT.md`
-5. `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
-6. `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
-7. `docs/spec/CODING_SPIKE_ENTRY.md`
-8. applicable `TRACEABILITY_MATRIX.md` / `ACCEPTANCE_TESTS.md`
-9. `docs/PRE_IMPLEMENTATION_TRAPS.md`
+`input → verified candidate → Opportunity Inbox → four strategies → four drafts → Guardian → owner approve/hold/reject`
 
-Coding starts only after an explicit owner request to resume implementation.
+External publishing stays stubbed/off. Before that slice starts, refresh its applicable `KEEP / MODIFY / RETIRE / MISSING` map, B0/trap mapping, UI acceptance IDs, and 360px completion proof.
