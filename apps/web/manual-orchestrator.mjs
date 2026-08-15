@@ -19,9 +19,9 @@ function candidateFromToday(today, candidateId) {
 function allowedStates(command) {
   return {
     request_verification: new Set(['verification_needed', 'evidence_partial', 'evidence_ready', 'strategy_ready', 'draft_ready', 'guardian_revise', 'guardian_pass', 'approved', 'stale', 'blocked']),
-    request_strategies: new Set(['evidence_ready', 'stale']),
+    request_strategies: new Set(['evidence_ready']),
     request_drafts: new Set(['strategy_ready']),
-    run_guardian: new Set(['draft_ready', 'guardian_revise'])
+    run_guardian: new Set(['draft_ready', 'guardian_revise', 'stale'])
   }[command] ?? null;
 }
 
@@ -63,12 +63,16 @@ function validateSpecialistRoute(command, today, request) {
     });
   }
 
-  if (command === 'request_strategies' && candidate.workflowState === 'stale') {
-    if (candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact') {
-      throw new ApplicationCommandError('Stale candidate must be reverified before strategy regeneration.', {
-        code: 'stale_reverification_required',
+  if (command === 'run_guardian' && candidate.workflowState === 'stale') {
+    if (candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact' || candidate.drafts?.length !== 4) {
+      throw new ApplicationCommandError('Stale candidate must rebuild current evidence/content before Guardian review.', {
+        code: 'stale_rebuild_required',
         statusCode: 422,
-        details: { evidenceReadiness: candidate.evidenceReadiness, exactMatchStatus: candidate.exactMatchStatus }
+        details: {
+          evidenceReadiness: candidate.evidenceReadiness,
+          exactMatchStatus: candidate.exactMatchStatus,
+          draftCount: candidate.drafts?.length ?? 0
+        }
       });
     }
   }
@@ -105,43 +109,9 @@ function buildReceipt({ request, specialistId = null, status, beforeRevision = n
   };
 }
 
-async function finalizeStaleStrategyRecovery(store, request, beforeCandidate) {
-  if (request.command !== 'request_strategies' || beforeCandidate?.workflowState !== 'stale') return null;
-
-  const state = await store.readState();
-  const candidate = state.candidates.find((item) => item.id === request.candidateId);
-  if (!candidate?.strategies?.angles || candidate.strategies.angles.length !== 4) {
-    throw new ApplicationCommandError('Strategist output missing during stale recovery.', {
-      code: 'stale_recovery_failed',
-      statusCode: 500
-    });
-  }
-
-  candidate.workflowState = 'strategy_ready';
-  candidate.blockers = [];
-  candidate.review = null;
-  candidate.revision += 1;
-  candidate.updatedAt = new Date().toISOString();
-  candidate.audit ??= [];
-  candidate.audit.push({
-    event: 'orchestrator_stale_recovery_completed',
-    at: candidate.updatedAt,
-    revision: candidate.revision,
-    from: 'stale',
-    to: 'strategy_ready'
-  });
-  candidate.audit = candidate.audit.slice(-60);
-  state.updatedAt = candidate.updatedAt;
-  state.audit ??= [];
-  state.audit.push({ event: 'orchestrator_stale_recovery_completed', candidateId: candidate.id, at: candidate.updatedAt, revision: candidate.revision });
-  state.audit = state.audit.slice(-200);
-  await store.persist(state);
-  return store.readToday();
-}
-
 export class ManualProductOrchestratorService {
   constructor({ store }) {
-    if (!store || typeof store.readToday !== 'function' || typeof store.execute !== 'function' || typeof store.readState !== 'function' || typeof store.persist !== 'function') {
+    if (!store || typeof store.readToday !== 'function' || typeof store.execute !== 'function') {
       throw new Error('ManualProductOrchestratorService requires the server application store.');
     }
     this.store = store;
@@ -162,8 +132,6 @@ export class ManualProductOrchestratorService {
       }
 
       const response = await this.store.execute(request);
-      const recoveredToday = await finalizeStaleStrategyRecovery(this.store, request, beforeCandidate);
-      if (recoveredToday) response.today = recoveredToday;
       const afterCandidate = request.candidateId ? candidateFromToday(response.today, request.candidateId) : null;
       return {
         ...response,
