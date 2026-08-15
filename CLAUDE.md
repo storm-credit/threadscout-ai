@@ -195,3 +195,27 @@ GitHub is the persistent project handoff surface.
 - Never commit secrets, tokens, real `.env` values, unnecessary raw third-party media, local databases, caches, or generated junk.
 - Open a PR for a completed substantial slice, inspect the diff, verify GitHub Actions, and fix failures before completion is claimed.
 - Another agent should be able to recover the intent, decisions, current status, and next step from GitHub without relying on hidden local context.
+
+## 20. Harness-before-coding gate
+
+Master Design completion does not authorize ad-hoc coding from the old prototype.
+
+Before the first implementation slice, read and obey:
+
+- `docs/spec/HARNESS_BLUEPRINT.md`
+- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
+- `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
+- `docs/spec/CODING_SPIKE_ENTRY.md`
+
+The pre-baseline `simulate / replay / store / fixture / readiness` assets are useful prototype harness components, not the final executable specification.
+
+For a new coding slice:
+
+- classify affected existing modules as `KEEP / MODIFY / RETIRE / MISSING`
+- select explicit fixture IDs and AT IDs
+- keep live capabilities disabled unless the task is an approved activation slice
+- use the canonical harness/report semantics rather than inventing a parallel truth source
+- prove normal, blocked, and stale behavior where applicable
+- do not widen the spike into UI/live/provider work merely because the existing prototype makes that convenient
+
+The first coding task after Harness Design v1 is `CODING_SPIKE_ENTRY.md` unless the owner explicitly chooses a different bounded slice and records why.

@@ -56,6 +56,20 @@ The goal is to prevent “implemented because it seemed useful” work. Every MV
 | current CI is prototype regression | DESIGN_CI_SPEC, IMPLEMENTATION_STATUS | documented |
 | implementation starts from approved design | MASTER_SPEC, DESIGN_FREEZE | required |
 
+## Harness / implementation-handoff traceability
+
+| Handoff requirement | Authority | Proof expected before implementation claim |
+|---|---|---|
+| contract-first harness rather than legacy-script authority | HARNESS_BLUEPRINT | canonical runner/report maps scenario results to AT IDs |
+| existing prototype classified before edits | IMPLEMENTATION_GAP_ANALYSIS | affected modules explicitly marked KEEP/MODIFY/RETIRE/MISSING |
+| normal + blocked + stale fixture families | HARNESS_ACCEPTANCE_MATRIX | selected fixture IDs execute with expected semantic state |
+| first spike bounded and no-network | CODING_SPIKE_ENTRY | only named files/behaviors change unless deviation is recorded |
+| human approval revision binding proven before UI/live scheduling | REVIEW_BINDING_SPEC, HARNESS_BLUEPRINT, CODING_SPIKE_ENTRY | F11/F21 and AT-09/36/38 domain assertions |
+| agent agreement cannot manufacture factual truth | EVIDENCE_THRESHOLDS, HARNESS_ACCEPTANCE_MATRIX | F20 / AT-41 |
+| run budget exhaustion fails bounded | RUN_BUDGETS, HARNESS_ACCEPTANCE_MATRIX | F12 / AT-21 |
+| completion requires evidence beyond unit-test green | CLAUDE.md, CODING_SPIKE_ENTRY | scenario reports + full verify + diff + traps/B0 + Actions |
+| live capabilities remain disabled in core harness | P0_P1_DECISION_TABLE, HARNESS_BLUEPRINT | no network/public action required by Spike 0 |
+
 ## Change control
 
 When a requirement changes:
@@ -64,8 +78,9 @@ When a requirement changes:
 2. update impacted design spec(s)
 3. update this matrix
 4. update/add acceptance behavior
-5. perform blind-spot impact review
-6. record the decision
-7. only then change implementation/tests in a separately authorized implementation task
+5. update affected harness fixtures/oracles when applicable
+6. perform blind-spot impact review
+7. record the decision
+8. only then change implementation/tests in a separately authorized implementation task
 
 No code-only change may silently redefine a requirement or weaken a fixed gate.

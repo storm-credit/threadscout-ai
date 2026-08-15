@@ -4,6 +4,22 @@ No live provider, research, affiliate, or publishing integration begins until it
 
 This checklist is implementation-facing. Broader product assumptions are reviewed separately in `docs/spec/FINAL_BLIND_SPOT_SWEEP.md`.
 
+## Harness entry gate
+
+- [x] Master Design v1 is approved and canonical.
+- [x] Harness Design v1 defines one contract-first execution model.
+- [x] Existing prototype assets are classified `KEEP / MODIFY / RETIRE / MISSING`.
+- [x] Canonical fixture families and AT ownership are documented.
+- [x] First Coding Spike has explicit in-scope/out-of-scope behavior, success conditions, stop conditions, and preferred change surface.
+- [ ] At actual coding start, record the exact current `main` SHA as the baseline.
+- [ ] At actual coding start, select the exact fixture IDs and AT IDs in the implementation PR/plan.
+- [ ] Re-read affected prototype modules before editing; do not trust the gap table as a substitute for code inspection.
+- [ ] Perform the Reference-first Gate for any unresolved technical mechanism that materially affects implementation risk.
+- [ ] Recheck the four implementation-shape options if repository evidence invalidates the recommended adapter approach.
+- [ ] Keep live Threads/Coupang/media/publication capabilities disabled during Spike 0.
+- [ ] Do not widen Spike 0 into UI/live/provider/analytics work merely because adjacent prototype code exists.
+- [ ] Completion requires scenario reports, blocked/stale proof, full verify, diff review, traps/B0 review, and Actions—not unit-test green alone.
+
 ## Product and agent controls
 
 - [x] Fix six agents and prohibit a price agent.
