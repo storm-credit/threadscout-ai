@@ -9,7 +9,7 @@ const SPECIALIST_BY_COMMAND = Object.freeze({
   run_guardian: AGENT_IDS.GUARDIAN
 });
 
-const HUMAN_COMMANDS = new Set(['review_decision']);
+const HUMAN_COMMANDS = new Set(['review_decision', 'resolve_duplicate']);
 const DETERMINISTIC_COMMANDS = new Set(['reset_demo', 'add_manual_candidate', 'edit_draft']);
 
 function candidateFromToday(today, candidateId) {
@@ -53,6 +53,18 @@ function validateSpecialistRoute(command, today, request) {
   const candidate = candidateFromToday(today, request.candidateId);
   if (!candidate) {
     throw new ApplicationCommandError('Candidate not found for specialist dispatch.', { code: 'not_found', statusCode: 404 });
+  }
+
+  if (candidate.workflowState === 'duplicate_review') {
+    throw new ApplicationCommandError('Possible duplicate must be resolved by the owner before specialist work continues.', {
+      code: 'duplicate_review_required',
+      statusCode: 422,
+      details: {
+        candidateId: candidate.id,
+        duplicateAssessment: candidate.duplicateAssessment,
+        nextAction: candidate.nextAction
+      }
+    });
   }
 
   if (command === 'request_strategies' && (candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact')) {
