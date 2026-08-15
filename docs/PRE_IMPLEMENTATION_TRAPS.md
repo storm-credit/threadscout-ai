@@ -13,11 +13,11 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] First Coding Spike has explicit in-scope/out-of-scope behavior, success conditions, stop conditions, and preferred change surface.
 - [x] Spike 0 recorded the exact starting main SHA, fixture IDs, and AT IDs.
 - [x] Re-read affected prototype modules before editing; do not trust the gap table as a substitute for code inspection.
-- [x] Perform the Reference-first Gate for unresolved technical mechanisms — Spike 0, C-slice, and persistence-hardening records exist under `docs/implementation/`.
+- [x] Perform the Reference-first Gate for unresolved technical mechanisms — Spike 0, C-slice, persistence-hardening, and candidate-dedupe records exist under `docs/implementation/`.
 - [x] Recheck four materially different implementation shapes before a major implementation choice.
 - [x] Keep live Threads/Coupang/media/publication capabilities disabled during pre-live slices.
 - [x] Do not widen a bounded slice merely because adjacent prototype code exists.
-- [x] Spike 0 completion proof included blocked/stale scenarios, full verify, diff/scope review, B0/trap review, PR merge, and post-merge main CI.
+- [x] Completion proof includes blocked/stale/bypass scenarios, full verify, diff/scope review, B0/trap review, PR merge, and post-merge main CI before a slice is reported complete.
 
 ## Product and agent controls
 
@@ -27,8 +27,11 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Prevent first-hand language without a usage record.
 - [x] Keep publishing outside agent allowlists.
 - [x] C slice routes specialist commands through an explicit Orchestrator service; local deterministic specialist adapters return control to Orchestrator and do not pretend to be live model calls.
-- [ ] Add duplicate and near-duplicate indexes across runs.
+- [x] Add duplicate and near-duplicate guardrails across persisted **manual-candidate local history**: exact normalized brand+model+variant suppression, conservative possible-duplicate review, identity-change reassessment, CAS-bound human resolution, portfolio priority visibility, and auditable suppression.
+- [ ] Extend dedupe to live Scout/global discovery only when live source execution is designed and activated; current manual-history guardrail must not be misreported as global dedupe.
 - [ ] Recheck volatile commerce evidence immediately before a real post.
+
+Duplicate guardrail truth boundary: fuzzy/name similarity is only a portfolio/workflow signal. It never manufactures Verifier `exact` authority. Same source/seller URL is not an exact-product key because a destination can mutate behind the same URL.
 
 ## Mobile-first web / cross-device
 
@@ -39,6 +42,8 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Verify browser/server reload does not lose server-accepted C-slice state when the same data directory is used.
 - [x] Reject stale approval when another client submits an old candidate revision; HTTP 409 returns the current read model.
 - [x] Define C-slice optimistic/version conflict behavior with `expectedRevision` compare-and-set semantics.
+- [x] Surface possible-duplicate review explicitly in the mobile workspace; disable evidence/content/ordinary human-decision controls until owner resolves it.
+- [x] Priority-include pending duplicate reviews in the bounded five-card portfolio so a low opportunity score cannot make a correctness task unreachable.
 - [ ] Perform real-device/browser visual and touch acceptance across the supported-device matrix; automated structural checks are not a substitute.
 - [ ] Validate mobile camera/file upload behavior on supported browsers.
 - [ ] Define maximum upload size, resumability, compression, failure recovery, and unsupported-format handling.
@@ -55,6 +60,7 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [x] Implement local/server application compare-and-set checks for C-slice user decisions and state-changing commands.
 - [x] Persist C-slice state atomically in server-owned JSON; the initial implementation used in-process serialization only.
 - [x] Harden local same-host persistence with a bounded ownership-aware interprocess lock around the entire read → idempotency/CAS → mutate → atomic persist critical section. Cross-instance lost-update, duplicate-request, timeout, stale-lock recovery, successor-lock ownership, and HTTP fail-closed behavior are automated-tested.
+- [x] Keep duplicate assessment/resolution inside the same server-owned mutation/locking boundary so concurrent candidate writes cannot bypass persisted-history checks locally.
 - [ ] Migrate to database-backed transactional persistence before multi-host/production background workers, network-filesystem deployment, production retention/query requirements, or any design that would place long-running provider/network work inside the current short-lived file-lock critical section.
 - [ ] Add provider token/cost and cancellation semantics before provider-backed execution.
 - [ ] Add handler input/output schemas and mutability classes for later live/background adapters.
@@ -62,7 +68,7 @@ This checklist is implementation-facing. Broader product assumptions are reviewe
 - [ ] Prevent stale approved/queued artifacts from any future publishing command; there is no publishing command in the C slice.
 - [ ] Verify audit storage remains complete when a future worker crashes between external action and event persistence.
 
-The local lock is explicitly **single-host/local-filesystem only**. It is not a network-filesystem or distributed lock, and it is not a substitute for the approved production transactional store.
+The local lock is explicitly **single-host/local-filesystem only**. It is not a network-filesystem or distributed lock, and it is not a substitute for the approved production transactional store. Current dedupe is O(n) over bounded local history; production/global scale requires a separate indexed-store decision.
 
 ## Research boundary
 
@@ -111,7 +117,15 @@ The local lock is explicitly **single-host/local-filesystem only**. It is not a 
 - [x] Surface the top blocker/material stale reason before approval and disable approval unless current Guardian pass matches the current material revision.
 - [x] Use request-ID idempotency so repeated browser submission does not apply the same logical command twice.
 - [x] Preserve request-ID idempotency and candidate CAS across independent local store/server instances by serializing the full state mutation critical section.
+- [x] Require expected-revision CAS for `resolve_duplicate`; stale duplicate decisions fail rather than silently changing the newer candidate state.
+- [x] Prevent pending duplicate review from being bypassed by hold/reject/approval; only explicit `distinct|duplicate` resolution can leave that gate.
 - [ ] Add stronger accidental-double-tap/confirmation UX if later high-impact external actions are introduced.
+
+## Suppression semantics
+
+- [x] Candidate duplicate suppression is explicit, auditable and reversible only through future intentional product behavior; suppressed duplicate records are not shown in the primary five-card inbox but remain server-owned history.
+- [ ] Implement AT-14 user/category/content suppression separately. Candidate dedupe must not be presented as user preference/category suppression.
+- [ ] Define restore semantics and UI for AT-14 when that slice begins.
 
 ## Publishing safety
 
@@ -123,7 +137,7 @@ The local lock is explicitly **single-host/local-filesystem only**. It is not a 
 - [ ] Preflight issue freshness, exact-product mapping, destination integrity, media rights, disclosure, and volatile commerce facts.
 - [ ] Store explicit timezone and server-normalized schedule time.
 
-The C slice and persistence-hardening slice deliberately have **no publication command**. Therefore these unchecked publishing items do not block the local application path, but they block any future live publishing activation.
+The C slice, persistence-hardening slice, and candidate-dedupe slice deliberately have **no publication command**. Therefore these unchecked publishing items do not block the local application path, but they block any future live publishing activation.
 
 ## Analytics / learning
 
@@ -138,5 +152,5 @@ The C slice and persistence-hardening slice deliberately have **no publication c
 
 - [x] Keep MVP one-owner/one-account and exclude multi-tenant SaaS/billing.
 - [x] Treat zero posts as a valid day.
-- [x] Keep the C slice and local persistence hardening dependency-free rather than introducing a framework/database before its need is demonstrated.
+- [x] Keep the C slice, local persistence hardening, and manual candidate dedupe dependency-free rather than introducing a framework/database/model provider before its need is demonstrated.
 - [ ] Measure manual review time, model/source cost, and attributable commercial value before increasing automation or agent budgets.
