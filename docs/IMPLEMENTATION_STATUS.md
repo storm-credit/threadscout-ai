@@ -11,46 +11,46 @@
 - Phase 2E: read-only fixture research, validated source records, candidate evidence, invalidation index
 - Phase 2F: official-source readiness registry and disabled Threads/NAVER request contracts
 
-These runtime assets predate the approved Master Design v1 and are **prototype/validation assets**, not the product authority.
+These runtime assets predate the approved Master Design v1 and are **prototype/validation assets**, not product authority.
 
 ## Master Design v1 — COMPLETE
 
-The canonical design lives in `docs/spec/` and is approved as the authority for future implementation.
+The canonical product/system design in `docs/spec/` is approved and covers the product, platform, six-agent contracts, handoffs, evidence, media, public-event/product matching, content, approval, publishing, analytics, security/privacy, blind spots, P0/P1 disposition, traceability, and AT-01 through AT-44.
 
-It now defines:
+## Harness Design v1 — COMPLETE AS DESIGN
 
-- Master Product & System Specification
-- product requirements, MVP boundary, and complete user flows
-- mobile-first responsive web delivery decision
-- desktop support, PWA boundary, and native-app revisit gate
-- detailed mobile screens, four wireframes, and CTA/state rules
-- fixed six-agent contracts and explicit handoffs
-- Orchestrator state machine, routing, budgets, prompt/version governance
-- conceptual data model and artifact lineage
-- source strategy, source independence, and live-source activation rules
-- opportunity ranking separate from evidence readiness/risk/freshness/suppression
-- worked 20→5 candidate selection
-- evidence thresholds matched to claim strength
-- image/video discovery, rights, fallback, transformation, and publication scenarios
-- celebrity/broadcast/public-event discovery boundary and source/relation grading
-- exact/likely/substitute/unresolved product matching
-- four-angle content strategy and output contract
-- review binding to exact revisions and cross-device stale-state rejection
-- Coupang Partners as first commercial target with activation-time rule verification
-- daily operating model and suppression controls
-- publishing/preflight/reconciliation/kill-switch design
-- analytics/learning guardrails
-- security/privacy/retention rules
-- final blind-spot sweep and B0 traceability
-- edge cases and end-to-end scenarios
-- finalized P0 dispositions and promoted P1 defaults
-- consolidated requirements traceability
-- consolidated behavioral acceptance tests through AT-44
-- final contradiction review and design finalization record
+The remaining pre-coding ambiguity has now been translated into an explicit harness handoff:
 
-## No runtime code changes in the final design cycle
+- `docs/spec/HARNESS_BLUEPRINT.md` — selected contract-first harness architecture and execution modes
+- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md` — canonical fixture families, AT ownership, first-spike coverage
+- `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md` — current prototype `KEEP / MODIFY / RETIRE / MISSING` classification
+- `docs/spec/CODING_SPIKE_ENTRY.md` — bounded first implementation experiment with success/stop/completion criteria
 
-The Master Design completion work changes documentation only. It does not change:
+The selected harness approach is **not** a rewrite and **not** live-provider-first. It adapts the existing orchestra/replay/store/broker/fixture assets behind Master Design contracts and deterministic acceptance oracles.
+
+## Current precise status
+
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / LEGACY PROTOTYPE HARNESS EXECUTABLE / MASTER-DESIGN HARNESS NOT YET IMPLEMENTED / CODING SPIKE READY BUT NOT STARTED.**
+
+This distinction is intentional:
+
+- existing `simulate/replay/store/fixture/readiness` commands are executable prototype validation assets
+- the Master-Design-aware contract harness specified by Harness Design v1 does not yet exist in code
+- no new runtime/product code was changed during this harness-finalization pass
+
+## First future Coding Spike
+
+The first authorized target, when the owner explicitly resumes coding, is the no-network **Master Harness Contract Spine** in `docs/spec/CODING_SPIKE_ENTRY.md`:
+
+`owner-supplied fixture product → Verifier → Strategist(4) → Writer(4) → Guardian → human-decision domain binding → material mutation → stale approval rejection`
+
+Scout is skipped only under the approved explicit-owner-product routing exception; the roster remains exactly six.
+
+The spike deliberately excludes live Threads, live Coupang, public posting, automated product search, third-party media reuse, analytics learning, and full UI redesign.
+
+## Runtime code state
+
+No runtime/product code changes are part of the Master Design or Harness Design finalization passes. The following remain pre-baseline prototype assets until a separately authorized implementation PR changes them:
 
 - `apps/`
 - `packages/`
@@ -58,34 +58,44 @@ The Master Design completion work changes documentation only. It does not change
 - `tests/`
 - workflow logic
 - runtime dependencies
-- live source enablement
+- live-source enablement
 - credentials
-
-## Current mode
-
-**DESIGN COMPLETE / IMPLEMENTATION NOT STARTED FROM THIS BASELINE.**
-
-Code remains frozen until the owner explicitly requests an implementation slice. The next implementation task must gap-review the old prototype against the approved design instead of assuming prototype behavior is correct.
 
 ## Live capability state
 
-The following are intentionally designed but disabled until activation preflight:
+The following remain designed but disabled until activation preflight:
 
 - Threads keyword discovery for the target app/account
 - Threads insights
 - Threads publishing
 - live Coupang Partners commercial posting
-- automated listing discovery beyond user-supplied destinations
+- automated listing discovery beyond owner-supplied destinations
 - third-party media download/transform/republish without action-specific rights evidence
 
 ## GitHub Actions interpretation
 
 The current Actions workflow still runs the existing prototype verification suite and orchestra demo. A green check means the pre-baseline prototype validation assets were not broken by documentation changes.
 
-It does **not** prove that Master Design v1 is implemented or that live capabilities are configured.
+It does **not** prove:
 
-Future design-CI semantics are specified in `docs/spec/DESIGN_CI_SPEC.md` for a later implementation task.
+- Master Design v1 implementation
+- Harness Design v1 implementation
+- server-authoritative review binding
+- current live permissions/configuration
+- production readiness
 
 ## Next implementation entry
 
-See `docs/spec/MASTER_SPEC.md`, `docs/spec/DESIGN_FREEZE.md`, `docs/spec/TRACEABILITY_MATRIX.md`, `docs/spec/ACCEPTANCE_TESTS.md`, and `docs/PRE_IMPLEMENTATION_TRAPS.md`.
+A future coding agent must begin with:
+
+1. `CLAUDE.md`
+2. `docs/spec/MASTER_SPEC.md`
+3. `docs/spec/DESIGN_BASELINE_MANIFEST.md`
+4. `docs/spec/HARNESS_BLUEPRINT.md`
+5. `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
+6. `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
+7. `docs/spec/CODING_SPIKE_ENTRY.md`
+8. applicable `TRACEABILITY_MATRIX.md` / `ACCEPTANCE_TESTS.md`
+9. `docs/PRE_IMPLEMENTATION_TRAPS.md`
+
+Coding starts only after an explicit owner request to resume implementation.
