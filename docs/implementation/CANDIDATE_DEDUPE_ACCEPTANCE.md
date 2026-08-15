@@ -65,7 +65,7 @@ The Opportunity Inbox remains capped at five candidates. Pending duplicate-revie
 
 ## Executable proof
 
-GitHub Actions Run #178 (`31899973399`) on implementation head `2526921154d62d58954c66bd7a1f40e5948f34ac` completed successfully:
+Final PR-head GitHub Actions Run #182 (`31900089520`) on head `2ecb8811f96cdc35e070b6bbc31f591a728e86d9` completed successfully:
 
 - `npm run verify`: success
 - `npm run orchestra:demo`: success
@@ -76,7 +76,7 @@ GitHub Actions Run #178 (`31899973399`) on implementation head `2526921154d62d58
 - simulation/replay/evidence store/fixture research/readiness — green
 - readiness output still reports network execution disabled
 
-A final documentation-head PR CI run is required after status/trap/acceptance records are committed, followed by post-merge main CI.
+The remaining completion proof after merge is a successful `main` push CI on the merge commit.
 
 ## Design / blind-spot mapping
 
