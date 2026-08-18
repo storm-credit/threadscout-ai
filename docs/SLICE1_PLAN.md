@@ -92,3 +92,43 @@ Threads keyword discovery, Threads insights, Threads publishing, Coupang affilia
 ## Rollback
 
 The slice is a single feature branch with no migrations and no external side effects. Rollback is closing the PR; `.threadscout-data/` is local and outside Git.
+
+---
+
+## Deviation record
+
+`CLAUDE.md` section 14 requires that a plan which stopped matching reality is recorded rather than rewritten after the fact. Two deviations occurred.
+
+### D-1 — the prototype orchestrator was removed, not modified
+
+**Original plan.** The prototype disposition table above marked `packages/orchestra/src/orchestrator.mjs` as `modify`, and `contracts.mjs` / `schemas.mjs` as `modify`.
+
+**Where the plan stopped matching reality.** During implementation it became clear that the prototype's artifact contracts differ from `AGENT_CONTRACTS.md` in kind, not degree: the evidence packet was missing `verifier_decision`, the public-figure relation, media rights, freshness, prohibited claims, and unresolved questions, and the Guardian report had none of its eight named checks. Editing it in place would have meant rewriting every function while keeping the file name.
+
+**What changed.** The new orchestration was written as `pipeline.mjs` plus `packages/core`, and the superseded modules — `orchestrator.mjs`, `simulation.mjs`, `executor.mjs`, `replay-fixtures.mjs`, `contracts.mjs`, `model-runtime.mjs` — were deleted along with their scripts and tests. `schemas.mjs` was rewritten to declare the approved contracts, with validation living once in `packages/core/src/artifacts.mjs`.
+
+**Why.** For a period both existed, and that was the real problem: two orchestrators with two different definitions of the same artifact is exactly the duplicated logic the completion gate is meant to catch. Deleting the superseded one was the only way to leave a single answer to "what is an evidence packet".
+
+**Affected requirements, design, tests.** No requirement or acceptance ID changed. Coverage from the deleted tests was re-proven against the new implementation in `tests/orchestra-invariants.test.mjs` (roster invariants, tool-broker allowlists) and `tests/slice1-store.test.mjs` (hash chain, tamper detection, artifact versioning). Deleted scripts were replaced by `scripts/run-slice1-pipeline.mjs`.
+
+**Remaining risk.** The deterministic replay runtime that a live model provider would have attached to is gone; `agent-runtime.mjs` now holds that boundary and has only ever wrapped in-process functions. Attaching a real provider will need its own slice, and the timeout and cancellation semantics that `model-runtime.mjs` had are not reimplemented — they are listed as an open trap rather than silently assumed.
+
+### D-2 — the verifier retry budget is scoped to an evidence epoch
+
+**Original plan.** Apply `AGENT_CONTRACTS.md` retry budgets directly: one Verifier re-evaluation per run.
+
+**Where the plan stopped matching reality.** The evidence workbench is iterative by design — the owner adds identity evidence and re-verifies. A flat two-attempt cap locked the owner out of their own workflow after the second attempt.
+
+**What changed.** Attempts are counted within a budget epoch, and supplying new evidence opens a new epoch. Receipts from earlier epochs are retained.
+
+**Why.** The spec's wording is "one evidence re-evaluation *after new evidence*", so the budget was always meant to bound retries that add nothing, not to bound the owner's evidence gathering.
+
+**Affected requirements, design, tests.** AT-21 is still proven: `tests/slice1-acceptance.test.mjs` shows a third attempt inside one epoch stopping the run with `budget_exhausted`.
+
+**Remaining risk.** An owner could open unlimited epochs by repeatedly touching evidence. That is bounded by manual effort today and would need a real limit before any paid provider is attached.
+
+## Known limitations at completion
+
+- Single process only. Multi-process transactional locking is unresolved and remains an open item in `docs/PRE_IMPLEMENTATION_TRAPS.md`; the JSONL adapter serialises writes within one process and does not coordinate across processes.
+- Agents are deterministic, so the four drafts are structurally distinct but not evidence of Korean writing quality. The slice proves the pipeline and its gates, not the copy.
+- Owner-entered candidates top out at 85 points, because attention acceleration needs discovery data that Scout would supply and Scout is skipped.
