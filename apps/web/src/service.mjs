@@ -12,6 +12,7 @@ import {
   ARTIFACT_TYPES,
   CONTENT_LANES,
   MEDIA_RIGHTS_STATES,
+  READER_JOB_LABELS_KO,
   REVIEW_SCORE_FLOOR,
   SLICE_HUMAN_DECISIONS,
   deriveCandidateView,
@@ -363,12 +364,40 @@ export function createService({ store, clock, nextId, actor = 'owner' }) {
     async getCandidateDetail(candidateId) {
       const record = await loadRecord(candidateId);
       const bundle = effectiveDraftBundle(record);
+      const brief = record.artifacts[ARTIFACT_TYPES.CONTENT_BRIEF] ?? null;
+
+      // Presentation labels are added here rather than stored in the artifact: an
+      // artifact is evidence of what an agent decided, not a place for UI strings.
+      const briefForView = brief
+        ? {
+            ...brief,
+            angles: brief.angles.map((angle) => ({
+              ...angle,
+              readerJobLabel: READER_JOB_LABELS_KO[angle.readerJob] ?? angle.readerJob
+            }))
+          }
+        : null;
+
+      const angleLabels = new Map((brief?.angles ?? []).map((angle) => [
+        angle.angleId,
+        READER_JOB_LABELS_KO[angle.readerJob] ?? angle.readerJob
+      ]));
+      const bundleForView = bundle
+        ? {
+            ...bundle,
+            drafts: bundle.drafts.map((item) => ({
+              ...item,
+              angleLabel: angleLabels.get(item.angleId) ?? item.angleId
+            }))
+          }
+        : null;
+
       return {
         candidate: viewFor(record),
         evidenceInput: record.evidenceInput,
         evidencePacket: record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET] ?? null,
-        contentBrief: record.artifacts[ARTIFACT_TYPES.CONTENT_BRIEF] ?? null,
-        draftBundle: bundle,
+        contentBrief: briefForView,
+        draftBundle: bundleForView,
         reviewReport: record.artifacts[ARTIFACT_TYPES.REVIEW_REPORT] ?? null,
         approval: record.approval,
         binding: currentBinding(record),

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ThreadScout · 오늘</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+
+    <header class="app-header">
+      <div class="header-row">
+        <h1>ThreadScout</h1>
+        <p class="header-date" id="header-date">—</p>
+      </div>
+      <div class="status-strip" id="status-strip" aria-live="polite">
+        <span class="status-chip" id="publish-status">외부 게시 · 확인 중</span>
+        <button class="link-button" type="button" id="open-capabilities">기능 상태</button>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <!-- Today / Opportunity Inbox -->
+      <section class="view" id="view-today" aria-labelledby="today-heading">
+        <h2 id="today-heading" class="view-title">오늘의 기회</h2>
+
+        <dl class="summary-strip" id="summary-strip">
+          <div class="summary-item"><dt>등록</dt><dd id="sum-total">0</dd></div>
+          <div class="summary-item"><dt>추천</dt><dd id="sum-recommended">0</dd></div>
+          <div class="summary-item"><dt>근거 필요</dt><dd id="sum-evidence">0</dd></div>
+          <div class="summary-item"><dt>승인 대기</dt><dd id="sum-approval">0</dd></div>
+        </dl>
+
+        <button class="primary-button full-width" type="button" id="open-intake">제품 직접 입력</button>
+
+        <div id="inbox-list" class="card-list"></div>
+
+        <section class="excluded-block" id="excluded-block" hidden>
+          <h3 class="section-heading">첫 화면에 올리지 않은 후보</h3>
+          <div id="excluded-list" class="card-list compact"></div>
+        </section>
+      </section>
+
+      <!-- Manual product intake -->
+      <section class="view" id="view-intake" hidden aria-labelledby="intake-heading">
+        <button class="back-button" type="button" data-back="today">← 오늘로</button>
+        <h2 id="intake-heading" class="view-title">제품 직접 입력</h2>
+        <p class="view-note">
+          입력한 판매 링크는 <strong>저장만</strong> 하고 접속하지 않습니다. 제품 동일성은 다음 단계에서
+          근거를 추가한 뒤 Evidence Verifier가 판단합니다.
+        </p>
+
+        <form id="intake-form" novalidate>
+          <label class="field">
+            <span class="field-label">제품 이름 <em>필수</em></span>
+            <input name="name" type="text" required maxlength="120" autocomplete="off" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">콘텐츠 레인 <em>필수</em></span>
+            <select name="contentLane" required>
+              <option value="">선택해 주세요</option>
+              <option value="practical_novel">실용 신박템</option>
+              <option value="family_household">가족 · 초등 살림</option>
+              <option value="travel_desk_storage">여행 · 데스크 · 수납</option>
+              <option value="curiosity_only">호기심 전용</option>
+              <option value="issue_triggered">이슈 기반</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">왜 지금인가 <em>필수</em></span>
+            <textarea name="whyNow" rows="2" required maxlength="300"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">독자에게 주는 가치 <em>필수</em></span>
+            <textarea name="readerValue" rows="2" required maxlength="300"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">확인한 사실 하나 <em>필수</em></span>
+            <textarea name="observation" rows="3" required maxlength="500"
+              placeholder="출처에서 실제로 확인한 내용만 적어 주세요."></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">판매 링크 <em class="optional">선택</em></span>
+            <input name="destinationUrl" type="url" inputmode="url" autocomplete="off"
+              placeholder="https://" />
+            <span class="field-help">저장만 하며 자동으로 열지 않습니다.</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label">사용할 사진 · 영상 권리</span>
+            <select name="mediaRightsState">
+              <option value="none">아직 없음</option>
+              <option value="owner_supplied">본인이 직접 촬영</option>
+              <option value="licensed">사용 허가를 확인함</option>
+              <option value="link_or_embed_only">링크 · 임베드만 허용</option>
+              <option value="analysis_only">분석 참고용 (게시 불가)</option>
+              <option value="unknown">권리를 모르겠음</option>
+            </select>
+          </label>
+
+          <fieldset class="rating-group">
+            <legend>직접 평가 (0–10)</legend>
+            <p class="field-help">
+              발굴 단계를 건너뛰었으므로 관심 상승 지표는 0으로 둡니다. 그래서 최고 점수는 85점입니다.
+            </p>
+            <label class="rating"><span>독자 가치</span><input type="range" name="rating-readerValue" min="0" max="10" value="7" /><output>7</output></label>
+            <label class="rating"><span>시연 가능성</span><input type="range" name="rating-demonstrability" min="0" max="10" value="7" /><output>7</output></label>
+            <label class="rating"><span>구매 의도</span><input type="range" name="rating-purchaseIntent" min="0" max="10" value="7" /><output>7</output></label>
+            <label class="rating"><span>독자 적합성</span><input type="range" name="rating-audienceFit" min="0" max="10" value="7" /><output>7</output></label>
+            <label class="rating"><span>새로움</span><input type="range" name="rating-novelty" min="0" max="10" value="6" /><output>6</output></label>
+          </fieldset>
+
+          <label class="checkbox-field">
+            <input type="checkbox" name="usageRecordConfirmed" />
+            <span>직접 사용한 기록이 있습니다 (체크하지 않으면 체험형 표현이 차단됩니다)</span>
+          </label>
+
+          <div class="form-errors" id="intake-errors" role="alert" hidden></div>
+          <button class="primary-button full-width" type="submit" id="intake-submit">후보로 등록</button>
+        </form>
+      </section>
+
+      <!-- Candidate detail -->
+      <section class="view" id="view-detail" hidden aria-labelledby="detail-heading">
+        <button class="back-button" type="button" data-back="today">← 오늘로</button>
+        <h2 id="detail-heading" class="view-title">후보 상세</h2>
+        <div id="detail-body"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="주요 화면">
+      <button type="button" class="nav-button is-active" data-nav="today">오늘</button>
+      <button type="button" class="nav-button" data-nav="evidence">검증</button>
+      <button type="button" class="nav-button" data-nav="drafts">초안</button>
+      <button type="button" class="nav-button" data-nav="schedule" data-unavailable="예약 화면은 다음 구현 단계입니다. 이번 단계는 승인 · 보류 · 거절에서 끝납니다.">예약</button>
+      <button type="button" class="nav-button" data-nav="results" data-unavailable="성과 화면은 다음 구현 단계입니다. 게시 기능이 꺼져 있어 수집할 지표가 없습니다.">성과</button>
+    </nav>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <dialog id="info-dialog">
+      <h3 id="info-title">알림</h3>
+      <div id="info-body"></div>
+      <button class="secondary-button" type="button" id="info-close">닫기</button>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
