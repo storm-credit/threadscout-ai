@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { open, readFile, rm, stat } from 'node:fs/promises';
+import { mkdir, open, readFile, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
 import { AtomicJsonApplicationStore, ApplicationCommandError } from './application-state.mjs';
 
 const DEFAULT_LOCK_TIMEOUT_MS = 3000;
@@ -75,6 +76,12 @@ export class LockedAtomicJsonApplicationStore extends AtomicJsonApplicationStore
 
   async acquireWriteLock() {
     const startedAt = this.lockClock();
+
+    // The lock lives beside the state file, so its directory has to exist before the
+    // first lock is ever taken. Without this, a clean checkout fails on the very
+    // first request: `initialize()` acquires the lock before the atomic store gets a
+    // chance to create the data directory.
+    await mkdir(path.dirname(this.lockPath), { recursive: true });
 
     while (true) {
       const token = `${process.pid}:${randomUUID()}`;

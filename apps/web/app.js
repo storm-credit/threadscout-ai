@@ -14,6 +14,12 @@ const els = {
   evidenceModel: document.querySelector('#evidence-model'),
   evidenceVariant: document.querySelector('#evidence-variant'),
   evidenceSource: document.querySelector('#evidence-source'),
+  evidenceSourceOrigin: document.querySelector('#evidence-source-origin'),
+  evidenceCorroboration: document.querySelector('#evidence-corroboration'),
+  evidenceCorroborationOrigin: document.querySelector('#evidence-corroboration-origin'),
+  evidenceSubstitute: document.querySelector('#evidence-substitute'),
+  excludedBlock: document.querySelector('#excluded-block'),
+  excludedList: document.querySelector('#excluded-list'),
   mediaRights: document.querySelector('#media-rights'),
   personalUse: document.querySelector('#personal-use'),
   affiliate: document.querySelector('#affiliate'),
@@ -84,7 +90,12 @@ function riskLabel(value) {
 }
 
 function exactLabel(value) {
-  return { exact: '제품 일치', likely: '일치 가능', substitute: '대체 상품', unresolved: '제품 미확인' }[value] ?? value;
+  return {
+    exact: '동일 제품 확인',
+    likely: '유력 · 단정 불가',
+    substitute: '대체품',
+    unresolved: '제품 미확인'
+  }[value] ?? value;
 }
 
 function mediaLabel(value) {
@@ -107,7 +118,9 @@ function candidateById(id) {
 function statusClass(value, kind = 'status') {
   if (kind === 'risk') return value === 'low' ? 'ok' : value === 'review' ? 'warn' : 'danger';
   if (kind === 'evidence') return value === 'ready' ? 'ok' : 'warn';
-  if (kind === 'exact') return value === 'exact' ? 'ok' : 'warn';
+  if (kind === 'exact') return value === 'exact' ? 'ok' : value === 'unresolved' ? 'danger' : 'warn';
+  if (kind === 'verifier') return value === 'verified' ? 'ok' : value === 'reject' ? 'danger' : 'warn';
+  if (kind === 'freshness') return value === 'fresh' ? 'ok' : 'warn';
   if (kind === 'media') return value === 'unknown' ? 'warn' : 'ok';
   if (value === 'approved' || value === 'guardian_pass' || value === 'evidence_ready') return 'ok';
   if (value === 'duplicate_review') return 'warn';
@@ -143,6 +156,8 @@ function cardTemplate(candidate) {
         <span class="status-pill ${statusClass(candidate.riskLevel, 'risk')}">${escapeHtml(riskLabel(candidate.riskLevel))}</span>
         <span class="status-pill ${statusClass(candidate.exactMatchStatus, 'exact')}">${escapeHtml(exactLabel(candidate.exactMatchStatus))}</span>
         <span class="status-pill ${statusClass(candidate.mediaRights, 'media')}">${escapeHtml(mediaLabel(candidate.mediaRights))}</span>
+        ${candidate.verifierDecisionLabel ? `<span class="status-pill ${statusClass(candidate.verifierDecision, 'verifier')}">검증 ${escapeHtml(candidate.verifierDecisionLabel)}</span>` : ''}
+        ${candidate.freshnessState && candidate.freshnessState !== 'fresh' ? `<span class="status-pill ${statusClass(candidate.freshnessState, 'freshness')}">근거 ${candidate.freshnessState === 'aging' ? '만료 임박' : '기한 초과'}</span>` : ''}
         ${duplicateBadge}
       </div>
       ${blocker}
@@ -310,9 +325,43 @@ function renderGuardian(candidate) {
     return;
   }
   els.guardianResult.className = `review-result ${guardian.decision}`;
-  const blockers = guardian.blockers?.length ? `<ul>${guardian.blockers.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '';
+
+  const checkLabels = {
+    productMatchCheck: '제품 동일성',
+    publicFigureClaimCheck: '공인 표현',
+    rightsCheck: '미디어 권리',
+    firstHandCheck: '체험 표현',
+    affiliateDisclosureCheck: '제휴 고지',
+    duplicationCheck: '중복',
+    exaggerationCheck: '과장',
+    sensitiveClaimCheck: '민감 주장'
+  };
+  const symbols = { pass: '✔', warn: '!', block: '✕' };
+
+  // A blocking finding is shown separately from a fixable one, because approval can
+  // never pass the first and can pass the second once fixed (AT-08, AT-42).
+  const nonOverridable = guardian.nonOverridableBlockers?.length
+    ? `<p class="blocker-line"><strong>승인으로 넘길 수 없는 차단</strong></p><ul>${
+        guardian.nonOverridableBlockers.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+    : '';
+
+  const revisions = guardian.revisionRequests?.length
+    ? `<ul>${guardian.revisionRequests.map((item) =>
+        `<li><small>${escapeHtml(item.ruleId)}</small><br /><strong>${escapeHtml(item.problem)}</strong><br />${escapeHtml(item.requiredChange)}</li>`
+      ).join('')}</ul>`
+    : (guardian.blockers?.length ? `<ul>${guardian.blockers.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '');
+
+  const checks = guardian.checks
+    ? `<div class="check-list">${Object.entries(checkLabels).map(([key, label]) => {
+        const check = guardian.checks[key];
+        if (!check) return '';
+        return `<div class="check-row"><span>${symbols[check.status] ?? '·'}</span><span class="check-name">${label}</span><span>${escapeHtml(check.detail)}</span></div>`;
+      }).join('')}</div>`
+    : '';
+
   const warnings = guardian.warnings?.length ? `<p>${guardian.warnings.map(escapeHtml).join(' · ')}</p>` : '';
-  els.guardianResult.innerHTML = `<strong>${guardian.decision === 'pass' ? 'Guardian 통과' : guardian.decision === 'block' ? 'Guardian 차단' : '수정 필요'}</strong>${blockers}${warnings}`;
+  const heading = guardian.decision === 'pass' ? 'Guardian 통과' : guardian.decision === 'block' ? 'Guardian 차단' : '수정 필요';
+  els.guardianResult.innerHTML = `<strong>${heading}</strong>${nonOverridable}${revisions}${checks}${warnings}`;
 }
 
 function renderApproval(candidate) {
@@ -354,6 +403,10 @@ function renderWorkspace() {
   els.evidenceModel.value = candidate.model;
   els.evidenceVariant.value = candidate.variant;
   els.evidenceSource.value = candidate.sourceRef;
+  els.evidenceSourceOrigin.value = candidate.sourceOrigin ?? '';
+  els.evidenceCorroboration.value = candidate.corroborationRef ?? '';
+  els.evidenceCorroborationOrigin.value = candidate.corroborationOrigin ?? '';
+  els.evidenceSubstitute.checked = candidate.ownerDeclaredSubstitute === true;
   els.mediaRights.value = candidate.mediaRights;
   els.personalUse.value = candidate.personalUse;
   els.affiliate.checked = candidate.affiliate;
@@ -368,7 +421,7 @@ function renderWorkspace() {
 
   const duplicatePending = candidate.workflowState === 'duplicate_review';
   document.querySelector('#verify-evidence').disabled = duplicatePending;
-  document.querySelector('#create-strategies').disabled = duplicatePending || candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact';
+  document.querySelector('#create-strategies').disabled = duplicatePending || !['verified', 'limited'].includes(candidate.verifierDecision);
   document.querySelector('#create-drafts').disabled = duplicatePending || candidate.strategies?.angles?.length !== 4;
   document.querySelector('#save-draft').disabled = duplicatePending || !candidate.drafts?.length;
   document.querySelector('#run-guardian').disabled = duplicatePending || candidate.drafts?.length !== 4;
@@ -454,6 +507,7 @@ els.evidenceForm.addEventListener('submit', async (event) => {
   const formData = new FormData(els.evidenceForm);
   const payload = Object.fromEntries(formData.entries());
   payload.affiliate = els.affiliate.checked;
+  payload.ownerDeclaredSubstitute = els.evidenceSubstitute.checked;
   const result = await sendCommand('request_verification', { candidateId: candidate.id, expectedRevision: candidate.revision, payload });
   if (!result.ok) return;
 

@@ -19,7 +19,18 @@ async function withStores(fn, options = {}) {
     await Promise.all([storeA.initialize(), storeB.initialize()]);
     await fn({ dataDir, filePath, lockPath: `${filePath}.lock`, storeA, storeB });
   } finally {
-    await rm(dataDir, { recursive: true, force: true });
+    // Windows can still hold a handle on the lock file for a moment after release,
+    // which surfaces as ENOTEMPTY during teardown. Retry briefly rather than let a
+    // cleanup race look like a lock failure.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        await rm(dataDir, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        if (attempt === 4) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    }
   }
 }
 
@@ -160,6 +171,17 @@ test('HTTP command boundary returns 503 and an orchestration receipt when storag
     assert.equal(after.candidates.some((candidate) => candidate.name === 'API에서 저장되면 안 됨'), false);
   } finally {
     await new Promise((resolve) => server.close(resolve));
-    await rm(dataDir, { recursive: true, force: true });
+    // Windows can still hold a handle on the lock file for a moment after release,
+    // which surfaces as ENOTEMPTY during teardown. Retry briefly rather than let a
+    // cleanup race look like a lock failure.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        await rm(dataDir, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        if (attempt === 4) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    }
   }
 });

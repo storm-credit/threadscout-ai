@@ -64,6 +64,10 @@
           </label>
         </div>
         <div id="candidate-list" class="candidate-list" aria-live="polite"></div>
+        <section id="excluded-block" class="excluded-block" hidden>
+          <h3 class="section-heading">첫 화면에 올리지 않은 후보</h3>
+          <div id="excluded-list" class="candidate-list"></div>
+        </section>
       </section>
 
       <section id="capability-view" class="capability-view" hidden aria-live="polite"></section>
@@ -91,7 +95,11 @@
             <label>모델<input name="model" maxlength="120" /></label>
           </div>
           <label>옵션/변형<input name="variant" maxlength="160" /></label>
-          <label>사용자 제공 근거 참조<input name="sourceRef" maxlength="1200" placeholder="URL, 메모, 영수증/사진 식별자 등" /></label>
+          <label>주요 근거 참조<input name="sourceRef" maxlength="1200" placeholder="URL, 메모, 영수증/사진 식별자 등" /></label>
+          <label>주요 근거 출처 이름<input name="sourceOrigin" maxlength="120" placeholder="예: 제조사페이지" /></label>
+          <label>교차 확인 근거 참조<input name="corroborationRef" maxlength="1200" placeholder="다른 곳에서 확인한 근거" /></label>
+          <label>교차 확인 출처 이름<input name="corroborationOrigin" maxlength="120" placeholder="예: 판매페이지" /></label>
+          <p class="field-hint">같은 출처에서 나온 근거 두 개는 하나로 셉니다. 동일 제품으로 확정하려면 서로 다른 출처가 두 곳 필요합니다.</p>
           <label>왜 지금 볼 만한가<textarea name="whyNow" rows="3" maxlength="300" required></textarea></label>
           <label>독자에게 어떤 가치가 있는가<textarea name="readerValue" rows="3" maxlength="300" required></textarea></label>
           <div class="field-grid">
@@ -132,7 +140,11 @@
               <label>모델<input id="evidence-model" name="model" maxlength="120" /></label>
             </div>
             <label>옵션/변형<input id="evidence-variant" name="variant" maxlength="160" /></label>
-            <label>사용자 제공 근거 참조<input id="evidence-source" name="sourceRef" maxlength="1200" /></label>
+            <label>주요 근거 참조<input id="evidence-source" name="sourceRef" maxlength="1200" /></label>
+            <label>주요 근거 출처 이름<input id="evidence-source-origin" name="sourceOrigin" maxlength="120" placeholder="예: 제조사페이지" /></label>
+            <label>교차 확인 근거 참조<input id="evidence-corroboration" name="corroborationRef" maxlength="1200" /></label>
+            <label>교차 확인 출처 이름<input id="evidence-corroboration-origin" name="corroborationOrigin" maxlength="120" placeholder="예: 판매페이지" /></label>
+            <label class="checkbox-row"><input id="evidence-substitute" name="ownerDeclaredSubstitute" type="checkbox" /><span>이 제품은 대체품입니다</span></label>
             <div class="field-grid">
               <label>미디어 권리<select id="media-rights" name="mediaRights"><option value="not_required">미디어 사용 안 함</option><option value="owned">직접 소유/촬영</option><option value="licensed">사용 허가 확인</option><option value="unknown">미확인</option></select></label>
               <label>직접 사용<select id="personal-use" name="personalUse"><option value="not_confirmed">확인 안 됨</option><option value="confirmed">사용 기록 있음</option></select></label>
