@@ -91,6 +91,7 @@ export {
   evaluateEvidenceReadiness,
   evaluateFreshness,
   evaluateRisk,
+  scoreFromOwnerRatings,
   scoreOpportunity,
   selectInboxCandidates
 } from './ranking.mjs';

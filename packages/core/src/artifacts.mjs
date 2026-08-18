@@ -139,7 +139,9 @@ export function validateEvidencePacket(artifact) {
   }
 
   requireEnum(artifact.matchState, MATCH_STATES, 'matchState', errors);
-  if (requireArray(artifact.matchEvidence, 'matchEvidence', errors, { minItems: 1 })) {
+  // Deliberately allowed to be empty: a candidate with no identity evidence yet is
+  // `unresolved`, and requiring a row here would push the Verifier to manufacture one.
+  if (requireArray(artifact.matchEvidence, 'matchEvidence', errors)) {
     artifact.matchEvidence.forEach((item, index) => {
       requireString(item?.dimension, `matchEvidence[${index}].dimension`, errors);
       requireEnum(item?.status, ['match', 'conflict', 'unknown'], `matchEvidence[${index}].status`, errors);

@@ -88,6 +88,31 @@ export function scoreOpportunity({ signals = {}, deductions = {} } = {}) {
 }
 
 /**
+ * Score an owner-supplied candidate from five quick 0-10 ratings.
+ *
+ * With Scout skipped, nobody has measured attention or saturation, so inventing
+ * those numbers would be fabricating a signal. Instead the owner rates what they
+ * can actually judge, the spec's bucket weights are applied, and the unmeasured
+ * buckets stay at zero — which is why an owner-entered candidate tops out below a
+ * fully discovered one, correctly.
+ */
+export function scoreFromOwnerRatings(ratings = {}, { hasDestination = false } = {}) {
+  const rate = (value) => clamp(value, 0, 10) / 10;
+  return scoreOpportunity({
+    signals: {
+      readerValue: rate(ratings.readerValue) * SCORE_CAPS.readerValue,
+      demonstrability: rate(ratings.demonstrability) * SCORE_CAPS.demonstrability,
+      purchaseIntent: rate(ratings.purchaseIntent) * SCORE_CAPS.purchaseIntent,
+      audienceFit: rate(ratings.audienceFit) * SCORE_CAPS.audienceFit,
+      novelty: rate(ratings.novelty) * SCORE_CAPS.novelty,
+      // Not rated by the owner: attention acceleration needs discovery data.
+      attentionAcceleration: 0,
+      commercialPracticality: hasDestination ? SCORE_CAPS.commercialPracticality : 0
+    }
+  });
+}
+
+/**
  * Evidence readiness, derived from the evidence packet only.
  * Never from the score, and never from how many agents agreed (AT-41).
  */

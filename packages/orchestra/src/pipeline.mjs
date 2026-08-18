@@ -39,13 +39,6 @@ export class PipelineError extends Error {
   }
 }
 
-const STAGE_FOR_ACTION = Object.freeze({
-  verify: RUN_STAGES.VERIFICATION,
-  strategize: RUN_STAGES.STRATEGY,
-  draft: RUN_STAGES.DRAFTING,
-  review: RUN_STAGES.GUARDIAN_REVIEW
-});
-
 /** Retry budgets from AGENT_CONTRACTS.md "Retry budgets". */
 export const RETRY_BUDGETS = Object.freeze({
   verifierReEvaluation: 1,
@@ -137,7 +130,7 @@ function acceptHandoff(record, agentId, result, deps) {
   );
 
   if (!gateResult.ok) {
-    throw new PipelineError('Handoff rejected at the ' + gateResult.gate + ' gate.', {
+    throw new PipelineError('핸드오프가 ' + gateResult.gate + ' 게이트에서 거절되었습니다.', {
       code: 'handoff_rejected',
       gate: gateResult.gate,
       details: gateResult.errors
@@ -152,7 +145,7 @@ function acceptHandoff(record, agentId, result, deps) {
 
 function assertBudget(record) {
   if (record.specialistCalls >= RETRY_BUDGETS.totalSpecialistCalls) {
-    throw new PipelineError('Specialist invocation budget exhausted for this run.', {
+    throw new PipelineError('이 실행의 에이전트 호출 예산을 모두 사용했습니다.', {
       code: 'budget_exhausted'
     });
   }
@@ -254,11 +247,11 @@ export function strategize(recordInput, deps) {
 
   const evidencePacket = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];
   if (!evidencePacket) {
-    throw new PipelineError('Verification must complete before strategy.', { code: 'stage_out_of_order' });
+    throw new PipelineError('전략을 만들기 전에 근거 확인이 끝나야 합니다.', { code: 'stage_out_of_order' });
   }
   if (['hold', 'reject'].includes(evidencePacket.verifierDecision)) {
     // AT-25: a high score never unlocks this.
-    throw new PipelineError('Strategy is disabled while the evidence packet is ' + evidencePacket.verifierDecision + '.', {
+    throw new PipelineError('검증 결과가 ' + evidencePacket.verifierDecision + ' 상태라 전략 생성이 잠겨 있습니다.', {
       code: 'evidence_not_ready',
       details: evidencePacket.unresolvedQuestions ?? []
     });
@@ -288,12 +281,12 @@ export function draft(recordInput, deps) {
 
   const evidencePacket = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];
   const contentBrief = record.artifacts[ARTIFACT_TYPES.CONTENT_BRIEF];
-  if (!contentBrief) throw new PipelineError('Four angles must exist before drafting.', { code: 'stage_out_of_order' });
+  if (!contentBrief) throw new PipelineError('초안을 쓰기 전에 관점 네 개가 있어야 합니다.', { code: 'stage_out_of_order' });
 
   if (record.stage === RUN_STAGES.GUARDIAN_REVIEW) {
     if (record.revisionCounts.writerRevision >= RETRY_BUDGETS.writerRevision) {
       record.status = RUN_STATUSES.PARTIAL;
-      throw new PipelineError('Writer revision budget exhausted; owner decision required.', {
+      throw new PipelineError('수정 횟수 한도에 도달했습니다. 직접 판단이 필요합니다.', {
         code: 'revision_budget_exhausted'
       });
     }
@@ -339,10 +332,10 @@ export function effectiveDraftBundle(record) {
 export function editDraft(recordInput, { draftId, patch }, deps) {
   const record = cloneRecord(recordInput);
   const bundle = record.artifacts[ARTIFACT_TYPES.DRAFT_BUNDLE];
-  if (!bundle) throw new PipelineError('There is no draft to edit.', { code: 'stage_out_of_order' });
+  if (!bundle) throw new PipelineError('수정할 초안이 없습니다.', { code: 'stage_out_of_order' });
 
   const target = bundle.drafts.find((item) => item.draftId === draftId);
-  if (!target) throw new PipelineError('Unknown draft: ' + draftId, { code: 'unknown_draft' });
+  if (!target) throw new PipelineError('존재하지 않는 초안입니다: ' + draftId, { code: 'unknown_draft' });
 
   const allowed = ['hook', 'body', 'caution', 'cta', 'disclosure'];
   const clean = {};
@@ -350,7 +343,7 @@ export function editDraft(recordInput, { draftId, patch }, deps) {
     if (typeof patch?.[key] === 'string') clean[key] = patch[key];
   }
   if (Object.keys(clean).length === 0) {
-    throw new PipelineError('No editable field was supplied.', { code: 'empty_edit' });
+    throw new PipelineError('수정할 내용이 없습니다.', { code: 'empty_edit' });
   }
 
   record.draftEdits[draftId] = { ...(record.draftEdits[draftId] ?? {}), ...clean };
@@ -375,7 +368,7 @@ export function review(recordInput, deps) {
   const evidencePacket = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];
   const contentBrief = record.artifacts[ARTIFACT_TYPES.CONTENT_BRIEF];
   const draftBundle = effectiveDraftBundle(record);
-  if (!draftBundle) throw new PipelineError('Four drafts must exist before review.', { code: 'stage_out_of_order' });
+  if (!draftBundle) throw new PipelineError('검수 전에 초안 네 개가 있어야 합니다.', { code: 'stage_out_of_order' });
 
   record.stage = RUN_STAGES.GUARDIAN_REVIEW;
 
@@ -424,7 +417,7 @@ export function selectDraft(recordInput, draftId, deps) {
   const record = cloneRecord(recordInput);
   const bundle = effectiveDraftBundle(record);
   if (!bundle?.drafts.some((item) => item.draftId === draftId)) {
-    throw new PipelineError('Unknown draft: ' + draftId, { code: 'unknown_draft' });
+    throw new PipelineError('존재하지 않는 초안입니다: ' + draftId, { code: 'unknown_draft' });
   }
   record.selectedDraftId = draftId;
   record.updatedAt = deps.clock();
@@ -446,10 +439,10 @@ export function decide(recordInput, { decision, actor, claimedBinding, note = nu
 
   if (decision === 'approve' || decision === 'edit_and_approve') {
     if (record.stage !== RUN_STAGES.HUMAN_REVIEW) {
-      throw new PipelineError('Approval is only available after a Guardian pass.', { code: 'not_at_human_review' });
+      throw new PipelineError('Guardian 검수를 통과한 뒤에만 승인할 수 있습니다.', { code: 'not_at_human_review' });
     }
     if (reviewReport?.decision !== 'pass') {
-      throw new PipelineError('Human approval cannot override a Guardian ' + (reviewReport?.decision ?? 'missing') + ' decision.', {
+      throw new PipelineError('Guardian 결정(' + (reviewReport?.decision ?? '없음') + ')은 사람 승인으로 뒤집을 수 없습니다.', {
         code: 'guardian_not_passed',
         details: reviewReport?.nonOverridableBlockers ?? []
       });
@@ -458,7 +451,7 @@ export function decide(recordInput, { decision, actor, claimedBinding, note = nu
     const binding = currentBinding(record);
     const check = verifyClaimedBinding(claimedBinding, binding);
     if (!check.ok) {
-      throw new PipelineError('The decision refers to a revision that is no longer current.', {
+      throw new PipelineError('승인하려는 내용이 최신본이 아닙니다. 바뀐 항목을 확인한 뒤 다시 결정해 주세요.', {
         code: check.reason,
         details: check.changed.map((item) => item.label)
       });
@@ -483,7 +476,7 @@ export function decide(recordInput, { decision, actor, claimedBinding, note = nu
     record.status = RUN_STATUSES.REJECTED;
     record.stage = RUN_STAGES.COMPLETED;
   } else {
-    throw new PipelineError('Unsupported decision: ' + decision, { code: 'unsupported_decision' });
+    throw new PipelineError('지원하지 않는 결정입니다: ' + decision, { code: 'unsupported_decision' });
   }
 
   record.events.push(event('human_decision', { decision, actor, draftId: record.selectedDraftId }, deps.clock));
