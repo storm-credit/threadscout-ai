@@ -28,6 +28,7 @@ import { runStrategist } from './agents/strategist.mjs';
 import { runWriter } from './agents/writer.mjs';
 import { runGuardian } from './agents/guardian.mjs';
 import { scoutSkipRecord } from './agents/scout.mjs';
+import { BudgetExhaustedError, createAgentRuntime } from './agent-runtime.mjs';
 
 export class PipelineError extends Error {
   constructor(message, { code, gate = null, details = [] } = {}) {
@@ -143,12 +144,37 @@ function acceptHandoff(record, agentId, result, deps) {
   return handoff;
 }
 
-function assertBudget(record) {
-  if (record.specialistCalls >= RETRY_BUDGETS.totalSpecialistCalls) {
-    throw new PipelineError('이 실행의 에이전트 호출 예산을 모두 사용했습니다.', {
-      code: 'budget_exhausted'
-    });
+/**
+ * Invoke a specialist through the runtime so the call is budgeted and produces a
+ * receipt, then gate the handoff. Budget exhaustion surfaces as a stop, never as a
+ * silently widened limit (AT-21).
+ */
+function invokeSpecialist(record, agentId, agentFunction, request, deps) {
+  // Attempts are counted within the current budget epoch. AGENT_CONTRACTS allows the
+  // Verifier one re-evaluation *after new evidence*, so supplying new evidence opens
+  // a new epoch rather than leaving the owner stuck behind a spent retry counter.
+  // Receipts from earlier epochs are kept: the audit trail is never trimmed to make
+  // a budget fit.
+  const epoch = record.budgetEpoch ?? 1;
+  const runtime = createAgentRuntime({
+    clock: deps.clock,
+    epoch,
+    receipts: (record.receipts ?? []).filter((receipt) => receipt.epoch === epoch)
+  });
+  let result;
+  try {
+    result = runtime.invoke(agentId, agentFunction, request);
+  } catch (error) {
+    record.receipts = runtime.getReceipts();
+    if (error instanceof BudgetExhaustedError) {
+      record.status = RUN_STATUSES.PARTIAL;
+      throw new PipelineError(error.message, { code: 'budget_exhausted', details: [agentId] });
+    }
+    throw error;
   }
+  record.receipts = runtime.getReceipts();
+  acceptHandoff(record, agentId, result, deps);
+  return result;
 }
 
 /** Create the candidate record for an owner-supplied product (USER_FLOWS.md Flow B). */
@@ -175,6 +201,8 @@ export function createCandidateRecord(input, deps) {
     status: RUN_STATUSES.NEEDS_EVIDENCE,
     version: 1,
     specialistCalls: 0,
+    budgetEpoch: 1,
+    receipts: [],
     revisionCounts: { writerRevision: 0, verifierReEvaluation: 0 },
 
     evidenceInput: input.evidence,
@@ -198,7 +226,6 @@ export function createCandidateRecord(input, deps) {
 
 export function verify(recordInput, deps) {
   const record = cloneRecord(recordInput);
-  assertBudget(record);
 
   if (record.stage !== RUN_STAGES.VERIFICATION) {
     // Re-verification is always allowed; it invalidates everything downstream.
@@ -206,21 +233,17 @@ export function verify(recordInput, deps) {
     record.revisionCounts.verifierReEvaluation += 1;
   }
 
-  const result = runVerifier(
-    {
-      runId: record.runId,
-      candidate: record,
-      evidence: record.evidenceInput,
-      inputArtifactRefs: []
-    },
-    deps
-  );
-
   const previousHash = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET]
     ? hashArtifact(record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET])
     : null;
 
-  acceptHandoff(record, AGENT_IDS.VERIFIER, result, deps);
+  const result = invokeSpecialist(
+    record,
+    AGENT_IDS.VERIFIER,
+    (request) => runVerifier(request, deps),
+    { runId: record.runId, candidate: record, evidence: record.evidenceInput, inputArtifactRefs: [] },
+    deps
+  );
 
   const newHash = hashArtifact(result.artifact);
   if (previousHash && previousHash !== newHash) {
@@ -243,7 +266,6 @@ export function verify(recordInput, deps) {
 
 export function strategize(recordInput, deps) {
   const record = cloneRecord(recordInput);
-  assertBudget(record);
 
   const evidencePacket = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];
   if (!evidencePacket) {
@@ -260,15 +282,19 @@ export function strategize(recordInput, deps) {
   assertTransition(RUN_STAGES.VERIFICATION, RUN_STAGES.STRATEGY);
   record.stage = RUN_STAGES.STRATEGY;
 
-  let result;
   try {
-    result = runStrategist({ runId: record.runId, candidate: record, evidencePacket }, deps);
+    invokeSpecialist(
+      record,
+      AGENT_IDS.STRATEGIST,
+      (request) => runStrategist(request, deps),
+      { runId: record.runId, candidate: record, evidencePacket },
+      deps
+    );
   } catch (error) {
+    if (error instanceof PipelineError) throw error;
     record.stage = RUN_STAGES.VERIFICATION;
     throw new PipelineError(error.message, { code: 'strategy_failed', details: error.detail ?? [] });
   }
-
-  acceptHandoff(record, AGENT_IDS.STRATEGIST, result, deps);
   record.status = RUN_STATUSES.RUNNING;
   record.updatedAt = deps.clock();
   record.version += 1;
@@ -277,7 +303,6 @@ export function strategize(recordInput, deps) {
 
 export function draft(recordInput, deps) {
   const record = cloneRecord(recordInput);
-  assertBudget(record);
 
   const evidencePacket = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];
   const contentBrief = record.artifacts[ARTIFACT_TYPES.CONTENT_BRIEF];
@@ -295,8 +320,13 @@ export function draft(recordInput, deps) {
 
   record.stage = RUN_STAGES.DRAFTING;
 
-  const result = runWriter({ runId: record.runId, candidate: record, evidencePacket, contentBrief }, deps);
-  acceptHandoff(record, AGENT_IDS.WRITER, result, deps);
+  const result = invokeSpecialist(
+    record,
+    AGENT_IDS.WRITER,
+    (request) => runWriter(request, deps),
+    { runId: record.runId, candidate: record, evidencePacket, contentBrief },
+    deps
+  );
 
   // A fresh bundle replaces earlier owner edits and any prior review.
   record.draftEdits = {};
@@ -363,7 +393,6 @@ export function editDraft(recordInput, { draftId, patch }, deps) {
 
 export function review(recordInput, deps) {
   const record = cloneRecord(recordInput);
-  assertBudget(record);
 
   const evidencePacket = record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];
   const contentBrief = record.artifacts[ARTIFACT_TYPES.CONTENT_BRIEF];
@@ -372,13 +401,14 @@ export function review(recordInput, deps) {
 
   record.stage = RUN_STAGES.GUARDIAN_REVIEW;
 
-  const result = runGuardian(
+  // Guardian binds the text it reviewed, edits included, so a later edit is detectable.
+  const result = invokeSpecialist(
+    record,
+    AGENT_IDS.GUARDIAN,
+    (request) => runGuardian(request, deps),
     { runId: record.runId, candidate: record, evidencePacket, contentBrief, draftBundle },
     deps
   );
-
-  // Guardian binds the text it reviewed, edits included, so a later edit is detectable.
-  acceptHandoff(record, AGENT_IDS.GUARDIAN, result, deps);
 
   const decision = result.artifact.decision;
   if (decision === 'pass') {
@@ -489,6 +519,7 @@ export function decide(recordInput, { decision, actor, claimedBinding, note = nu
 export function updateEvidence(recordInput, evidenceInput, deps) {
   const record = cloneRecord(recordInput);
   record.evidenceInput = evidenceInput;
+  record.budgetEpoch = (record.budgetEpoch ?? 1) + 1;
   record.events.push(event('evidence_updated', { sources: (evidenceInput.sources ?? []).length }, deps.clock));
   invalidateDownstream(record, ARTIFACT_TYPES.CANDIDATE_SET, deps.clock, 'evidence_input_changed');
   delete record.artifacts[ARTIFACT_TYPES.EVIDENCE_PACKET];

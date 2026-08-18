@@ -7,13 +7,10 @@
     "check:docs": "node scripts/check-docs.mjs",
     "test": "node --test tests/*.test.mjs",
     "start": "node apps/web/server.mjs",
-    "orchestra:demo": "node scripts/demo-orchestra.mjs",
-    "orchestra:simulate": "node scripts/simulate-sinbak-orchestra.mjs",
-    "orchestra:replay": "node scripts/run-replay-runtime.mjs",
-    "orchestra:store": "node scripts/run-versioned-store.mjs",
+    "slice1:pipeline": "node scripts/run-slice1-pipeline.mjs",
     "research:fixture": "node scripts/run-fixture-research.mjs",
     "research:readiness": "node scripts/report-live-source-readiness.mjs",
-    "verify": "npm run check:docs && npm test && npm run orchestra:simulate && npm run orchestra:replay && npm run orchestra:store && npm run research:fixture && npm run research:readiness"
+    "verify": "node scripts/check-docs.mjs && node --test tests/*.test.mjs && node scripts/run-slice1-pipeline.mjs && node scripts/run-fixture-research.mjs && node scripts/report-live-source-readiness.mjs"
   },
   "engines": {
     "node": ">=20"

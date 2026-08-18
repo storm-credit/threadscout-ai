@@ -16,5 +16,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm run verify
-      - run: npm run orchestra:demo
+      - name: Design authority documents present
+        run: npm run check:docs
+      - name: Unit and acceptance tests
+        run: npm test
+      - name: Deterministic slice pipeline
+        run: npm run slice1:pipeline
+      - name: Fixture research stays offline
+        run: npm run research:fixture
+      - name: Live sources remain disabled
+        run: npm run research:readiness

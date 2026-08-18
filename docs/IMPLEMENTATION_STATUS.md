@@ -1,91 +1,65 @@
 # Implementation Status
 
-## Existing prototype completed before Master Design v1
-
-- Phase 0: definition, interviews, success conditions, blind spots, traps, four designs, references
-- Phase 1: mobile local approval workspace
-- Phase 2A: fixed six-agent orchestra and bounded state machine
-- Phase 2B: practical novel-item niche, prompts/schemas, synthetic full simulation
-- Phase 2C: provider-neutral replay runtime, budgets, receipts, tool broker
-- Phase 2D: versioned content-addressed evidence/artifact store and hash-chained run events
-- Phase 2E: read-only fixture research, validated source records, candidate evidence, invalidation index
-- Phase 2F: official-source readiness registry and disabled Threads/NAVER request contracts
-
-These runtime assets predate the approved Master Design v1 and are **prototype/validation assets**, not the product authority.
-
-## Master Design v1 — COMPLETE
-
-The canonical design lives in `docs/spec/` and is approved as the authority for future implementation.
-
-It now defines:
-
-- Master Product & System Specification
-- product requirements, MVP boundary, and complete user flows
-- mobile-first responsive web delivery decision
-- desktop support, PWA boundary, and native-app revisit gate
-- detailed mobile screens, four wireframes, and CTA/state rules
-- fixed six-agent contracts and explicit handoffs
-- Orchestrator state machine, routing, budgets, prompt/version governance
-- conceptual data model and artifact lineage
-- source strategy, source independence, and live-source activation rules
-- opportunity ranking separate from evidence readiness/risk/freshness/suppression
-- worked 20→5 candidate selection
-- evidence thresholds matched to claim strength
-- image/video discovery, rights, fallback, transformation, and publication scenarios
-- celebrity/broadcast/public-event discovery boundary and source/relation grading
-- exact/likely/substitute/unresolved product matching
-- four-angle content strategy and output contract
-- review binding to exact revisions and cross-device stale-state rejection
-- Coupang Partners as first commercial target with activation-time rule verification
-- daily operating model and suppression controls
-- publishing/preflight/reconciliation/kill-switch design
-- analytics/learning guardrails
-- security/privacy/retention rules
-- final blind-spot sweep and B0 traceability
-- edge cases and end-to-end scenarios
-- finalized P0 dispositions and promoted P1 defaults
-- consolidated requirements traceability
-- consolidated behavioral acceptance tests through AT-44
-- final contradiction review and design finalization record
-
-## No runtime code changes in the final design cycle
-
-The Master Design completion work changes documentation only. It does not change:
-
-- `apps/`
-- `packages/`
-- `scripts/`
-- `tests/`
-- workflow logic
-- runtime dependencies
-- live source enablement
-- credentials
-
 ## Current mode
 
-**DESIGN COMPLETE / IMPLEMENTATION NOT STARTED FROM THIS BASELINE.**
+**Slice 1 implemented. Live capabilities remain disabled.**
 
-Code remains frozen until the owner explicitly requests an implementation slice. The next implementation task must gap-review the old prototype against the approved design instead of assuming prototype behavior is correct.
+The design-only freeze ended through the gate in `docs/spec/DESIGN_FREEZE.md`. The owner selected one bounded slice, `S1 — Manual Candidate Approval Pipeline`, whose entry contract is `docs/SLICE1_PLAN.md`.
+
+Everything outside that slice is still unimplemented, and nothing here claims production or live readiness.
+
+## What Slice 1 implements
+
+Owner enters a product directly → Evidence Verifier → Opportunity Inbox → Content Strategist four angles → Threads Writer four drafts → Integrity Guardian → human approve / hold / reject.
+
+- `packages/core` — domain core: run stages and statuses, artifact contracts, the handoff envelope and its four gates, policy detectors, ranking with independent readiness/risk/freshness, approval binding with a visible stale state, and CTA derivation. No I/O, injected clock and ids.
+- `packages/orchestra` — the six agents, the orchestrator pipeline, the budgeted agent runtime that emits a receipt per invocation, and the synthetic scenario families.
+- `packages/database` — storage ports with an in-memory adapter and a JSONL adapter, both enforcing compare-and-set and the same hash chain.
+- `apps/web` — the application API and the mobile-first Opportunity Inbox.
+
+## What the prototype became
+
+| Prototype asset | Disposition |
+|---|---|
+| `orchestrator.mjs`, `simulation.mjs`, `executor.mjs`, `replay-fixtures.mjs`, `contracts.mjs`, `model-runtime.mjs` | **removed** — superseded by `pipeline.mjs`, `agent-runtime.mjs`, and `packages/core`. Keeping them would have left two orchestrators with two different artifact contracts. |
+| `packages/core` localStorage demo, `apps/web` landing page | **removed** — browser-owned state contradicts D-02 and AT-35 |
+| `agent-registry.mjs`, `versioning.mjs`, `evidence-store.mjs`, `prompts.mjs`, `niche-profile.mjs` | **kept**, with hashing moved into the domain core so there is one definition of artifact identity |
+| `schemas.mjs` | **modified** — now declares the approved output contracts; validation lives once, in `packages/core/src/artifacts.mjs` |
+| research, source-readiness, tool-broker, disabled-adapter modules | **kept unchanged** — they are the live-source boundary and are still correct |
+
+## Verification
+
+`npm run verify` runs the design-document check, the full test suite, the deterministic slice pipeline, the offline fixture research, and the live-source readiness report.
+
+Acceptance IDs covered by implementation tests: AT-01, AT-03, AT-04, AT-06, AT-07, AT-08, AT-09, AT-10, AT-13, AT-16, AT-17, AT-18, AT-19, AT-20, AT-21, AT-22, AT-23, AT-25, AT-28, AT-29, AT-33, AT-34, AT-35, AT-36, AT-38, AT-40, AT-41.
+
+Where a gate exists, a test proves it refuses, not only that the happy path passes.
+
+Manual verification performed in a real browser at 360×760: the full owner flow runs; every button, form, and CTA works; `localStorage` and `sessionStorage` stay empty; state survives a reload and a process restart.
 
 ## Live capability state
 
-The following are intentionally designed but disabled until activation preflight:
+Designed and intentionally disabled until activation preflight:
 
-- Threads keyword discovery for the target app/account
-- Threads insights
-- Threads publishing
+- Threads keyword discovery, insights, and publishing
 - live Coupang Partners commercial posting
-- automated listing discovery beyond user-supplied destinations
-- third-party media download/transform/republish without action-specific rights evidence
+- automated listing discovery beyond owner-supplied destinations
+- third-party media download / transform / republish
+
+A destination URL supplied by the owner is stored as string evidence and is never fetched.
+
+## Not implemented
+
+Scout discovery, media upload and pipeline, affiliate mapping, scheduling, preflight, publishing, reconciliation, analytics, learning, and suppression controls.
+
+`scheduled_local` exists in the state machine and is deliberately unreachable: a half-built path into scheduling would be worse than none.
 
 ## GitHub Actions interpretation
 
-The current Actions workflow still runs the existing prototype verification suite and orchestra demo. A green check means the pre-baseline prototype validation assets were not broken by documentation changes.
+A green check now means the design-authority documents are present, the acceptance-mapped tests pass, the deterministic pipeline reaches the designed decision for every fixture family, and no live source was activated.
 
-It does **not** prove that Master Design v1 is implemented or that live capabilities are configured.
-
-Future design-CI semantics are specified in `docs/spec/DESIGN_CI_SPEC.md` for a later implementation task.
+It does not prove live readiness, and it cannot: the activation gates are runtime facts, not test facts.
 
 ## Next implementation entry
 
-See `docs/spec/MASTER_SPEC.md`, `docs/spec/DESIGN_FREEZE.md`, `docs/spec/TRACEABILITY_MATRIX.md`, `docs/spec/ACCEPTANCE_TESTS.md`, and `docs/PRE_IMPLEMENTATION_TRAPS.md`.
+The next slice must repeat the entry contract in `docs/spec/DESIGN_BASELINE_MANIFEST.md`, refresh the prototype gap classification, and check `docs/PRE_IMPLEMENTATION_TRAPS.md` before coding.

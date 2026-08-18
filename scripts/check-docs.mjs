@@ -28,7 +28,29 @@ const requiredFiles = [
   'docs/LIVE_SOURCE_REVIEW.md',
   'docs/REFERENCE_PROJECTS.md',
   'docs/DECISION_LOG.md',
-  'docs/IMPLEMENTATION_STATUS.md'
+  'docs/IMPLEMENTATION_STATUS.md',
+  'docs/SLICE1_PLAN.md',
+
+  // Design authority. A missing file here means the implementation has lost the
+  // thing it is supposed to be traceable to.
+  'docs/spec/README.md',
+  'docs/spec/MASTER_SPEC.md',
+  'docs/spec/DESIGN_BASELINE_MANIFEST.md',
+  'docs/spec/DESIGN_FREEZE.md',
+  'docs/spec/TRACEABILITY_MATRIX.md',
+  'docs/spec/B0_TRACEABILITY_MATRIX.md',
+  'docs/spec/ACCEPTANCE_TESTS.md',
+  'docs/spec/FINAL_BLIND_SPOT_SWEEP.md',
+  'docs/spec/AGENT_CONTRACTS.md',
+  'docs/spec/AGENT_HANDOFFS.md',
+  'docs/spec/HANDOFF_VALIDATION_RULES.md',
+  'docs/spec/ORCHESTRATOR_STATE_MACHINE.md',
+  'docs/spec/UI_SCREEN_SPEC.md',
+  'docs/spec/UI_STATE_ACTION_MATRIX.md',
+  'docs/spec/REVIEW_BINDING_SPEC.md',
+  'docs/spec/RANKING_SCORING_SPEC.md',
+  'docs/spec/PRODUCT_MATCHING.md',
+  'docs/spec/P0_P1_DECISION_TABLE.md'
 ];
 
 const missing = [];

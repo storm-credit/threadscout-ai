@@ -35,16 +35,26 @@ function readBody(request) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    let tooLarge = false;
+
     request.on('data', (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        reject(Object.assign(new Error('Payload too large'), { statusCode: 413 }));
-        request.destroy();
+        // Keep draining and discard. Destroying the socket here would close the
+        // connection before the 413 could be written, so the client would see a
+        // transport error instead of an answer it can act on.
+        tooLarge = true;
+        chunks.length = 0;
         return;
       }
       chunks.push(chunk);
     });
+
     request.on('end', () => {
+      if (tooLarge) {
+        reject(Object.assign(new Error('Payload too large'), { statusCode: 413 }));
+        return;
+      }
       if (chunks.length === 0) return resolve(null);
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
@@ -52,6 +62,7 @@ function readBody(request) {
         reject(Object.assign(new Error('Invalid JSON body'), { statusCode: 400 }));
       }
     });
+
     request.on('error', reject);
   });
 }
