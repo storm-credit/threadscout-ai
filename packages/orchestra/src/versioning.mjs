@@ -1,35 +1,11 @@
-import { createHash } from 'node:crypto';
 import { AGENT_REGISTRY } from './agent-registry.mjs';
 import { AGENT_SYSTEM_PROMPTS } from './prompts.mjs';
 import { AGENT_OUTPUT_SCHEMAS } from './schemas.mjs';
 
-function normalize(value) {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('Cannot hash a non-finite number.');
-    return value;
-  }
-  if (Array.isArray(value)) return value.map(normalize);
-  if (value instanceof Date) return value.toISOString();
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .filter((key) => value[key] !== undefined)
-        .map((key) => [key, normalize(value[key])])
-    );
-  }
-  throw new Error(`Unsupported hash value type: ${typeof value}`);
-}
-
-export function canonicalStringify(value) {
-  return JSON.stringify(normalize(value));
-}
-
-export function sha256(value) {
-  const input = typeof value === 'string' ? value : canonicalStringify(value);
-  return createHash('sha256').update(input, 'utf8').digest('hex');
-}
+// Hashing primitives live in the domain core so the domain and the runtime cannot
+// drift into two different definitions of artifact identity.
+export { canonicalStringify, sha256 } from '../../core/src/hash.mjs';
+import { canonicalStringify, sha256 } from '../../core/src/hash.mjs';
 
 export function buildVersionManifest({
   registry = AGENT_REGISTRY,
