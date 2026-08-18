@@ -3,6 +3,21 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AGENT_IDS, AGENT_REGISTRY, validateAgentRegistry } from '../../packages/orchestra/src/agent-registry.mjs';
 import { buildVersionManifest, canonicalStringify, sha256 } from '../../packages/orchestra/src/versioning.mjs';
+import {
+  MATCH_STATE_LABELS_KO,
+  VERIFIER_DECISION_LABELS_KO,
+  decideMatchState,
+  decideVerifierDecision,
+  wordingRuleFor
+} from '../../packages/core/src/product-matching.mjs';
+import { GUARDIAN_CHECK_KEYS, runGuardianChecks } from '../../packages/core/src/guardian-checks.mjs';
+import {
+  evaluateEvidenceReadiness,
+  evaluateFreshness,
+  evaluateRisk,
+  scoreOwnerSuppliedCandidate,
+  selectFirstScreen
+} from '../../packages/core/src/candidate-ranking.mjs';
 
 export const APPLICATION_STATE_VERSION = 1;
 export const EXTERNAL_PUBLISHING_ENABLED = false;
@@ -63,13 +78,32 @@ function safePersonalUse(value) {
   return normalized;
 }
 
-function scoreManualCandidate({ whyNow, readerValue, model, sourceRef }) {
-  let score = 48;
-  if (whyNow.length >= 12) score += 12;
-  if (readerValue.length >= 12) score += 15;
-  if (model) score += 8;
-  if (sourceRef) score += 7;
-  return Math.min(90, score);
+/**
+ * Collect the owner's references as sources with declared origins.
+ *
+ * Independence is what makes corroboration mean anything (AT-40, BS-15), and the
+ * only way to know two references are independent is for the owner to say where each
+ * came from. Two references from the same origin remain one piece of evidence.
+ */
+function collectSources(candidate) {
+  const sources = [];
+  if (candidate.sourceRef) {
+    sources.push({
+      id: 'owner-source-' + sha256(candidate.sourceRef).slice(0, 12),
+      originId: candidate.sourceOrigin || 'owner_primary',
+      type: candidate.synthetic ? 'fixture_owner_source' : 'owner_supplied_reference',
+      ref: candidate.sourceRef
+    });
+  }
+  if (candidate.corroborationRef) {
+    sources.push({
+      id: 'owner-corroboration-' + sha256(candidate.corroborationRef).slice(0, 12),
+      originId: candidate.corroborationOrigin || 'owner_secondary',
+      type: candidate.synthetic ? 'fixture_owner_source' : 'owner_supplied_reference',
+      ref: candidate.corroborationRef
+    });
+  }
+  return sources;
 }
 
 function configRevision() {
@@ -121,6 +155,10 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
   const model = cleanString(payload.model, { max: 120 });
   const variant = cleanString(payload.variant, { max: 160 });
   const sourceRef = cleanString(payload.sourceRef, { max: 1200 });
+  const sourceOrigin = cleanString(payload.sourceOrigin, { max: 120 });
+  const corroborationRef = cleanString(payload.corroborationRef, { max: 1200 });
+  const corroborationOrigin = cleanString(payload.corroborationOrigin, { max: 120 });
+  const ownerDeclaredSubstitute = Boolean(payload.ownerDeclaredSubstitute);
   const whyNow = cleanString(payload.whyNow, { required: true, max: 300, label: 'whyNow' });
   const readerValue = cleanString(payload.readerValue, { required: true, max: 300, label: 'readerValue' });
   const mediaRights = safeMediaRights(payload.mediaRights);
@@ -138,6 +176,10 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     model,
     variant,
     sourceRef,
+    sourceOrigin,
+    corroborationRef,
+    corroborationOrigin,
+    ownerDeclaredSubstitute,
     whyNow,
     readerValue,
     lane: cleanString(payload.lane || 'practical-novel', { max: 80 }),
@@ -147,10 +189,18 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     disclosure,
     opportunityScore: Number.isFinite(payload.opportunityScore)
       ? Math.max(0, Math.min(100, Number(payload.opportunityScore)))
-      : scoreManualCandidate({ whyNow, readerValue, model, sourceRef }),
+      : scoreOwnerSuppliedCandidate({
+          whyNow,
+          readerValue,
+          identityComplete: Boolean(brand && model && variant),
+          hasSourceRef: Boolean(sourceRef),
+          laneIsCuriosityOnly: (payload.lane ?? '') === 'curiosity-only'
+        }).score,
     evidenceReadiness: 'weak',
     riskLevel: 'review',
     exactMatchStatus: 'unresolved',
+    verifierDecision: null,
+    freshnessState: 'stale',
     workflowState: 'verification_needed',
     blockers: ['사용자 제공 제품 근거를 확인해야 합니다.'],
     evidencePacket: null,
@@ -177,6 +227,12 @@ function seedReadyCandidate(clock) {
     model: 'SG-01',
     variant: '투명 45cm',
     sourceRef: 'fixture:owner-listing-SG-01',
+    sourceOrigin: 'fixture_manufacturer_page',
+    // A second, independently-originated reference: an exact identity needs
+    // corroboration, so the demo fixture has to actually have it rather than appear
+    // exact on one source (PRODUCT_MATCHING section 4).
+    corroborationRef: 'fixture:owner-spec-sheet-SG-01',
+    corroborationOrigin: 'fixture_marketplace_listing',
     whyNow: '설거지 물튐 문제를 짧은 전후 장면으로 보여주기 쉬운 예시 후보',
     readerValue: '물튐이 잦은 집에서 설치 조건을 빠르게 비교할 수 있음',
     mediaRights: 'not_required',
@@ -232,36 +288,89 @@ function assertExpectedRevision(candidate, expectedRevision) {
 }
 
 function applyEvidenceFields(candidate, payload) {
-  for (const key of ['brand', 'model', 'variant', 'sourceRef']) {
-    if (key in payload) candidate[key] = cleanString(payload[key], { max: key === 'sourceRef' ? 1200 : 160 });
+  for (const key of ['brand', 'model', 'variant', 'sourceRef', 'sourceOrigin', 'corroborationRef', 'corroborationOrigin']) {
+    if (key in payload) {
+      const max = key.endsWith('Ref') ? 1200 : 160;
+      candidate[key] = cleanString(payload[key], { max });
+    }
   }
+  if ('ownerDeclaredSubstitute' in payload) candidate.ownerDeclaredSubstitute = Boolean(payload.ownerDeclaredSubstitute);
   if ('mediaRights' in payload) candidate.mediaRights = safeMediaRights(payload.mediaRights);
   if ('personalUse' in payload) candidate.personalUse = safePersonalUse(payload.personalUse);
   if ('affiliate' in payload) candidate.affiliate = Boolean(payload.affiliate);
   if ('disclosure' in payload) candidate.disclosure = cleanString(payload.disclosure, { max: 500 });
 }
 
+/**
+ * Evidence Verifier.
+ *
+ * Owns identity, rights, and the conclusions downstream agents are bound by. It
+ * makes no network call: a user-supplied reference is stored as string evidence,
+ * because fetching it would activate a live source that P0-02 keeps disabled.
+ */
 function verifyCandidate(candidate, payload, clock) {
   const wasApproved = candidate.review?.decision === 'approved' && candidate.review?.stale !== true;
   applyEvidenceFields(candidate, payload);
 
-  const missing = [];
-  if (!candidate.brand) missing.push('브랜드');
-  if (!candidate.model) missing.push('모델');
-  if (!candidate.variant) missing.push('옵션/변형');
-  if (!candidate.sourceRef) missing.push('사용자 제공 근거');
-
-  const exact = missing.length === 0;
-  const rightsReady = SAFE_MEDIA_RIGHTS.has(candidate.mediaRights);
   const observedAt = nowIso(clock);
-  const blockers = [];
-  if (!exact) blockers.push(`제품 동일성 근거 부족: ${missing.join(', ')}`);
-  if (!rightsReady) blockers.push('최종 콘텐츠의 미디어 권리가 확인되지 않았습니다.');
+  const sources = collectSources(candidate).map((source) => ({ ...source, observedAt }));
+  const rightsReady = SAFE_MEDIA_RIGHTS.has(candidate.mediaRights);
 
-  candidate.exactMatchStatus = exact ? 'exact' : 'unresolved';
-  candidate.evidenceReadiness = exact && rightsReady ? 'ready' : 'partial';
-  candidate.riskLevel = exact && rightsReady ? 'low' : 'review';
-  candidate.blockers = blockers;
+  const match = decideMatchState({
+    identity: { brand: candidate.brand, model: candidate.model, variant: candidate.variant },
+    sources,
+    ownerDeclaredSubstitute: candidate.ownerDeclaredSubstitute === true,
+    conflicts: []
+  });
+
+  // Claims the copy may not make, whatever the drafts say. These are constraints the
+  // Writer and Guardian both read, rather than something rediscovered per draft.
+  const prohibitedClaims = [];
+  if (!wordingRuleFor(match.matchState).sameProductClaimAllowed) {
+    prohibitedClaims.push({ text: '링크한 상품이 같은 제품이라는 표현', reason: '동일 제품 확정 근거가 없습니다.' });
+  }
+  if (candidate.personalUse !== 'confirmed') {
+    prohibitedClaims.push({ text: '직접 사용해봤다는 표현', reason: '사용 기록이 없습니다.' });
+  }
+  prohibitedClaims.push({ text: '현재 가격 · 재고를 단정하는 표현', reason: '시점이 찍힌 가격 근거가 없습니다.' });
+
+  const unresolvedQuestions = [...match.reasons];
+  const decision = decideVerifierDecision({
+    matchState: match.matchState,
+    mediaRightsResolved: rightsReady,
+    publicFigureBlocked: false,
+    conflicts: [],
+    unresolvedQuestions
+  });
+
+  const readiness = evaluateEvidenceReadiness({
+    verifierDecision: decision.verifierDecision,
+    matchState: match.matchState,
+    mediaRightsResolved: rightsReady,
+    conflicts: [],
+    unresolvedQuestions
+  });
+  const risk = evaluateRisk({
+    matchState: match.matchState,
+    mediaRightsResolved: rightsReady,
+    publicFigureRelation: null,
+    conflicts: []
+  });
+  const freshness = evaluateFreshness({ observedAt, now: observedAt });
+
+  const blockers = [];
+  if (!rightsReady) blockers.push('최종 콘텐츠의 미디어 권리가 확인되지 않았습니다.');
+  blockers.push(...unresolvedQuestions);
+  if (decision.reason) blockers.push(decision.reason);
+
+  candidate.exactMatchStatus = match.matchState;
+  candidate.verifierDecision = decision.verifierDecision;
+  candidate.evidenceReadiness = readiness.state;
+  candidate.riskLevel = risk.level;
+  candidate.freshnessState = freshness.state;
+  candidate.blockers = [...new Set(blockers)];
+
+  const identityText = `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim();
   candidate.evidencePacket = {
     agentId: AGENT_IDS.VERIFIER,
     truthClass: candidate.synthetic ? 'synthetic_fixture' : 'owner_supplied',
@@ -273,22 +382,26 @@ function verifyCandidate(candidate, payload, clock) {
       model: candidate.model,
       variant: candidate.variant
     },
-    exactMatchStatus: candidate.exactMatchStatus,
-    sources: candidate.sourceRef ? [{
-      id: `owner-source-${sha256(candidate.sourceRef).slice(0, 12)}`,
-      type: candidate.synthetic ? 'fixture_owner_source' : 'owner_supplied_reference',
-      ref: candidate.sourceRef,
-      observedAt
-    }] : [],
+    exactMatchStatus: match.matchState,
+    matchState: match.matchState,
+    independentOrigins: match.independentOrigins,
+    verifierDecision: decision.verifierDecision,
+    sources,
     mediaRights: candidate.mediaRights,
     personalUse: candidate.personalUse,
-    claimEvidence: exact ? [{
+    // An identity claim exists only when there is an identity to claim.
+    claimEvidence: identityText && sources.length > 0 ? [{
       claimId: 'claim-identity',
-      text: `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim(),
+      text: identityText,
       status: candidate.synthetic ? 'verified_fixture' : 'owner_supplied_identity',
-      sourceIds: [`owner-source-${sha256(candidate.sourceRef).slice(0, 12)}`]
+      sourceIds: sources.map((source) => source.id)
     }] : [],
-    blockers
+    prohibitedClaims,
+    unresolvedQuestions,
+    publicFigureRelation: null,
+    freshness: { state: freshness.state, evaluatedAt: observedAt, reasons: freshness.reasons },
+    conflicts: [],
+    blockers: candidate.blockers
   };
 
   invalidateDownstream(candidate, '승인 후 제품 근거가 변경되어 다시 검토해야 합니다.', { keepEvidence: true });
@@ -300,12 +413,24 @@ function verifyCandidate(candidate, payload, clock) {
   return candidate;
 }
 
+/**
+ * The Strategist gate.
+ *
+ * AGENT_HANDOFFS.md H4 gates on the Verifier's own decision, not on the readiness
+ * label: `hold` and `reject` stop the run, while `limited` may proceed with narrower
+ * wording. That distinction is what lets a labelled substitute become content at all
+ * while an unidentified product cannot.
+ */
 function assertEvidenceReady(candidate) {
-  if (candidate.exactMatchStatus !== 'exact' || candidate.evidenceReadiness !== 'ready') {
+  if (!['verified', 'limited'].includes(candidate.verifierDecision)) {
     throw new ApplicationCommandError('Evidence is not ready for content strategy.', {
       code: 'evidence_not_ready',
       statusCode: 422,
-      details: { blockers: candidate.blockers }
+      details: {
+        verifierDecision: candidate.verifierDecision,
+        exactMatchStatus: candidate.exactMatchStatus,
+        blockers: candidate.blockers
+      }
     });
   }
 }
@@ -372,6 +497,17 @@ function createDrafts(candidate, clock) {
   }
   const identity = `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim();
   const disclosure = draftDisclosure(candidate);
+
+  // A substitute must be labelled as an alternative in the copy itself, not only in
+  // the internal state (PRODUCT_MATCHING.md section 5, AT-10). The Writer states it;
+  // the Guardian independently checks that it is there.
+  const substituteNotice = candidate.exactMatchStatus === 'substitute'
+    ? ' 이 링크는 같은 제품이 아니라 비슷한 제품입니다.'
+    : '';
+  const identityCaveat = candidate.exactMatchStatus === 'likely'
+    ? ' 판매 페이지와 동일 제품인지는 아직 단정하지 않습니다.'
+    : '';
+
   const texts = [
     `${candidate.readerValue}이 필요한 상황이라면 ${candidate.name}을 후보로 볼 수 있습니다. 사용자 제공 근거 기준 제품 식별은 ${identity}입니다. 실제 효용은 사용 환경에 따라 확인해야 합니다.`,
     `${candidate.name}을 볼 때는 이름보다 브랜드·모델·옵션을 먼저 맞추는 편이 안전합니다. 현재 사용자 제공 기준은 ${identity}입니다. 비슷한 외형만으로 같은 제품이라고 보지 않습니다.`,
@@ -382,7 +518,7 @@ function createDrafts(candidate, clock) {
     id: `draft-${index + 1}`,
     angleId: angle.id,
     title: angle.title,
-    text: texts[index],
+    text: `${texts[index]}${substituteNotice}${identityCaveat}`,
     claimIds: ['claim-identity'],
     disclosure
   }));
@@ -443,34 +579,41 @@ function runGuardian(candidate, clock) {
     return candidate;
   }
 
-  const verifiedClaimIds = new Set((candidate.evidencePacket?.claimEvidence ?? []).map((claim) => claim.claimId));
-  const blockers = [];
-  for (const draft of candidate.drafts) {
-    for (const claimId of draft.claimIds ?? []) {
-      if (!verifiedClaimIds.has(claimId)) blockers.push(`초안 ${draft.id}의 주장 ${claimId}는 Verifier 근거에 없습니다.`);
-    }
-    if (candidate.personalUse !== 'confirmed' && FIRST_HAND_PATTERN.test(draft.text)) {
-      blockers.push(`초안 ${draft.id}에 직접 사용 기록 없는 체험 표현이 있습니다.`);
-    }
-    if (ENDORSEMENT_PATTERN.test(draft.text)) {
-      blockers.push(`초안 ${draft.id}에 검증되지 않은 유명인 추천/사용 암시가 있습니다.`);
-    }
-    if (candidate.affiliate && !candidate.disclosure) blockers.push(DISCLOSURE_REQUIRED_MESSAGE);
-  }
+  // The Guardian reads the drafts as they currently stand, owner edits included, and
+  // the evidence packet — never the Writer's reasoning. Its blocking findings cannot
+  // be approved past (AT-08, AT-17).
+  const review = runGuardianChecks({
+    drafts: candidate.drafts,
+    matchState: candidate.exactMatchStatus,
+    verifiedClaimIds: (candidate.evidencePacket?.claimEvidence ?? []).map((claim) => claim.claimId),
+    personalUseConfirmed: candidate.personalUse === 'confirmed',
+    mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights),
+    affiliate: candidate.affiliate,
+    disclosure: candidate.disclosure,
+    publicFigureVerifiedEndorsement: false
+  });
 
-  const decision = blockers.length ? 'revise' : 'pass';
   candidate.guardian = {
     agentId: AGENT_IDS.GUARDIAN,
-    decision,
-    blockers: [...new Set(blockers)],
-    warnings: candidate.synthetic ? ['예시 데이터는 현재 시장 사실이 아닙니다.'] : ['현재 검증 근거는 사용자 제공 자료이며 네트워크 재검증을 수행하지 않았습니다.'],
+    decision: review.decision,
+    checks: review.checks,
+    revisionRequests: review.revisionRequests,
+    nonOverridableBlockers: review.nonOverridableBlockers,
+    blockers: review.revisionRequests.length
+      ? [...new Set(review.revisionRequests.map((item) => item.problem))]
+      : [],
+    warnings: candidate.synthetic
+      ? ['예시 데이터는 현재 시장 사실이 아닙니다.']
+      : ['현재 검증 근거는 사용자 제공 자료이며 네트워크 재검증을 수행하지 않았습니다.'],
     reviewedAt: nowIso(clock),
     boundMaterialRevision: candidate.materialRevision
   };
   candidate.review = null;
-  candidate.workflowState = decision === 'pass' ? 'guardian_pass' : 'guardian_revise';
+  candidate.workflowState = review.decision === 'pass'
+    ? 'guardian_pass'
+    : review.decision === 'block' ? 'blocked' : 'guardian_revise';
   candidate.blockers = [...candidate.guardian.blockers];
-  bump(candidate, clock, 'guardian_reviewed', { decision });
+  bump(candidate, clock, 'guardian_reviewed', { decision: review.decision });
   return candidate;
 }
 
@@ -534,6 +677,19 @@ function toCandidateReadModel(candidate) {
     evidenceReadiness: candidate.evidenceReadiness,
     riskLevel: candidate.riskLevel,
     exactMatchStatus: candidate.exactMatchStatus,
+    matchStateLabel: MATCH_STATE_LABELS_KO[candidate.exactMatchStatus] ?? candidate.exactMatchStatus,
+    verifierDecision: candidate.verifierDecision ?? null,
+    verifierDecisionLabel: candidate.verifierDecision
+      ? VERIFIER_DECISION_LABELS_KO[candidate.verifierDecision]
+      : null,
+    freshnessState: candidate.freshnessState ?? 'stale',
+    independentOrigins: candidate.evidencePacket?.independentOrigins ?? 0,
+    prohibitedClaims: structuredClone(candidate.evidencePacket?.prohibitedClaims ?? []),
+    unresolvedQuestions: structuredClone(candidate.evidencePacket?.unresolvedQuestions ?? []),
+    ownerDeclaredSubstitute: candidate.ownerDeclaredSubstitute === true,
+    sourceOrigin: candidate.sourceOrigin ?? '',
+    corroborationRef: candidate.corroborationRef ?? '',
+    corroborationOrigin: candidate.corroborationOrigin ?? '',
     mediaRights: candidate.mediaRights,
     personalUse: candidate.personalUse,
     affiliate: candidate.affiliate,
@@ -554,19 +710,29 @@ function toCandidateReadModel(candidate) {
 }
 
 export function toTodayReadModel(state) {
-  const candidates = state.candidates
-    .slice()
-    .sort((a, b) => b.opportunityScore - a.opportunityScore)
-    .slice(0, 5)
-    .map(toCandidateReadModel);
+  // The first five are not simply the five highest scores, and every inclusion or
+  // exclusion states its reason (RANKING_SCORING_SPEC section 11, AT-29). Returning
+  // fewer than five, or none, is a valid outcome rather than a failure (AT-28).
+  const selection = selectFirstScreen(state.candidates);
+  const candidates = selection.selected.map(toCandidateReadModel);
+  const excludedById = new Map(selection.excluded.map((item) => [item.candidateId, item]));
+  const excluded = state.candidates
+    .filter((candidate) => excludedById.has(candidate.id))
+    .map((candidate) => ({
+      ...toCandidateReadModel(candidate),
+      exclusionReason: excludedById.get(candidate.id)
+    }));
+
   return {
+    excluded,
+    emptyReason: selection.emptyReason,
     version: state.version,
     serverUpdatedAt: state.updatedAt,
     externalPublishingEnabled: false,
     fixedAgentCount: state.fixedAgentCount,
     counters: {
       observed: state.candidates.length,
-      recommended: state.candidates.filter((candidate) => candidate.evidenceReadiness === 'ready' && !['held', 'rejected', 'blocked'].includes(candidate.workflowState)).length,
+      recommended: candidates.length,
       verificationNeeded: state.candidates.filter((candidate) => ['verification_needed', 'evidence_partial', 'stale'].includes(candidate.workflowState)).length,
       approved: state.candidates.filter((candidate) => candidate.workflowState === 'approved').length
     },

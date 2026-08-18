@@ -56,6 +56,9 @@ async function addManual(baseUrl, suffix = 'normal') {
       model: `MODEL-${suffix}`,
       variant: '기본형',
       sourceRef: `owner-note:${suffix}`,
+      sourceOrigin: 'manufacturer_page',
+      corroborationRef: `owner-note:${suffix}-corroboration`,
+      corroborationOrigin: 'marketplace_listing',
       whyNow: '사용자가 오늘 직접 검토하려고 추가한 제품이라 지금 확인할 이유가 분명함',
       readerValue: '제품 식별과 구매 전 확인 포인트를 한 화면에서 정리할 수 있음',
       mediaRights: 'not_required',
@@ -240,8 +243,22 @@ test('Guardian independently rejects fake first-hand wording without a usage rec
       expectedRevision: candidate.revision
     });
     candidate = findCandidate(result.today, candidateId);
-    assert.equal(candidate.guardian.decision, 'revise');
-    assert.match(candidate.guardian.blockers.join(' '), /직접 사용 기록/);
+
+    // A fabricated first-hand claim is non-overridable, not a revisable note:
+    // SAFETY_COMPLIANCE and AT-08 put it among the findings no approval may pass.
+    assert.equal(candidate.guardian.decision, 'block');
+    assert.match(candidate.guardian.nonOverridableBlockers.join(' '), /FIRST_HAND_WITHOUT_USAGE_RECORD/);
+    assert.equal(candidate.guardian.checks.firstHandCheck.status, 'block');
+
+    // And the owner cannot approve past it.
+    const refused = await command(baseUrl, {
+      requestId: 'approve-firsthand',
+      command: 'review_decision',
+      candidateId,
+      expectedRevision: candidate.revision,
+      payload: { decision: 'approved' }
+    }, 422);
+    assert.equal(refused.error, 'guardian_gate');
   });
 });
 

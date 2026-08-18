@@ -355,3 +355,46 @@ GitHub Actions Run #138 passed with 69 tests, 0 failures, the full `npm run veri
 Spike 0 is successful. The existing runtime can be adapted to the Master Design contract spine without a rewrite. This **does not** mean the full AT-01~44 harness, mobile UI, or live integrations are complete.
 
 The next bounded slice is the manual-product C vertical slice. Live Threads/Coupang/public posting and third-party media reuse remain disabled until separate activation work.
+---
+
+## 2026-08-18 — Deepen the manual slice to the approved product contracts
+
+### Context
+
+Two implementation efforts ran against this repository in parallel. PRs #11–#14 landed the manual-product vertical slice with server-authoritative state, CAS, idempotency, orchestration receipts, interprocess locking, and duplicate guardrails. A separate effort built the same slice from the design contracts and produced a gap review.
+
+Rather than choose one and discard the other, the owner directed that the second effort be reworked on top of the merged implementation, keeping what main already proved and adding only what the approved design requires and main did not yet have.
+
+### Gap that was closed
+
+1. **Only two match states existed.** `exact` and `unresolved`. `PRODUCT_MATCHING.md` section 2 makes four states first-class, and the two missing ones — `likely` and `substitute` — are exactly the commercially dangerous middle ground. AT-10 was unimplementable without them.
+2. **`exact` could be reached from a single reference.** Section 4 requires a strong identity source *plus* corroboration. Independence is now counted by declared origin, so two references from one origin remain one piece of evidence (AT-40, BS-15).
+3. **No verifier decision.** `AGENT_HANDOFFS.md` H4 gates the Strategist on `verified / limited / hold / reject`. Gating on the readiness label instead conflated a ranking output with a factual conclusion.
+4. **Guardian findings were all revisable.** A fabricated first-hand claim and an unsupported endorsement are non-overridable under `SAFETY_COMPLIANCE.md` and AT-08. They now block, and the eight named checks from `AGENT_CONTRACTS.md` section 6 are reported individually.
+5. **Ranking was ad hoc, and selection was a sort.** Scoring now follows the A–G buckets, readiness / risk / freshness are independent, and first-screen selection states a reason for every inclusion and exclusion, with `오늘 추천 없음` as a valid outcome (AT-28, AT-29).
+
+### Deliberate behaviour changes
+
+Two existing tests encoded behaviour the design contradicts, and were changed rather than worked around:
+
+- a single owner reference no longer yields `exact`; the fixtures now corroborate from a second origin, which is what the spec always required;
+- a fabricated first-hand claim now returns `block` rather than `revise`, and the test additionally proves the owner cannot approve past it.
+
+### Judgement calls recorded
+
+- **The review floor does not apply to owner-supplied candidates.** The floor exists to stop weak *discovered* candidates from filling the inbox. A product the owner typed in was already chosen deliberately, and scoring it out of its own inbox hid the thing they had just asked to work on.
+- **Lane concentration caps apply only when another lane is waiting.** The main lane is ~60% of the intended portfolio; capping it with nothing else to promote shortened the inbox for no benefit.
+
+### Defects found and fixed during verification
+
+- **Any request outside `/apps/web/` crashed the server.** `serveStatic` was returned without `await`, so its rejection escaped the handler's try/catch and became an unhandled rejection. A browser requesting `/favicon.ico` was enough to end the process.
+- **A clean checkout could not start.** The write lock was taken before its directory existed, so `initialize()` failed on the first request.
+- Two Korean detectors flagged the very disclaimers the rules require: "같은 제품이 아니라 비슷한 제품" and "직접 써본 기록이 없다면". Negations are now stripped before the claim checks run.
+
+### Impact
+
+`docs/spec/` and `CLAUDE.md` are unchanged; this closes implementation gaps against the existing design authority rather than altering it.
+
+### Remaining risks
+
+Single process only; multi-process locking is bounded to one host and remains an open trap. Agents remain deterministic, so the slice proves the pipeline and its gates, not Korean writing quality. Live sources, publishing, and affiliate posting stay disabled.
