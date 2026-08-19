@@ -219,3 +219,20 @@ For a new coding slice:
 - do not widen the spike into UI/live/provider work merely because the existing prototype makes that convenient
 
 The first coding task after Harness Design v1 is `CODING_SPIKE_ENTRY.md` unless the owner explicitly chooses a different bounded slice and records why.
+
+## 21. Minimum Action Agent OS
+
+This project follows the `minimum-action-agent-os` working method for **how work is done**. It does not define what is built.
+
+- Keep the local action space bounded: default target `<= 5` directly selectable agents/tools/skills/MCP actions per reasoning node.
+- This is a **local** bound, not a cap on total agents. Scale through routers/specialists, never by widening one node.
+- Use least tool, least context, least authority.
+- Prefer direct work, a rule, or a skill over a new agent unless a real context/tool/permission/evidence/independence boundary exists.
+- For material independent review, use the `minimum-action-agent-os:independent-critic` agent. Give it the artifact, requirements, and acceptance criteria — not the builder's rationale.
+- `/minimum-action-agent-os:os-preflight` and `/minimum-action-agent-os:os-state` are available when they materially help.
+
+**Domain authority is unchanged.** `docs/spec/` remains the source of truth for product and system content; the OS never overrides it. Where the two disagree on working method, the more specific project rule above wins and the deviation is recorded.
+
+These sections already satisfy the corresponding OS primitives and must not be duplicated: intent interview §15, four alternatives §4, exemplar research §16, meta-prompting §17, preflight traps and harness §20, blindspot sweep and completion proof §18, plan-drift record §14, traceability and canon update §13.
+
+The current local action space audit is recorded in `docs/AGENT_OS_ADOPTION.md`.
