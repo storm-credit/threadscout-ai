@@ -1,7 +1,7 @@
 # AT-14 User Suppression — Acceptance, Deviations and Limitations
 
 Contract: `USER_SUPPRESSION_PLAN.md`. Reference gate: `USER_SUPPRESSION_REFERENCE_REVIEW.md`.
-Branch base: `1a104ee` (head of open PR #16 — see plan §1a).
+Branch base: `1a104ee` (head of open PR #16 — see plan §1a). Draft PR: #17, stacked on `feat/slice1-contract-depth`.
 
 **This document does not claim the slice is complete.** Three items in §5 are outstanding, one of
 which (`CLAUDE.md` §18 browser verification) is required before completion can be claimed at all.
@@ -122,7 +122,7 @@ not touch the locking layer.
    "every visible button, form, and primary CTA actually works" and that the first mobile screen is
    understandable. **The suppress dialog, the `복원` button and the `상세 보기` button have not been
    clicked in a real browser, and no mobile-width check has been made.**
-2. **GitHub Actions on the PR head** — not yet observed at the time of writing.
+2. **GitHub Actions on the PR head — PASSED.** PR #17, CI run `33136661877`, job `verify`, success. (Kept in this list because items 1 and 3 still block completion.)
 3. **Post-merge `main` CI** — required before this slice is reported merged, and blocked behind PR #16
    either merging first or this branch rebasing onto it (plan §1a).
 
