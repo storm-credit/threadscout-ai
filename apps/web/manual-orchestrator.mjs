@@ -9,7 +9,18 @@ const SPECIALIST_BY_COMMAND = Object.freeze({
   run_guardian: AGENT_IDS.GUARDIAN
 });
 
-const HUMAN_COMMANDS = new Set(['review_decision', 'resolve_duplicate']);
+// AT-14 suppression commands are owner decisions, not specialist dispatch, so they route
+// orchestrator -> human_approval -> orchestrator exactly as review and duplicate resolution do.
+// Registering them here is required: an unregistered command is rejected as
+// `orchestrator_command_unknown`, which is the constitution's "only Orchestrator delegates" rule
+// doing its job.
+const HUMAN_COMMANDS = new Set([
+  'review_decision',
+  'resolve_duplicate',
+  'suppress_candidate',
+  'restore_candidate',
+  'remove_suppression_rule'
+]);
 const DETERMINISTIC_COMMANDS = new Set(['reset_demo', 'add_manual_candidate', 'edit_draft']);
 
 function candidateFromToday(today, candidateId) {

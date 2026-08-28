@@ -179,6 +179,18 @@ export function selectFirstScreen(candidates = [], { limit = FIRST_SCREEN_LIMIT,
       exclude('owner_decision', '사용자가 보류하거나 거절한 후보입니다.');
       continue;
     }
+    // AT-14 / PR-14. Owner suppression is a guarantee, not a ranking weight, so it is a
+    // hard exclusion rather than a score deduction — a deduction can be outweighed by a
+    // high enough opportunity score, which is exactly what "honor the suppression until
+    // the user reverses it" forbids. It is checked here, above the review floor, so it
+    // applies to owner-supplied candidates too; that is what the comment below promises.
+    //
+    // Distinct from `suppressed_duplicate`, which is a dedupe outcome carrying its own
+    // state and reason code. The two must stay separable (PRE_IMPLEMENTATION_TRAPS).
+    if (candidate.suppression?.active === true) {
+      exclude('owner_suppressed', candidate.suppression.label ?? '사용자가 억제한 후보입니다.');
+      continue;
+    }
     // The review floor exists to stop weak *discovered* candidates from filling the
     // inbox. A product the owner typed in was already chosen deliberately, so
     // scoring it out of its own inbox would hide the thing they just asked to work

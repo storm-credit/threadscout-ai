@@ -124,8 +124,8 @@ The local lock is explicitly **single-host/local-filesystem only**. It is not a 
 ## Suppression semantics
 
 - [x] Candidate duplicate suppression is explicit, auditable and reversible only through future intentional product behavior; suppressed duplicate records are not shown in the primary five-card inbox but remain server-owned history.
-- [ ] Implement AT-14 user/category/content suppression separately. Candidate dedupe must not be presented as user preference/category suppression.
-- [ ] Define restore semantics and UI for AT-14 when that slice begins.
+- [x] Implement AT-14 user/category/content suppression separately. Candidate dedupe must not be presented as user preference/category suppression. Implemented as faceted owner rules with their own state, reason code and store; `candidate-dedupe*.mjs` is untouched and a test asserts the two stay distinguishable on the same candidate.
+- [x] Define restore semantics and UI for AT-14 when that slice begins. `복원` exempts the candidate and leaves the rule standing for everything else it matches; removing the rule outright is a separate command. See `docs/implementation/USER_SUPPRESSION_PLAN.md` Q2.
 
 ## Publishing safety
 

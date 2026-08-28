@@ -113,6 +113,29 @@
       </form>
     </dialog>
 
+    <dialog id="suppress-dialog" class="sheet-dialog">
+      <form id="suppress-form" class="dialog-shell">
+        <header class="dialog-header">
+          <div><p class="section-kicker">Suppression</p><h2>이런 후보 그만 보기</h2></div>
+          <button class="icon-button" type="button" data-close-dialog="suppress-dialog" aria-label="닫기">×</button>
+        </header>
+        <div class="form-stack">
+          <p class="form-note">억제는 중복 제거와 다른 기능입니다. 후보를 지우지 않고 첫 화면에서만 내리며, 언제든 <strong>복원</strong>할 수 있습니다.</p>
+          <p id="suppress-target" class="field-hint"></p>
+          <label>무엇을 기준으로 억제할까요
+            <select id="suppress-axis" name="axis">
+              <option value="product">이 제품</option>
+              <option value="brand">이 브랜드</option>
+              <option value="category">이 카테고리</option>
+              <option value="source">이 출처</option>
+            </select>
+          </label>
+          <label>이유 (필수)<textarea id="suppress-reason" name="reason" rows="3" maxlength="300" required placeholder="나중에 스스로 납득할 수 있게 적어두세요"></textarea></label>
+        </div>
+        <footer class="dialog-actions"><button class="ghost-button" type="button" data-close-dialog="suppress-dialog">취소</button><button class="primary-button" type="submit">억제하기</button></footer>
+      </form>
+    </dialog>
+
     <dialog id="workspace-dialog" class="workspace-dialog">
       <div class="dialog-shell">
         <header class="dialog-header">

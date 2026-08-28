@@ -3,7 +3,7 @@
 Status: **CONTRACT / DESIGN ONLY. NO RUNTIME CODE CHANGED BY THIS DOCUMENT.**
 
 This document exists to satisfy the Implementation-resume gate in `docs/spec/DESIGN_FREEZE.md`.
-Coding does not start until the owner selects a matching model in §6 and approves this contract.
+Matching model selected: **Option B** (§6, §11). Reference review complete (§12). Coding is unblocked.
 
 ## 1. Implementation-resume gate
 
@@ -20,7 +20,7 @@ Coding does not start until the owner selects a matching model in §6 and approv
 | prototype classification | see §8 |
 | files allowed to change | see §9 |
 | success / rollback / stop | see §4 and §10 |
-| CLAUDE.md gates used | §15 interview (§3, §11), §4 four options (§6), §16 reference review (§12 — **incomplete, blocks coding**), §18 completion proof (§10) |
+| CLAUDE.md gates used | §15 interview (§3, §11), §4 four options (§6), §16 reference review (§12 — **complete**), §18 completion proof (§10) |
 | real verification defined | see §10 |
 
 ## 1a. Dependency on open PR #16 — this slice cannot be built on `main`
@@ -195,7 +195,10 @@ New traps raised by this slice, not previously listed:
 | `apps/web/candidate-dedupe-store.mjs` | **KEEP** | same |
 | `apps/web/server.mjs` | **MODIFY** | `suppress` / `restore` commands on the existing `POST /api/commands` boundary; `GET /api/today` exposes suppression state |
 | `apps/web/app.js` | **MODIFY** | `suppressed` card state, `복원` / `상세 보기` controls |
-| suppression rule store | **MISSING** | new, shape decided by the §6 selection |
+| `apps/web/manual-orchestrator.mjs` | **MODIFY** | *added after drafting* — the three commands must be registered or the Orchestrator rejects them as `orchestrator_command_unknown`. Deviation 3.1 |
+| `apps/web/index.html` | **MODIFY** | *added after drafting* — the suppression dialog, the only surface that can collect the reason PR-14 requires. Deviation 3.1 |
+| `apps/web/candidate-suppression.mjs` | **MISSING** | new, matching logic |
+| `apps/web/candidate-suppression-store.mjs` | **MISSING** | new, store layer |
 | `tests/at14-suppression.test.mjs` | **MISSING** | new |
 
 ## 9. Files allowed to change
@@ -231,28 +234,39 @@ no data migration is introduced, and no existing persisted shape changes meaning
 
 ## 11. Owner questions (`CLAUDE.md` §15 — at most 3-5, asked only because they change the result)
 
-- **Q1 — matching model.** Which of A/B/C/D in §6? (Recommendation: B.)
+**Resolved 2026-08-28.** The owner directed continuation without overriding the recommendations, so the
+recommended answer and the reversible defaults below are **adopted as recorded assumptions** per `CLAUDE.md`
+§15 ("If a safe, reversible default is sufficient, record the assumption and continue automatically instead
+of blocking"). Each remains the owner's to overrule; each is cheap to reverse at this stage.
+
+- **Q1 — matching model. ADOPTED: Option B**, faceted rule records. Corroborated by R1/R2/R3 in the
+  reference review.
 - **Q2 — `복원` semantics.** Does `복원` on a suppressed candidate **delete the rule** (un-suppressing every
   candidate that rule matched) or **exempt only that candidate** (rule stays for others)? Both are defensible;
-  the state matrix does not say. Reversible default if unanswered: **exempt only that candidate**, with rule
-  deletion available from the rule's own detail view.
+  the state matrix does not say. **ADOPTED: exempt only that candidate**, with rule deletion available from
+  the rule's own detail view. Corroborated by R2 (uBlock exception filters).
 - **Q3 — identity drift.** If the Verifier later corrects a candidate's brand/model so a suppression rule no
   longer matches, should the candidate silently return to the inbox, or stay suppressed until the owner
-  re-decides? Reversible default if unanswered: **stay suppressed and flag it for re-decision**, matching how
-  the dedupe slice binds resolution to the identity signature.
+  re-decides? **ADOPTED: stay suppressed and flag it for re-decision**, matching how the dedupe slice binds
+  resolution to the identity signature.
 - **Q4 — category vocabulary.** Is `category` a free-text owner label, or must it come from an approved list?
   Free text is simpler and matches "record the reason"; a list makes matching reliable. Reversible default if
-  unanswered: **free text, normalized**, with exact-normalized matching only and no inference.
+  **ADOPTED: free text, normalized**, with exact-normalized matching only and no inference. Not covered by
+  any reference; if this is later changed to a controlled list it warrants its own reference pass.
 
-## 12. Reference review status (`CLAUDE.md` §16) — INCOMPLETE, BLOCKS CODING
+## 12. Reference review (`CLAUDE.md` §16) — COMPLETE
 
-§16 requires 3-5 relevant examples recorded with adoption/non-adoption/licence notes before a substantial
-slice. That review has **not** been performed and is not satisfied by this document.
+`USER_SUPPRESSION_REFERENCE_REVIEW.md` discharges this gate with four references: Sieve/RFC 5228, uBlock
+Origin static filter syntax, AWS Security Groups vs NACLs, and the explicit-negative-feedback recommender
+literature. No code, syntax, or list content is reused from any of them.
 
-Pattern-level analysis used while drafting §6 — declarative filter rules with an explicit axis, ACL precedence
-ordering, and feed-level "not interested" controls — is **general design knowledge, not a sourced reference
-review**, and is recorded here as such rather than dressed up as citations. `USER_SUPPRESSION_REFERENCE_REVIEW.md`
-must be written and must satisfy §16 before the first line of runtime code.
+Net effect: **no option changed.** Option B gained three independent corroborations and D's rejection gained
+a documented failure mode. Two consequences carried into implementation:
+
+- Q2's default (`복원` spares the candidate, rule stands) is now evidence-backed rather than a guess.
+- **The rule set stays unordered and any-match-wins.** No rule may depend on its position. A later slice
+  adding positive signals must make precedence an explicit reviewed decision rather than acquiring it by
+  accident.
 
 ## 13. What this document does not claim
 
