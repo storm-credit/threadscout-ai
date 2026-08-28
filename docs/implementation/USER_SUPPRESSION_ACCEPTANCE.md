@@ -3,8 +3,9 @@
 Contract: `USER_SUPPRESSION_PLAN.md`. Reference gate: `USER_SUPPRESSION_REFERENCE_REVIEW.md`.
 Branch base: `1a104ee` (head of open PR #16 — see plan §1a). Draft PR: #17, stacked on `feat/slice1-contract-depth`.
 
-**This document does not claim the slice is complete.** Three items in §5 are outstanding, one of
-which (`CLAUDE.md` §18 browser verification) is required before completion can be claimed at all.
+**One item in §5 remains outstanding.** The `CLAUDE.md` §18 browser verification is **done and
+passing** as of 2026-08-29 (§5 item 1); what is left is post-merge `main` CI, which is blocked behind
+PR #16 rather than behind this branch.
 
 ## 1. Automated proof
 
@@ -114,17 +115,96 @@ back-to-back full-suite runs on Windows. It passed on three consecutive isolated
 subsequent full run. Recorded because it may surface in CI; not introduced by this slice, which does
 not touch the locking layer.
 
+**A second, fully explained failure in the same file, found during the §5 browser run.** With the
+`npm start` server from that run still alive, `npm test` fails
+`fresh competing lock fails closed with a bounded storage_lock_timeout` with
+`code: storage_lock_timeout` — the running server legitimately holds the write lock the test expects
+to win. Killing the server makes the suite pass 145/145 again. This is the test working correctly,
+not a flake: **do not run `npm test` while a dev server is up on the same data directory.** Worth
+knowing for anyone repeating the §18 verification, which requires a server.
+
+### 4.7 Server error strings reach the owner in English
+
+Surfaced by the §5 browser run: choosing an axis the candidate has no value for shows the toast
+`This candidate has no brand value to suppress on.` in an otherwise entirely Korean UI. The behaviour
+is right — it fails closed — but the wording is not owner-facing Korean.
+
+**Not introduced by this slice, and not fixed here.** Every `ApplicationCommandError` message in the
+codebase is English — 43 of them across `apps/web/*.mjs`, including 16 in `application-state.mjs`,
+8 in `candidate-suppression-store.mjs` and 7 in `candidate-dedupe-store.mjs`. AT-14 follows the
+existing convention rather than departing from it.
+
+The surfacing point is one line: `app.js:307` does `showToast(result.message || '요청을 처리하지
+못했습니다.')`. So the client already has a Korean fallback, and already special-cases one code into
+Korean (`version_conflict`, `app.js:303`) — every other server message passes through in English.
+This is therefore a single presentation decision affecting all 43 commands, not a suppression string.
+Fixing it properly means mapping `error.code` to Korean copy at that one call site — a cross-cutting
+change `CLAUDE.md` §20 forbids folding into this slice. Recorded for a separate task; the key it
+needs already exists, since every one of these errors carries a stable `code` (this one is
+`suppression_axis_empty`).
+
+### 4.8 With every candidate suppressed, the empty-state line sits just below the fold
+
+Measured during the §5 run at 360x740: when a rule matches all candidates, `#candidate-list` renders
+its empty state `이 화면에서 지금 처리할 후보가 없습니다.` at `y=779` — **39px below** the 740px fold.
+DOM order is correct (`#excluded-block` follows `#candidate-list`), and the first screen is still
+understandable in §18's terms: it shows the value proposition, the working `제품 직접 추가` CTA, the
+capability banner and the counters. So this is not a §18 failure, and it is pre-existing hero-height
+layout rather than anything AT-14 changed — but suppression is the feature that makes an all-empty
+first screen easy to reach, so it is worth recording where it was found.
+
+Noted alongside it, not investigated: with both candidates suppressed the counter tile still reads
+`관찰 후보 2`. Whether the counters are meant to count suppressed candidates is a counter-semantics
+question outside this slice.
+
 ## 5. Outstanding — completion cannot be claimed until these are done
 
-1. **Browser verification (`CLAUDE.md` §18) — NOT PERFORMED.** The UI is asserted against its source,
-   which the repository's own convention accepts for smoke coverage, and the command path is proven
-   end-to-end over HTTP against a live server. Neither is a substitute for §18's requirement that
-   "every visible button, form, and primary CTA actually works" and that the first mobile screen is
-   understandable. **The suppress dialog, the `복원` button and the `상세 보기` button have not been
-   clicked in a real browser, and no mobile-width check has been made.**
-2. **GitHub Actions on the PR head — PASSED.** PR #17, CI run `33136661877`, job `verify`, success. (Kept in this list because items 1 and 3 still block completion.)
+1. **Browser verification (`CLAUDE.md` §18) — PERFORMED 2026-08-29, 15/15 checks pass.**
+
+   **How, without adding a dependency.** `CLAUDE.md` §20 forbids widening the slice, and this
+   repository has **zero** npm dependencies — no Playwright, no Puppeteer. None was added. The run
+   drove the Chrome already installed on the machine over the **Chrome DevTools Protocol**, spoken
+   from a throwaway script using only Node built-ins (`WebSocket` and `fetch`, both global in the
+   Node 24 runtime this repo already requires). `package.json`, `package-lock.json` and the repo tree
+   are unchanged by the verification; the harness lives outside the repository and is not committed.
+
+   **Conditions.** Chrome 360x740 CSS px, `deviceScaleFactor: 3`, `mobile: true`, touch emulation on —
+   a phone viewport, not a narrowed desktop window. Server `npm start` on `127.0.0.1:4173` against a
+   copy of the local dev state (2 candidates, 0 rules) restored to its starting values afterwards.
+
+   **Every interaction below was a real `Input.dispatchMouseEvent` press/release at the control's
+   on-screen centre**, issued only after `elementFromPoint` confirmed that point actually hit-tests to
+   the control. A button that was clipped, zero-size, off-screen or covered by another element would
+   fail at that gate rather than pass silently, which is what `el.click()` in a source-level assertion
+   would have done.
+
+   | # | Check | Result |
+   |---|---|---|
+   | 1 | `그만 보기` on a candidate card opens the dialog | **PASS** — 314x46px button, dialog `open=true`, target line names the candidate |
+   | 2a | Reason left genuinely empty | **PASS** — native `required` blocks submit (`validity.valueMissing=true`), dialog stays open, nothing suppressed |
+   | 2b | Reason of whitespace only | **PASS** — passes `required`, then the JS `trim()` guard rejects it and the toast `억제 이유는 반드시 입력해야 합니다.` appears |
+   | 2c | Axis the candidate has no value for (`brand`, which is `""`) | **PASS** — fails closed: dialog stays open, candidate not suppressed |
+   | 3 | Axis chosen + reason entered + submitted | **PASS** — `category` (non-default, so the select genuinely drove the outcome); dialog closes, toast `이런 후보는 앞으로 첫 화면에 올리지 않습니다.`, card leaves the first screen |
+   | 4 | Suppressed card appears under `첫 화면에 올리지 않은 후보` | **PASS** — block unhides, card carries its reason, `기준: category = practical-novel`, and both buttons |
+   | 5 | `복원` on that card | **PASS** — candidate returns to the first screen and leaves the suppressed list, while the standing rule keeps the *other* matched candidate suppressed (Q2 exemption semantics, confirmed in the browser and not only in unit tests) |
+   | 6 | `상세 보기` on that card | **PASS** — opens the decision workspace **for that candidate** (title matched the target, 4 status tiles) |
+   | 7 | 360px width, measured at four points: first screen, dialog open, suppressed block present, and after reload | **PASS** — `scrollWidth == clientWidth == 360` at all four; zero elements overflowing the viewport or with clipped button text |
+   | 8 | Full page reload | **PASS** — suppression holds; also confirmed **server-side on disk**: both rules with their reasons are present in `application-state.json`, so this is persistence, not a client-side artifact |
+   | 9 | `취소` and `×` in the dialog | **PASS** — both close the dialog and create no rule; touch targets 55.5x46 and 42x42, above the 42px minimum |
+
+   Screenshots for each step were captured at 360px and inspected, not merely rendered: the dialog,
+   the suppressed block, the restored state, and the all-suppressed first screen were read for
+   legibility and correct copy. Two findings that came out of this run are recorded in §4.7 and §4.8;
+   neither blocks the slice.
+
+   **What this does not cover.** Only the controls this slice introduces, plus the first-screen
+   layout they affect. It is not a sweep of every button in the application, and it is one browser
+   (Chromium) at one width. Real-device and cross-engine checks are not claimed.
+
+2. **GitHub Actions on the PR head — PASSED.** PR #17, CI run `33136661877`, job `verify`, success. (Kept in this list because item 3 still blocks completion.)
 3. **Post-merge `main` CI** — required before this slice is reported merged, and blocked behind PR #16
-   either merging first or this branch rebasing onto it (plan §1a).
+   either merging first or this branch rebasing onto it (plan §1a). **This is now the only item
+   standing between this slice and completion, and it is not resolvable from inside this branch.**
 
 ## 6. Live capability state
 
