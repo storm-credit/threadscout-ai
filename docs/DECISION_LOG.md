@@ -398,3 +398,42 @@ Two existing tests encoded behaviour the design contradicts, and were changed ra
 ### Remaining risks
 
 Single process only; multi-process locking is bounded to one host and remains an open trap. Agents remain deterministic, so the slice proves the pipeline and its gates, not Korean writing quality. Live sources, publishing, and affiliate posting stay disabled.
+
+---
+
+## 2026-08-19 — Adopt Minimum Action Agent OS as working method only
+
+### Decision
+
+Adopt `storm-credit/minimum-action-agent-os` as the working method for this repository. Merge a short adoption rule into `CLAUDE.md` §21 and record the local action space audit in `docs/AGENT_OS_ADOPTION.md`.
+
+### Scope boundary
+
+Domain authority is unchanged. `docs/spec/`, the freeze documents, the fixed six-agent roster, the runtime, and the tests were not modified. The OS governs how work is decomposed, delegated, verified, and recorded; it does not govern what is built.
+
+### Audit result
+
+Every reasoning node is already at or under the `<= 5` local action bound:
+
+- `orchestrator` 4 tools; its `handoffTo` array has 6 entries, the sixth being the `human_approval` run stage rather than a sixth agent. It passes because runtime dispatch is deterministic, not because the count is small — the expanded peer-choice figure would be 8 and is recorded as an open risk
+- `scout` 4, `verifier` 5, `strategist` 3, `writer` 3, `guardian` 5
+- specialists never see each other as peers; they return to the Orchestrator only
+- the project contributes no `.claude/` agents, skills, or MCP servers
+
+No tool was removed, no agent merged or split, and no router introduced. The OS rule that an already-conforming structure is left alone applies.
+
+### Why no router was added
+
+The Orchestrator's fan-out reads as 4 or 5 depending on whether delegation targets are counted behind their single tool. Neither exceeds the bound. Adding a router would also contradict `MASTER_SPEC.md`, which fixes the roster at six and forbids a seventh role without explicit approval, four options, a decision record, and tests.
+
+### Gap closed
+
+The project had no independent Critic or Red Team — only self-review inside the completion-proof gate, which is the Groupthink Critic anti-pattern. This is filled by the plugin's `independent-critic` agent rather than a new project agent, so the project agent count remains zero.
+
+### Installation
+
+The plugin was already installed and enabled at user scope before this adoption. Nothing was installed, vendored, or copied into this repository, and the full OS documentation stays in the plugin rather than being duplicated here.
+
+### Remaining risk
+
+Nothing automatically enforces that the independent critic is invoked; `CLAUDE.md` §18 remains the human-facing gate. A session started before the plugin was enabled will not list its skills or agent until a new session begins.
