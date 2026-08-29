@@ -100,7 +100,7 @@ The suite covers exact suppression, source-URL mutation boundaries, known model/
 
 PR-head verification is complete. **PR #14 merged to `main` as `badb5ac`** — this paragraph previously still said merge and post-merge CI remained required, which was stale.
 
-## AT-14 owner suppression — IMPLEMENTED, AUTOMATED-PROOF VERIFIED, NOT BROWSER-VERIFIED, NOT MERGED
+## AT-14 owner suppression — MERGED, BROWSER-VERIFIED, COMPLETE
 
 Branch `feat/at14-user-suppression`, based on `1a104ee` (head of open PR #16) rather than `main`, because
 `origin/main` carries no first-screen selection code at all — the ranking stage the approved pipeline puts
@@ -131,15 +131,23 @@ A live HTTP run against a started server returned `candidate_suppressed` with th
 
 `docs/implementation/USER_SUPPRESSION_PLAN.md` (contract and four options),
 `USER_SUPPRESSION_REFERENCE_REVIEW.md` (§16 gate), and `USER_SUPPRESSION_ACCEPTANCE.md` (proof, two
-deviations, six recorded findings, and the outstanding items) carry the detail.
+deviations, eight recorded findings, and the discharged completion gates) carry the detail.
 
-**Not complete.** `CLAUDE.md` §18 browser verification has not been performed — no button has been clicked in
-a real browser and no mobile-width check has been made. GitHub Actions and post-merge `main` CI are also
-outstanding, and this branch cannot merge before PR #16.
+**Complete, merged 2026-08-29 as `484956e` (PR #17).** `CLAUDE.md` §18 browser verification was
+performed and passed 15/15: a real browser at 360x740 (DPR 3, touch on), every control driven by real
+mouse input dispatched only after the click point was confirmed to hit-test to the control, covering
+the suppress dialog, both reason rejections, a blocked axis failing closed, `복원`, `상세 보기`, the
+dialog's two dismiss controls, reload persistence confirmed on disk, and four separate no-horizontal-
+scroll measurements. PR-head CI and post-merge `main` CI (`33240991809`) both passed.
+
+Three follow-ups came out of that run and are **open against the project, not against this slice**:
+server error strings surface to the owner in English (§4.7, pre-existing and repo-wide), the
+all-suppressed empty-state line sits 39px below the mobile fold (§4.8), and
+`tests/persistence-lock.test.mjs` is load-flaky on Windows while green on CI (§4.6).
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION IMPLEMENTED BUT NOT BROWSER-VERIFIED AND NOT MERGED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION BROWSER-VERIFIED AND MERGED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
 
 This status intentionally does **not** claim production readiness. The current persistence bridge is single-host/local-filesystem only. Dedupe compares current persisted local manual-candidate history, not a global catalog or live Scout stream. Automated responsive/accessibility structure is tested, but a real-device/browser/assistive-technology acceptance matrix remains a separate verification item.
 
