@@ -98,11 +98,48 @@ The suite covers exact suppression, source-URL mutation boundaries, known model/
 
 `docs/implementation/CANDIDATE_DEDUPE_GUARDRAIL_PLAN.md`, `CANDIDATE_DEDUPE_REFERENCE_REVIEW.md`, and `CANDIDATE_DEDUPE_ACCEPTANCE.md` record four options, implementation self-review findings, source/reference boundaries, acceptance proof and limitations.
 
-PR-head verification is complete. Merge and post-merge `main` CI remain required before PR #14 is reported fully merged/complete.
+PR-head verification is complete. **PR #14 merged to `main` as `badb5ac`** — this paragraph previously still said merge and post-merge CI remained required, which was stale.
+
+## AT-14 owner suppression — IMPLEMENTED, AUTOMATED-PROOF VERIFIED, NOT BROWSER-VERIFIED, NOT MERGED
+
+Branch `feat/at14-user-suppression`, based on `1a104ee` (head of open PR #16) rather than `main`, because
+`origin/main` carries no first-screen selection code at all — the ranking stage the approved pipeline puts
+suppression in front of exists only on that branch.
+
+Owner suppression is a deterministic faceted rule set: `{ axis, value, reason, createdAt, expiresAt }` over
+the four axes `DAILY_OPERATING_MODEL.md` lists, matched by normalized equality. The rule set is **unordered
+and any-match-wins** — no rule depends on its position — and suppression is a hard exclusion above the review
+floor rather than a score deduction, because AT-14's "honor until the user reverses it" is a guarantee and a
+deduction is outweighable.
+
+Implemented boundaries:
+
+- suppression is applied before ranking, per the approved pipeline, and carries its own `owner_suppressed`
+  exclusion reason
+- the reason is required, persisted, and inspectable per rule
+- `복원` exempts that candidate and leaves the rule standing; removing the rule is a separate command
+- user suppression never reuses the `suppressed_duplicate` state; a test asserts the two remain
+  distinguishable on the same candidate, and `candidate-dedupe*.mjs` is untouched
+- suppressing a candidate does not resolve or discard a pending duplicate review
+- an expired rule stops suppressing on read, with no write in between
+- suppression commands route `orchestrator → human_approval → orchestrator`; no specialist, no seventh agent
+- stale revisions fail through the existing HTTP 409 CAS boundary; request ids stay idempotent; state
+  survives reload and independent store instances
+
+Automated proof: **145 tests / 145 pass / 0 fail** plus `npm run orchestra:demo` success, with 22 new tests.
+A live HTTP run against a started server returned `candidate_suppressed` with the human-route receipt.
+
+`docs/implementation/USER_SUPPRESSION_PLAN.md` (contract and four options),
+`USER_SUPPRESSION_REFERENCE_REVIEW.md` (§16 gate), and `USER_SUPPRESSION_ACCEPTANCE.md` (proof, two
+deviations, six recorded findings, and the outstanding items) carry the detail.
+
+**Not complete.** `CLAUDE.md` §18 browser verification has not been performed — no button has been clicked in
+a real browser and no mobile-width check has been made. GitHub Actions and post-merge `main` CI are also
+outstanding, and this branch cannot merge before PR #16.
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL IMPLEMENTED+FINAL-PR-VERIFIED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION IMPLEMENTED BUT NOT BROWSER-VERIFIED AND NOT MERGED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
 
 This status intentionally does **not** claim production readiness. The current persistence bridge is single-host/local-filesystem only. Dedupe compares current persisted local manual-candidate history, not a global catalog or live Scout stream. Automated responsive/accessibility structure is tested, but a real-device/browser/assistive-technology acceptance matrix remains a separate verification item.
 
@@ -124,7 +161,7 @@ No credential, new dependency/framework, workflow-file change, model provider, l
 
 ## Remaining explicit boundaries
 
-- user category/content suppression from AT-14 is separate from duplicate suppression and remains unimplemented
+- user category/content suppression from AT-14 is separate from duplicate suppression and is now implemented on branch `feat/at14-user-suppression`; see the AT-14 section above. It remains unmerged and not browser-verified
 - no UPC/EAN/GTIN or external catalog matching exists
 - no embedding/LLM semantic dedupe exists
 - no production database/trigram index exists; O(n) comparison is limited to the current bounded local candidate history

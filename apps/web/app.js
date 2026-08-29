@@ -36,7 +36,12 @@ const els = {
   viewKicker: document.querySelector('#view-kicker'),
   inboxTitle: document.querySelector('#inbox-title'),
   viewDescription: document.querySelector('#view-description'),
-  toast: document.querySelector('#toast')
+  toast: document.querySelector('#toast'),
+  suppressDialog: document.querySelector('#suppress-dialog'),
+  suppressForm: document.querySelector('#suppress-form'),
+  suppressAxis: document.querySelector('#suppress-axis'),
+  suppressReason: document.querySelector('#suppress-reason'),
+  suppressTarget: document.querySelector('#suppress-target')
 };
 
 let today = null;
@@ -112,7 +117,13 @@ function duplicateStateLabel(value) {
 }
 
 function candidateById(id) {
-  return today?.candidates.find((candidate) => candidate.id === id) ?? null;
+  return today?.candidates.find((candidate) => candidate.id === id)
+    ?? today?.excluded?.find((candidate) => candidate.id === id)
+    ?? null;
+}
+
+function suppressedCandidates() {
+  return (today?.excluded ?? []).filter((candidate) => candidate.suppression?.active === true);
 }
 
 function statusClass(value, kind = 'status') {
@@ -164,6 +175,7 @@ function cardTemplate(candidate) {
       <div class="card-actions">
         <button class="secondary-button card-primary" type="button" data-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
         ${canHoldFromCard ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
+        <button class="ghost-button card-suppress" type="button">그만 보기</button>
       </div>
     </article>`;
 }
@@ -188,6 +200,39 @@ function renderCandidates() {
   els.list.innerHTML = candidates.length
     ? candidates.map(cardTemplate).join('')
     : '<div class="empty-state">이 화면에서 지금 처리할 후보가 없습니다.<br />근거 기준을 낮춰 채우지 않습니다.</div>';
+  renderSuppressed();
+}
+
+// UI_STATE_ACTION_MATRIX line 17: the `suppressed` state takes `복원` as its primary action and
+// `상세 보기` as its secondary, and is excluded from normal ranking. The candidate is not deleted,
+// so this block is where it stays reachable.
+function suppressedCardTemplate(candidate) {
+  const suppression = candidate.suppression ?? {};
+  const driftNote = suppression.needsReDecision
+    ? '<p class="blocker-line"><strong>재확인 필요:</strong> 제품 정보가 바뀌어 이 억제 규칙과 더 이상 일치하지 않습니다. 복원할지 결정해 주세요.</p>'
+    : '';
+  return `
+    <article class="candidate-card suppressed-card" data-id="${escapeHtml(candidate.id)}">
+      <div class="card-top">
+        <div class="card-copy">
+          <div class="card-meta"><span class="card-kicker">${escapeHtml(candidate.lane)}</span><span class="status-pill">억제됨</span></div>
+          <h3>${escapeHtml(candidate.name)}</h3>
+          <p><strong>억제 이유:</strong> ${escapeHtml(suppression.reason ?? '기록 없음')}</p>
+          <p><strong>기준:</strong> ${escapeHtml(suppression.axis ?? '')} = ${escapeHtml(suppression.value ?? '')}</p>
+        </div>
+      </div>
+      ${driftNote}
+      <div class="card-actions">
+        <button class="secondary-button card-restore" type="button">복원</button>
+        <button class="ghost-button card-detail" type="button">상세 보기</button>
+      </div>
+    </article>`;
+}
+
+function renderSuppressed() {
+  const suppressed = suppressedCandidates();
+  els.excludedBlock.hidden = suppressed.length === 0;
+  els.excludedList.innerHTML = suppressed.map(suppressedCardTemplate).join('');
 }
 
 function renderMetrics() {
@@ -453,6 +498,55 @@ els.list.addEventListener('click', async (event) => {
   } else if (event.target.closest('.card-hold')) {
     const result = await sendCommand('review_decision', { candidateId: candidate.id, expectedRevision: candidate.revision, payload: { decision: 'held' } });
     if (result.ok) showToast('후보를 보류했습니다.');
+  } else if (event.target.closest('.card-suppress')) {
+    openSuppressDialog(candidate);
+  }
+});
+
+els.excludedList.addEventListener('click', async (event) => {
+  const card = event.target.closest('.candidate-card');
+  if (!card) return;
+  const candidate = candidateById(card.dataset.id);
+  if (!candidate) return;
+  if (event.target.closest('.card-restore')) {
+    const result = await sendCommand('restore_candidate', {
+      candidateId: candidate.id,
+      expectedRevision: candidate.revision,
+      payload: {}
+    });
+    if (result.ok) showToast('후보를 복원했습니다. 억제 규칙은 그대로 남아 있습니다.');
+  } else if (event.target.closest('.card-detail')) {
+    openWorkspace(candidate.id);
+  }
+});
+
+let suppressTargetId = null;
+
+function openSuppressDialog(candidate) {
+  suppressTargetId = candidate.id;
+  els.suppressTarget.textContent = `${candidate.name} — 이 후보를 첫 화면에서 내립니다. 삭제가 아니라 되돌릴 수 있는 억제입니다.`;
+  els.suppressReason.value = '';
+  els.suppressAxis.value = 'product';
+  els.suppressDialog.showModal();
+}
+
+els.suppressForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const candidate = candidateById(suppressTargetId);
+  if (!candidate) return;
+  const reason = els.suppressReason.value.trim();
+  if (!reason) {
+    showToast('억제 이유는 반드시 입력해야 합니다.');
+    return;
+  }
+  const result = await sendCommand('suppress_candidate', {
+    candidateId: candidate.id,
+    expectedRevision: candidate.revision,
+    payload: { axis: els.suppressAxis.value, reason }
+  });
+  if (result.ok) {
+    els.suppressDialog.close();
+    showToast('이런 후보는 앞으로 첫 화면에 올리지 않습니다.');
   }
 });
 
