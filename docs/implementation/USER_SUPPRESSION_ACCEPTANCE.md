@@ -103,12 +103,31 @@ it. AT-14 is what gives it a job; it now holds the suppressed candidates and the
 `candidateById` searched only `today.candidates`, so a lookup for a suppressed candidate returned
 `null` and both new buttons would have silently done nothing. It now falls back to `today.excluded`.
 
-### 4.5 Spec/code string mismatch, observed and not fixed
+### 4.5 Spec/code string mismatch — and this entry diagnosed it backwards
 
-`DAILY_OPERATING_MODEL.md:140` writes the empty-day output as `오늘은 추천 없음`; `selectFirstScreen`
-returns `emptyReason: '오늘 추천 없음'`. The spec is authority per `CLAUDE.md` §2. Not changed here
-because it is unrelated to AT-14 and existing tests assert the current string; it belongs in a
-separate one-line fix with its test updated.
+As originally written, this entry said: `DAILY_OPERATING_MODEL.md:140` writes the empty-day output as
+`오늘은 추천 없음` while `selectFirstScreen` returns `emptyReason: '오늘 추천 없음'`, the spec is
+authority per `CLAUDE.md` §2, so the code should move to the spec.
+
+**That conclusion was wrong, and it was wrong because it compared against one file.** Sweeping the
+whole set on 2026-08-29:
+
+| String | Documents |
+|---|---|
+| `오늘 추천 없음` | **6** — `MASTER_SPEC.md`, `ACCEPTANCE_TESTS.md`, `EDGE_CASES.md`, `HARNESS_ACCEPTANCE_MATRIX.md`, `DESIGN_BASELINE_MANIFEST.md`, `FINAL_BLIND_SPOT_SWEEP.md` |
+| `오늘은 추천 없음` | **1** — `DAILY_OPERATING_MODEL.md` |
+
+`CLAUDE.md` §2 names `MASTER_SPEC.md` *first* among the authorities, and it is in the majority along
+with the acceptance-test document that §13 traceability runs through. **The code was already correct;
+the outlier is `DAILY_OPERATING_MODEL.md`.** Following the original recommendation would have changed
+six documents' worth of agreed behaviour to match a single divergent line.
+
+**Closed 2026-08-29** in its own PR by fixing the one outlier document and leaving the code alone. A
+guard was added, since nothing tied the strings together: it collects every `` `…추천 없음` `` phrase
+across `docs/spec/`, fails if the set disagrees with itself — naming which files take which side — and
+then fails if `selectFirstScreen` disagrees with the agreed value. It was checked in both failing
+directions before being trusted. The original single-file comparison is exactly what that guard now
+prevents.
 
 ### 4.6 A test-suite flake seen once
 

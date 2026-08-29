@@ -175,10 +175,13 @@ From `PRE_IMPLEMENTATION_TRAPS.md`, "Suppression semantics":
 
 New traps raised by this slice, not previously listed:
 
-- **Spec/code string mismatch.** `DAILY_OPERATING_MODEL.md:140` writes the empty-day output as
-  `오늘은 추천 없음`; `selectFirstScreen` returns `emptyReason: '오늘 추천 없음'`. Trivial today, but this
-  slice adds a new path to that same outcome, so the mismatch should be resolved rather than duplicated. The
-  spec is authority per §2 of `CLAUDE.md`.
+- **Spec/code string mismatch.** `DAILY_OPERATING_MODEL.md:140` wrote the empty-day output as
+  `오늘은 추천 없음` while `selectFirstScreen` returns `emptyReason: '오늘 추천 없음'`. Trivial today, but this
+  slice adds a new path to that same outcome, so the mismatch should be resolved rather than duplicated.
+  **Resolved 2026-08-29, opposite to the direction stated here:** a sweep of the full `docs/spec/` set
+  found six documents on the code's side — `MASTER_SPEC.md` among them, which §2 names first — against one
+  on the other. The outlier document was corrected and the code left alone. See
+  `USER_SUPPRESSION_ACCEPTANCE.md` §4.5.
 
 - A suppression rule created against a candidate whose identity is later corrected by the Verifier may stop
   matching, silently un-suppressing it. The dedupe slice hit the mirror image of this and solved it by binding
