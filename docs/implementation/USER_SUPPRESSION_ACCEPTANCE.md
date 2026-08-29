@@ -1,7 +1,9 @@
 # AT-14 User Suppression — Acceptance, Deviations and Limitations
 
 Contract: `USER_SUPPRESSION_PLAN.md`. Reference gate: `USER_SUPPRESSION_REFERENCE_REVIEW.md`.
-Branch base: `1a104ee` (head of open PR #16 — see plan §1a). Draft PR: #17, stacked on `feat/slice1-contract-depth`.
+Branch base: originally `1a104ee` (head of then-open PR #16 — see plan §1a). Since 2026-08-29 that PR
+is squash-merged as `4e029f2` and this branch is rebased onto `main`; PR #17 is **ready for review**,
+targets `main`, and is no longer stacked.
 
 **One item in §5 remains outstanding.** The `CLAUDE.md` §18 browser verification is **done and
 passing** as of 2026-08-29 (§5 item 1); what is left is post-merge `main` CI, which is blocked behind
@@ -224,10 +226,18 @@ question outside this slice.
    layout they affect. It is not a sweep of every button in the application, and it is one browser
    (Chromium) at one width. Real-device and cross-engine checks are not claimed.
 
-2. **GitHub Actions on the PR head — PASSED.** PR #17, CI run `33136661877`, job `verify`, success. (Kept in this list because item 3 still blocks completion.)
-3. **Post-merge `main` CI** — required before this slice is reported merged, and blocked behind PR #16
-   either merging first or this branch rebasing onto it (plan §1a). **This is now the only item
-   standing between this slice and completion, and it is not resolvable from inside this branch.**
+2. **GitHub Actions on the PR head — PASSED.** Green on every head this branch has had; most recently
+   CI run `33240808782`, job `verify`, success on `312218e` — the rebased head described below.
+3. **Post-merge `main` CI — no longer blocked, not yet observed.** The dependency this item recorded
+   is discharged: **PR #16 was squash-merged to `main` on 2026-08-29 as `4e029f2`.** This branch was
+   then rebased off the now-merged `1a104ee` and onto `main` with
+   `git rebase --onto origin/main 1a104ee`, which replayed its four commits with **no content change**
+   (verified: `git diff` against the pre-rebase ref is empty). PR #17 now targets `main` directly and
+   reports `MERGEABLE`.
+
+   What remains is only the observation itself: `main` CI after this PR merges. That cannot be run
+   from inside the branch, so it is the single item still open, and it now depends on the merge
+   decision rather than on another PR.
 
 ## 6. Live capability state
 
