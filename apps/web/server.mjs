@@ -130,7 +130,10 @@ export function createThreadScoutServer({
         return res.end('Method not allowed');
       }
 
-      return serveStatic(repoRoot, requestUrl, res);
+      // Awaited on purpose: returning the promise would let a rejection escape this
+      // try/catch and become an unhandled rejection, which takes the process down.
+      // A browser asking for /favicon.ico was enough to kill the server.
+      return await serveStatic(repoRoot, requestUrl, res);
     } catch (error) {
       if (error instanceof ApplicationCommandError) {
         const today = error.code === 'version_conflict' ? await store.readToday() : undefined;
