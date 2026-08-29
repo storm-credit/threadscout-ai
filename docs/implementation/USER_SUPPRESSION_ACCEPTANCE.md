@@ -5,9 +5,9 @@ Branch base: originally `1a104ee` (head of then-open PR #16 — see plan §1a). 
 is squash-merged as `4e029f2` and this branch is rebased onto `main`; PR #17 is **ready for review**,
 targets `main`, and is no longer stacked.
 
-**One item in §5 remains outstanding.** The `CLAUDE.md` §18 browser verification is **done and
-passing** as of 2026-08-29 (§5 item 1); what is left is post-merge `main` CI, which is blocked behind
-PR #16 rather than behind this branch.
+**All of §5 is discharged as of 2026-08-29; this slice is complete.** The `CLAUDE.md` §18 browser
+verification passed 15/15 (§5 item 1), PR-head CI passed (item 2), and post-merge `main` CI passed
+after the merge (item 3). PR #17 was squash-merged to `main` as `484956e`.
 
 ## 1. Automated proof
 
@@ -182,7 +182,7 @@ Noted alongside it, not investigated: with both candidates suppressed the counte
 `관찰 후보 2`. Whether the counters are meant to count suppressed candidates is a counter-semantics
 question outside this slice.
 
-## 5. Outstanding — completion cannot be claimed until these are done
+## 5. Completion gates — all discharged 2026-08-29
 
 1. **Browser verification (`CLAUDE.md` §18) — PERFORMED 2026-08-29, 15/15 checks pass.**
 
@@ -226,18 +226,31 @@ question outside this slice.
    layout they affect. It is not a sweep of every button in the application, and it is one browser
    (Chromium) at one width. Real-device and cross-engine checks are not claimed.
 
-2. **GitHub Actions on the PR head — PASSED.** Green on every head this branch has had; most recently
-   CI run `33240808782`, job `verify`, success on `312218e` — the rebased head described below.
-3. **Post-merge `main` CI — no longer blocked, not yet observed.** The dependency this item recorded
-   is discharged: **PR #16 was squash-merged to `main` on 2026-08-29 as `4e029f2`.** This branch was
-   then rebased off the now-merged `1a104ee` and onto `main` with
-   `git rebase --onto origin/main 1a104ee`, which replayed its four commits with **no content change**
-   (verified: `git diff` against the pre-rebase ref is empty). PR #17 now targets `main` directly and
-   reports `MERGEABLE`.
+2. **GitHub Actions on the PR head — PASSED.** Green on every head this branch had, including both
+   post-rebase heads: run `33240808782` on `312218e` and run `33240949818` on `fd4d34c`, the head
+   that was merged.
+3. **Post-merge `main` CI — PASSED 2026-08-29.** The dependency this item originally recorded is
+   discharged: PR #16 was squash-merged to `main` as `4e029f2`, this branch was rebased off the
+   now-merged `1a104ee` onto `main` with `git rebase --onto origin/main 1a104ee` (four commits
+   replayed, **no content change** — the diff against the pre-rebase ref was empty), and PR #17 was
+   retargeted to `main`.
 
-   What remains is only the observation itself: `main` CI after this PR merges. That cannot be run
-   from inside the branch, so it is the single item still open, and it now depends on the merge
-   decision rather than on another PR.
+   PR #17 then squash-merged as `484956e`, and the `push`-triggered `main` run **`33240991809`
+   (`verify`) succeeded**. That was the one check that could not be made from inside the branch, and
+   it is now made.
+
+   Also landed alongside it, as separate PRs rather than folded in here: PR #16 (`4e029f2`) and
+   PR #18 (`9253885`), the latter rescuing the OS adoption record — `CLAUDE.md` §21,
+   `docs/AGENT_OS_ADOPTION.md` and its decision entry — which until then existed only in a single
+   unpushed local commit and was on no remote.
+
+**Completion.** Every item in this section is closed. Per `CLAUDE.md` §18 the slice is complete:
+requirements and acceptance tests mapped, automated tests passed, the real user flow exercised
+end-to-end in a browser at mobile width with every visible control clicked, reload behaviour checked,
+blocked states shown to fail closed, the diff reviewed for scope, deviations recorded (§3), findings
+recorded rather than silently handled (§4), GitHub Actions checked on both the PR head and `main`,
+and no live capability enabled (§6). The findings in §4.6, §4.7 and §4.8 are open follow-ups against
+the *project*, not unmet criteria of this slice.
 
 ## 6. Live capability state
 
