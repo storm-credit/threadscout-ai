@@ -11,7 +11,7 @@ PR #16 rather than behind this branch.
 
 | | |
 |---|---|
-| Full suite | **145 tests / 145 pass / 0 fail** (`npm test`) |
+| Full suite | **145 tests / 145 pass / 0 fail** (`npm test`) — and green on CI every push. Locally on Windows one *pre-existing, unrelated* test is load-flaky; see §4.6 for the measured rate and why CI does not see it |
 | Of those, new | 22 in `tests/at14-suppression.test.mjs` |
 | Regression baseline | 123 pre-existing tests on this branch, all still passing |
 | `npm run orchestra:demo` | success |
@@ -115,13 +115,36 @@ back-to-back full-suite runs on Windows. It passed on three consecutive isolated
 subsequent full run. Recorded because it may surface in CI; not introduced by this slice, which does
 not touch the locking layer.
 
-**A second, fully explained failure in the same file, found during the §5 browser run.** With the
-`npm start` server from that run still alive, `npm test` fails
-`fresh competing lock fails closed with a bounded storage_lock_timeout` with
-`code: storage_lock_timeout` — the running server legitimately holds the write lock the test expects
-to win. Killing the server makes the suite pass 145/145 again. This is the test working correctly,
-not a flake: **do not run `npm test` while a dev server is up on the same data directory.** Worth
-knowing for anyone repeating the §18 verification, which requires a server.
+**Measured properly on 2026-08-29, and this entry understated it.** The failure above is not a
+once-seen flake and the mechanism is not `EPERM`. On this Windows machine the same test —
+`fresh competing lock fails closed with a bounded storage_lock_timeout` — fails **intermittently and
+often**, with `code: storage_lock_timeout` thrown from `withStores` setup
+(`tests/persistence-lock.test.mjs:19`, the `Promise.all([storeA.initialize(), storeB.initialize()])`),
+so the test never reaches its own assertions.
+
+Counts, all on the rebased branch with **no dev server running**:
+
+| Condition | Result |
+|---|---|
+| Full `npm test`, three consecutive runs | 144/145, 145/145, 144/145 — **fails 2 of 3** |
+| `node --test tests/persistence-lock.test.mjs` alone, five runs | **fails 1 of 5** |
+| That setup line alone, 12 trials at `lockTimeoutMs: 25` | 12/12 succeeded |
+
+So it is **load-sensitive, not a deterministic race**: the setup is fine in isolation and loses under
+the filesystem contention of a parallel suite. The proximate cause is that this test alone passes
+`lockTimeoutMs: 25`, and a 25ms budget is too tight for Windows filesystem timing once anything else
+is running.
+
+Two consequences worth stating plainly. **A dev server makes it worse but is not the cause** — the
+server does hold the write lock, so `npm test` should not be run against a live server, but stopping
+the server does *not* make the suite reliably green. And **CI does not see this**: the workflow is
+`ubuntu-latest` / Node 20, where it has passed on every push including this branch's head.
+
+**Not fixed here.** `tests/persistence-lock.test.mjs` is outside this slice's allowed file set and
+`CLAUDE.md` §20 forbids widening. The likely one-line fix is to raise that test's `lockTimeoutMs`
+from `25` to a value that still bounds the wait but survives setup jitter; the assertion itself stays
+valid, because the competing lock is a fake writer that never releases and will time out at any
+budget. Recorded for a separate task — it costs the owner a reliable local `npm test` today.
 
 ### 4.7 Server error strings reach the owner in English
 
