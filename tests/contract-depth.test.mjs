@@ -6,6 +6,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   MATCH_STATES,
@@ -245,6 +248,37 @@ test('AT-28: no viable candidate is a valid outcome, not an error', () => {
   ]);
   assert.equal(selected.length, 0);
   assert.equal(emptyReason, '오늘 추천 없음');
+});
+
+// This string drifted once and the drift was diagnosed backwards. DAILY_OPERATING_MODEL.md wrote
+// 오늘은 추천 없음 while six other spec documents — MASTER_SPEC.md among them, which CLAUDE.md §2
+// names first — wrote 오늘 추천 없음, and so did the code. Comparing against a single spec file made
+// the majority look like the defect. The guard therefore checks the whole spec set agrees with
+// itself, not that the code matches one chosen document: divergence anywhere is the failure.
+test('AT-28: the empty-day string is one value, agreed across docs/spec and the code', async () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const specDir = path.resolve(repoRoot, 'docs/spec');
+  const files = (await readdir(specDir)).filter((name) => name.endsWith('.md'));
+
+  const variants = new Map();
+  for (const name of files) {
+    const text = await readFile(path.resolve(specDir, name), 'utf8');
+    for (const [, phrase] of text.matchAll(/`([^`]*추천 없음)`/g)) {
+      if (!variants.has(phrase)) variants.set(phrase, []);
+      variants.get(phrase).push(name);
+    }
+  }
+
+  assert.ok(variants.size > 0, 'no spec document defines the empty-day string any more');
+  assert.equal(
+    variants.size, 1,
+    `docs/spec disagrees with itself: ${[...variants].map(([v, f]) => `"${v}" in ${f.join(', ')}`).join(' | ')}`
+  );
+
+  const { emptyReason } = selectFirstScreen([
+    { id: 'a', opportunityScore: 99, lane: 'practical-novel', riskLevel: 'blocked', sourceMode: 'owner_supplied' }
+  ]);
+  assert.equal(emptyReason, [...variants.keys()][0], 'selectFirstScreen disagrees with docs/spec');
 });
 
 test('a product the owner typed in is never scored out of its own inbox', () => {

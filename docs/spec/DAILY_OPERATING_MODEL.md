@@ -137,7 +137,7 @@ The daily pipeline stops or returns fewer recommendations when:
 - the available products are repetitive
 - all candidates are suppressed/high risk
 
-`오늘은 추천 없음` is a valid output.
+`오늘 추천 없음` is a valid output.
 
 ## 9. Daily user controls
 
