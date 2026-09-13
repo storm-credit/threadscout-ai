@@ -16,7 +16,13 @@ async function withStores(fn, options = {}) {
   const storeA = new LockedAtomicJsonApplicationStore(common);
   const storeB = new LockedAtomicJsonApplicationStore(common);
   try {
-    await Promise.all([storeA.initialize(), storeB.initialize()]);
+    // Sequential, not Promise.all. Initialising both stores at once makes them contend for the
+    // same lock file, and that contention is charged against the *test's* lockTimeoutMs — which one
+    // test deliberately sets to 25ms. Under machine load the setup then loses that budget and the
+    // test fails before reaching its own assertions. No test here exercises concurrent
+    // initialisation; the two that test concurrency do it on execute().
+    await storeA.initialize();
+    await storeB.initialize();
     await fn({ dataDir, filePath, lockPath: `${filePath}.lock`, storeA, storeB });
   } finally {
     // Windows can still hold a handle on the lock file for a moment after release,

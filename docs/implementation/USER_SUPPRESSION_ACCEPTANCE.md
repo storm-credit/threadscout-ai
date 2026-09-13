@@ -162,10 +162,33 @@ the server does *not* make the suite reliably green. And **CI does not see this*
 `ubuntu-latest` / Node 20, where it has passed on every push including this branch's head.
 
 **Not fixed here.** `tests/persistence-lock.test.mjs` is outside this slice's allowed file set and
-`CLAUDE.md` §20 forbids widening. The likely one-line fix is to raise that test's `lockTimeoutMs`
-from `25` to a value that still bounds the wait but survives setup jitter; the assertion itself stays
-valid, because the competing lock is a fake writer that never releases and will time out at any
-budget. Recorded for a separate task — it costs the owner a reliable local `npm test` today.
+`CLAUDE.md` §20 forbids widening. Recorded for a separate task — it costs the owner a reliable local
+`npm test` today.
+
+**Fixed 2026-09-12 in its own task, and not by the remedy proposed above.** Two things in this entry
+did not survive re-measurement:
+
+- *"this test alone passes `lockTimeoutMs: 25`"* — **false.** Two tests pass 25 (`:102` and `:141`).
+  The second builds its store directly instead of going through the shared `withStores` helper, which
+  is why only the first ever failed. The true statement is narrower: it is the only test that passes
+  25 *through the shared setup*.
+- The proposed fix — raise the timeout — treats the symptom. The cause is that `withStores`
+  initialised both stores with `Promise.all`, so they contended for the same lock file and that
+  contention was charged against the **test's** 25ms budget. The setup lost the budget before the
+  test reached its own assertions.
+
+**What was done instead:** the two `initialize()` calls run sequentially. No timeout value changed,
+so the test still asserts a *bounded* wait, and no test's meaning moved — concurrent initialisation
+is not exercised anywhere; the two tests that test concurrency do it on `execute()`.
+
+**Measured, because the original counts no longer reproduced:** 8 consecutive unloaded runs passed
+before any change, against the 2 of 3 failures recorded on 2026-08-29, with the lock layer and the
+test file both unchanged since. So the defect is load-dependent, not always-on, and the original
+figures describe that machine on that day. Under deliberate load — two full suites concurrently —
+it reproduced at **5 failures in 6 runs**, always at `persistence-lock.test.mjs:84`. After the fix,
+the same load gave **10 passes in 10**. The guard was then checked in the failing direction:
+disabling the lock-timeout branch in `locked-application-store.mjs` makes the test fail, so the fix
+removed the setup contention rather than the test's teeth.
 
 ### 4.7 Server error strings reach the owner in English
 
