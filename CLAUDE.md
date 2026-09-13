@@ -222,14 +222,18 @@ The first coding task after Harness Design v1 is `CODING_SPIKE_ENTRY.md` unless 
 
 ## 21. Minimum Action Agent OS
 
-This project follows the `minimum-action-agent-os` working method for **how work is done**. It does not define what is built.
+This project follows the `minimum-action-agent-os` working method.
 
-- Keep the local action space bounded: default target `<= 5` directly selectable agents/tools/skills/MCP actions per reasoning node.
-- This is a **local** bound, not a cap on total agents. Scale through routers/specialists, never by widening one node.
-- Use least tool, least context, least authority.
-- Prefer direct work, a rule, or a skill over a new agent unless a real context/tool/permission/evidence/independence boundary exists.
-- For material independent review, use the `minimum-action-agent-os:independent-critic` agent. Give it the artifact, requirements, and acceptance criteria — not the builder's rationale.
-- `/minimum-action-agent-os:os-preflight` and `/minimum-action-agent-os:os-state` are available when they materially help.
+- Minimize local action space. The `minimum-action-agent-os` plugin's `rules/local-action-space.md` governs the bound, what counts as an action, its payload test, and what a node above the bound owes. Read it there; do not copy it here.
+- The bound is per node, not a global limit on total agents. Scale hierarchically through routers/specialists — but a router the caller must hand a means to does not reduce the count.
+- Use least tool, least context, and least authority.
+- Prefer direct work/rules/skills over creating a new agent. `rules/agent-vs-skill.md` lists the boundaries that justify one; do not decide from a compressed list, and this line deliberately does not carry one.
+- For non-trivial work, run `/minimum-action-agent-os:os-preflight` when preflight materially helps.
+- For material independent review, use the `minimum-action-agent-os:independent-critic` agent.
+- After meaningful state or plan changes, run `/minimum-action-agent-os:os-state`.
+- State what evidence a slice owes before it can be called done, and make it more than "the tests passed". A slice whose only proof is a green suite has not been proved, and this is the item that has done the most work in practice.
+- Adoption has two halves: the structure existing, and the structure having borne on real work. Once a slice of this project's own work has been carried under this method, record for each adopted item whether it changed that slice's outcome, and why in one line. *It changed nothing* is a valid answer; leaving an item unanswered is not, and adopting is not itself the slice. Report which half this project is at rather than reporting adoption complete. (`AGENT_OS_SPEC.md` §11 states this in full, for a reader with the OS repository.)
+- Project-specific canon/spec/status in this repository remains the source of truth for domain content.
 
 **Domain authority is unchanged.** `docs/spec/` remains the source of truth for product and system content; the OS never overrides it. Where the two disagree on working method, the more specific project rule above wins and the deviation is recorded.
 
