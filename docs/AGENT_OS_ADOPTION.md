@@ -99,3 +99,31 @@ These are preserved and deliberately **not** duplicated:
 
 
 The Guardian is the product's own integrity reviewer, but it is not an *independent* reviewer of the **implementation**: it checks drafts against evidence inside the runtime. Independent review of code and design changes relies on the OS critic being actually invoked. Nothing enforces that automatically; `CLAUDE.md` §18 remains the human-facing gate.
+
+## Drift found and corrected, 2026-09-13
+
+`CLAUDE.md` §21 had carried the **pre-`0.1.5`** adoption block since 2026-08-19 — 21 days, across seven
+OS releases. Three divergences from `rules/local-action-space.md`, all in the direction of weakening it:
+
+- **"default target `<= 5`"** where the authority says *"The bound is: no more than five meaningful choices
+  at one reasoning node."* An obligation was stated here as advice. That phrasing was retired upstream on
+  2026-08-22.
+- **The waiver / scope-limit obligation was absent entirely.** The authority says a node above five is
+  never simply allowed — it is either outside the bound's reach (a scope limit) or carries a waiver, and
+  *"there is no third outcome"*. This project stated a bound whose excess carried no recorded consequence.
+- **The payload-test qualifier was missing**, so a router the caller must hand a means to appeared to
+  reduce a node's count. It does not.
+
+The third has a consequence worth naming: this project's per-node counts were recorded as conforming in the
+OS repository's adapter. Those counts were taken against a constitution that omitted the payload test, so
+they were measured under a weaker rule than the one that governs. They are not re-measured here.
+
+**Fixed by replacing §21 with the canonical block verbatim**, extracted from the adapter rather than
+retyped — retyping is how this drift began. Byte-identical to the source. That also restored two bullets
+this project never had: the completion-evidence bullet and the two-halves adoption bullet.
+
+**Knowingly imported with it:** the canonical block contains a clause the OS repository already records as
+defective — *"make it more than 'the tests passed'"* is satisfiable by evidence unrelated to the behaviour
+whose completion is claimed. A repaired local variant was considered and rejected: a hand-improved copy is
+exactly what produced the 21-day drift, and the defect is tracked upstream where its fix belongs.
+
