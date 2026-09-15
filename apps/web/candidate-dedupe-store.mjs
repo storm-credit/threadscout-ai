@@ -17,7 +17,11 @@ function nowIso(clock) {
 
 function cleanString(value, { max = 1000, required = false, label = 'value' } = {}) {
   const text = String(value ?? '').trim().replace(/\u0000/g, '');
-  if (required && !text) throw new ApplicationCommandError(`${label} is required.`, { code: 'invalid_input', statusCode: 422 });
+  if (required && !text) {
+    throw new ApplicationCommandError(`${label} is required.`, {
+      code: 'invalid_input', statusCode: 422, details: { field: label, rule: 'required' }
+    });
+  }
   return text.slice(0, max);
 }
 
@@ -160,7 +164,9 @@ function resolvePossibleDuplicate(state, request, clock) {
 
   const decision = cleanString(request.payload?.decision, { required: true, max: 32, label: 'decision' });
   if (!['distinct', 'duplicate'].includes(decision)) {
-    throw new ApplicationCommandError('Duplicate resolution decision must be distinct or duplicate.', { code: 'invalid_input', statusCode: 422 });
+    throw new ApplicationCommandError('Duplicate resolution decision must be distinct or duplicate.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'decision', rule: 'oneOf', allowed: ['distinct', 'duplicate'] }
+    });
   }
 
   const at = nowIso(clock);

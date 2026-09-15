@@ -290,6 +290,73 @@ async function loadToday() {
   render();
 }
 
+// 서버 오류를 한국어로 옮긴다. 서버 메시지는 영어로 두고(로그·API 소비자가 읽는다) 화면에 보이는
+// 문장만 여기서 만든다. 필드 이름은 `details.field`에서 오므로 영어 문장을 파싱하지 않는다.
+const FIELD_LABELS = {
+  name: '제품 이름', whyNow: '지금 다루는 이유', readerValue: '독자에게 주는 값',
+  axis: '억제 기준', reason: '이유', decision: '결정', text: '내용',
+  draftId: '초안', ruleId: '억제 규칙', requestId: '요청 번호', command: '명령',
+  mediaRights: '미디어 권리', personalUse: '실사용 여부', expiresAt: '만료 시각'
+};
+
+// 억제 축의 값. index.html의 select 옵션 문구와 같은 말을 쓴다.
+const AXIS_LABELS = { product: '이 제품', brand: '이 브랜드', category: '이 카테고리', source: '이 출처' };
+
+// 받침 유무로 조사를 고른다. "이름을(를)"처럼 둘 다 적는 표기는 화면에서 읽기 나쁘다.
+function josa(word, withFinal, withoutFinal) {
+  const last = String(word ?? '').trim().slice(-1);
+  const code = last.charCodeAt(0);
+  if (!(code >= 0xac00 && code <= 0xd7a3)) return withFinal; // 한글이 아니면 기본형
+  return (code - 0xac00) % 28 === 0 ? withoutFinal : withFinal;
+}
+
+const ERROR_MESSAGES = {
+  invalid_input: (d) => {
+    if (d?.allowed && d?.axis !== undefined) {
+      return `억제 기준은 ${d.allowed.map((a) => AXIS_LABELS[a] ?? a).join(', ')} 중 하나여야 합니다.`;
+    }
+    const field = FIELD_LABELS[d?.field] ?? d?.field;
+    if (!field) return '입력한 내용을 다시 확인해 주세요.';
+    if (d.rule === 'required') return `${field}${josa(field, '을', '를')} 입력해 주세요.`;
+    if (d.rule === 'oneOf') return `${field}${josa(field, '은', '는')} ${(d.allowed ?? []).join(' 또는 ')} 중 하나여야 합니다.`;
+    if (d.rule === 'timestamp') return `${field}${josa(field, '은', '는')} 날짜 형식이어야 합니다.`;
+    return `${field}${josa(field, '을', '를')} 다시 확인해 주세요.`;
+  },
+  not_found: () => '대상을 찾을 수 없습니다. 화면을 새로고침해 주세요.',
+  expected_revision_required: () => '화면이 오래되었습니다. 새로고침한 뒤 다시 시도해 주세요.',
+  idempotency_key_reused: () => '같은 요청 번호로 다른 내용을 보냈습니다. 새로고침한 뒤 다시 시도해 주세요.',
+  suppression_axis_empty: (d) =>
+    `이 후보에는 ${AXIS_LABELS[d?.axis] ?? '선택한 기준'}에 해당하는 값이 없어 그 기준으로는 억제할 수 없습니다.`,
+  not_suppressed: () => '이 후보는 지금 억제되어 있지 않습니다.',
+  duplicate_review_required: () => '유사 후보를 먼저 확인해 주세요. 그 뒤에 진행할 수 있습니다.',
+  duplicate_review_not_pending: () => '확인할 유사 후보가 없습니다.',
+  evidence_not_ready: () => '근거가 아직 준비되지 않았습니다. 근거를 먼저 확인해 주세요.',
+  verifier_authority_missing: () => '제품 신원을 확인한 근거가 없습니다. 근거를 먼저 확인해 주세요.',
+  strategy_not_ready: () => '전략 4개가 준비되어야 초안을 만들 수 있습니다.',
+  draft_not_ready: () => '초안이 아직 준비되지 않았습니다.',
+  guardian_gate: () => '최종 검수를 통과해야 승인할 수 있습니다.',
+  stale_guardian: () => '검수 이후 내용이 바뀌었습니다. 검수를 다시 실행해 주세요.',
+  stale_rebuild_required: () => '근거가 바뀌어 이후 결과가 오래되었습니다. 다시 만들어 주세요.',
+  storage_lock_timeout: () => '다른 저장이 진행 중입니다. 잠시 후 다시 시도해 주세요.',
+  payload_too_large: () => '보낸 내용이 너무 큽니다.',
+  invalid_json: () => '요청 형식이 올바르지 않습니다.',
+  route_not_allowed: () => '이 작업은 허용된 경로가 아닙니다.',
+  route_authority_invalid: () => '이 작업을 수행할 권한 설정이 올바르지 않습니다.',
+  specialist_unavailable: () => '담당 에이전트를 사용할 수 없습니다.',
+  agent_registry_invalid: () => '에이전트 구성이 올바르지 않습니다.',
+  unsupported_command: () => '지원하지 않는 명령입니다.',
+  orchestrator_command_unknown: () => '지원하지 않는 명령입니다.'
+};
+
+// version_conflict is handled separately at the call site, because it also reloads state.
+function errorToKorean(result) {
+  const build = ERROR_MESSAGES[result?.error];
+  if (build) {
+    try { return build(result.details ?? {}); } catch { /* fall through to the default */ }
+  }
+  return '요청을 처리하지 못했습니다.';
+}
+
 async function sendCommand(command, { candidateId = null, expectedRevision = null, payload = {}, id = requestId(command) } = {}) {
   const response = await fetch('/api/commands', {
     method: 'POST',
@@ -304,7 +371,7 @@ async function sendCommand(command, { candidateId = null, expectedRevision = nul
       showToast('다른 화면에서 상태가 바뀌었습니다. 최신 버전으로 다시 불러왔습니다.');
       return { ok: false, conflict: true, result };
     }
-    showToast(result.message || '요청을 처리하지 못했습니다.');
+    showToast(errorToKorean(result));
     return { ok: false, result };
   }
   render();

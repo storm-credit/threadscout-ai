@@ -58,14 +58,20 @@ function nowIso(clock) {
 
 function cleanString(value, { max = 1000, required = false, label = 'value' } = {}) {
   const text = String(value ?? '').trim().replace(/\u0000/g, '');
-  if (required && !text) throw new ApplicationCommandError(`${label} is required.`, { code: 'invalid_input', statusCode: 422 });
+  if (required && !text) {
+    throw new ApplicationCommandError(`${label} is required.`, {
+      code: 'invalid_input', statusCode: 422, details: { field: label, rule: 'required' }
+    });
+  }
   return text.slice(0, max);
 }
 
 function safeMediaRights(value) {
   const normalized = cleanString(value || 'unknown', { max: 32 });
   if (!MEDIA_RIGHTS.has(normalized)) {
-    throw new ApplicationCommandError('mediaRights is invalid.', { code: 'invalid_input', statusCode: 422 });
+    throw new ApplicationCommandError('mediaRights is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'mediaRights', rule: 'invalid' }
+    });
   }
   return normalized;
 }
@@ -73,7 +79,9 @@ function safeMediaRights(value) {
 function safePersonalUse(value) {
   const normalized = cleanString(value || 'not_confirmed', { max: 32 });
   if (!PERSONAL_USE.has(normalized)) {
-    throw new ApplicationCommandError('personalUse is invalid.', { code: 'invalid_input', statusCode: 422 });
+    throw new ApplicationCommandError('personalUse is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'personalUse', rule: 'invalid' }
+    });
   }
   return normalized;
 }
@@ -619,7 +627,11 @@ function runGuardian(candidate, clock) {
 
 function recordReviewDecision(candidate, payload, clock) {
   const decision = cleanString(payload.decision, { required: true, max: 32, label: 'decision' });
-  if (!REVIEW_DECISIONS.has(decision)) throw new ApplicationCommandError('Review decision is invalid.', { code: 'invalid_input', statusCode: 422 });
+  if (!REVIEW_DECISIONS.has(decision)) {
+    throw new ApplicationCommandError('Review decision is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'decision', rule: 'invalid' }
+    });
+  }
 
   if (decision === 'approved') {
     if (candidate.guardian?.decision !== 'pass') {

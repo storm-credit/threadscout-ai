@@ -34,7 +34,9 @@ function nowIso(clock) {
 function cleanString(value, { max = 300, required = false, label = 'value' } = {}) {
   const text = String(value ?? '').trim().replace(/\u0000/g, '');
   if (required && !text) {
-    throw new ApplicationCommandError(`${label} is required.`, { code: 'invalid_input', statusCode: 422 });
+    throw new ApplicationCommandError(`${label} is required.`, {
+      code: 'invalid_input', statusCode: 422, details: { field: label, rule: 'required' }
+    });
   }
   return text.slice(0, max);
 }
@@ -128,7 +130,9 @@ function suppressCandidate(state, request, clock) {
   const reason = cleanString(request.payload?.reason, { required: true, max: 300, label: 'reason' });
   const expiresAt = request.payload?.expiresAt ? cleanString(request.payload.expiresAt, { max: 40 }) : null;
   if (expiresAt && Number.isNaN(Date.parse(expiresAt))) {
-    throw new ApplicationCommandError('expiresAt must be an ISO timestamp.', { code: 'invalid_input', statusCode: 422 });
+    throw new ApplicationCommandError('expiresAt must be an ISO timestamp.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'expiresAt', rule: 'timestamp' }
+    });
   }
 
   const at = nowIso(clock);
