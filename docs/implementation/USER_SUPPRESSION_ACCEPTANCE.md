@@ -210,6 +210,28 @@ change `CLAUDE.md` §20 forbids folding into this slice. Recorded for a separate
 needs already exists, since every one of these errors carries a stable `code` (this one is
 `suppression_axis_empty`).
 
+**Fixed 2026-09-15, and the shape of the fix was not obvious from this entry.** Mapping `code` to Korean
+at `app.js:307` — the remedy implied above — would have *lost* information. There are 25 distinct codes but
+`invalid_input` alone covers nine different messages, and the word that says *which* field is wrong
+(`reason`, `axis`, `name`…) lived only inside the English sentence. Mapping by code alone turns
+`reason is required.` into `입력한 내용을 다시 확인해 주세요.`, which is less actionable than the English
+it replaces.
+
+So the server now puts that word in `details` (`{ field, rule }`), and the client builds the Korean from
+`code` + `details`. Eight `invalid_input` sites gained the detail; the ninth already carried
+`{ axis, allowed }`. **Server messages stay English** — they are what logs and API consumers read, and the
+wire was verified unchanged.
+
+Verified in a real browser rather than against the source, per §18: a required-field error through the
+add-candidate form gives `제품 이름을 입력해 주세요.`, an empty-axis suppression gives
+`이 후보에는 이 브랜드에 해당하는 값이 없어…` using the select's own wording, and an unknown command still
+returns `Command is not registered with Orchestrator: …` on the wire. 4 of 4.
+
+One thing the browser pass caught that source review had not: the first draft printed `이름을(를)`, writing
+both particle forms because it could not choose. Korean particle selection depends on whether the preceding
+syllable has a final consonant, so the client now computes it. That is invisible in a unit test and obvious
+on screen.
+
 ### 4.8 With every candidate suppressed, the empty-state line sits just below the fold
 
 Measured during the §5 run at 360x740: when a rule matches all candidates, `#candidate-list` renders
