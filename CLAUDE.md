@@ -224,15 +224,30 @@ The first coding task after Harness Design v1 is `CODING_SPIKE_ENTRY.md` unless 
 
 This project follows the `minimum-action-agent-os` working method.
 
-- Minimize local action space. The `minimum-action-agent-os` plugin's `rules/local-action-space.md` governs the bound, what counts as an action, its payload test, and what a node above the bound owes. Read it there; do not copy it here.
+- Minimize local action space. The `minimum-action-agent-os` plugin's `rules/local-action-space.md` governs the bound (`<= 5` meaningful choices where a model selects), what counts as an action, its payload test, and the record a node owes (scope limit, waiver, or deterministic-node record). Read it when sizing or auditing a node; do not maintain a hand-edited restatement here.
 - The bound is per node, not a global limit on total agents. Scale hierarchically through routers/specialists — but a router the caller must hand a means to does not reduce the count.
-- Use least tool, least context, and least authority.
-- Prefer direct work/rules/skills over creating a new agent. `rules/agent-vs-skill.md` lists the boundaries that justify one; do not decide from a compressed list, and this line deliberately does not carry one.
+- Use least tool, least context, and least authority; give decidable checks (counts, hashes, schemas, exit codes) to code rather than model confirmation (`rules/verification-placement.md`).
+- Prefer direct work/rules/skills over creating a new agent. The text below is extracted verbatim from `rules/agent-vs-skill.md`, which governs; it is regenerated from that file and never edited here (first 16 hex chars of sha256: `76e1e6d8bbd45f97`):
+
+  At least one meaningful boundary exists:
+
+  - separate context is valuable,
+  - separate tools or permissions are required,
+  - independent critique is required,
+  - a different evidence/source regime is required,
+  - the task has a materially different failure mode,
+  - delegation genuinely reduces the parent's local action space, judged by the payload test in
+    `rules/local-action-space.md`. A delegate that fails that test does not reduce the count, which
+    disqualifies this bullet and nothing else in the list — the boundaries above stand on their own.
+
+  "Security expert", "UX expert", "novel expert", or "red team" labels are not sufficient by themselves.
+
+  If the role only adds a viewpoint, prefer a rubric/checklist/skill.
 - For non-trivial work, run `/minimum-action-agent-os:os-preflight` when preflight materially helps.
-- For material independent review, use the `minimum-action-agent-os:independent-critic` agent.
-- After meaningful state or plan changes, run `/minimum-action-agent-os:os-state`.
-- State what evidence a slice owes before it can be called done, and make it more than "the tests passed". A slice whose only proof is a green suite has not been proved, and this is the item that has done the most work in practice.
-- Adoption has two halves: the structure existing, and the structure having borne on real work. Once a slice of this project's own work has been carried under this method, record for each adopted item whether it changed that slice's outcome, and why in one line. *It changed nothing* is a valid answer; leaving an item unanswered is not, and adopting is not itself the slice. Report which half this project is at rather than reporting adoption complete. (`AGENT_OS_SPEC.md` §11 states this in full, for a reader with the OS repository.)
+- When asked to review a design, plan, or document that other people will rely on, delegate the review to the `minimum-action-agent-os:independent-critic` agent instead of reviewing it yourself, supplying the artifact, requirements, mandatory constraints, acceptance criteria, and verification evidence without your private rationale. Withholding rationale removes anchoring, and its separate undefined-term pass tests whether weaker text-consistent readings defeat normative clauses (`rules/anti-patterns.md` entry 7 and `agents/independent-critic.md` govern).
+- After meaningful state or plan changes, run `/minimum-action-agent-os:os-state` (keeping unverified working hypotheses explicitly labelled `UNVERIFIED` rather than persisted as fact).
+- State what evidence a slice owes before it can be called done, and require evidence that **bears on the behaviour whose completion is claimed** — more than "the tests passed" is the floor, not the test (a checksum is also more than passing tests and proves nothing about whether the behaviour works). In the AT-14 field slice (`2026-08-29`), this completion gate caught two runtime defects a green suite missed.
+- Adoption has two halves: **Installed** (the structure exists) and **Exercised** (at least one slice of domain work carried under it). Once a slice of this project's own work has been carried under this method, record for each adopted item one of **three** answers — *changed the outcome*, *applied and changed nothing*, or *never applied* — with a one-line reason (collapsing the last two hides an unexercised rule inside an unhelpful one, and adopting is not itself the slice). Report which half this project is at rather than reporting adoption complete (`AGENT_OS_SPEC.md` §11 governs).
 - Project-specific canon/spec/status in this repository remains the source of truth for domain content.
 
 **Domain authority is unchanged.** `docs/spec/` remains the source of truth for product and system content; the OS never overrides it. Where the two disagree on working method, the more specific project rule above wins and the deviation is recorded.
