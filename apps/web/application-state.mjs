@@ -1152,7 +1152,22 @@ export class AtomicJsonApplicationStore {
 
 export function assertPublicReadModelSafe(readModel) {
   const serialized = canonicalStringify(readModel);
-  const forbidden = ['THREADS_ACCESS_TOKEN', 'NAVER_API_HUB_CLIENT_SECRET', 'COUPANG_WING_SECRET_KEY'];
+  const forbidden = [
+    'THREADS_ACCESS_TOKEN',
+    'THREADS_APP_ID',
+    'THREADS_USER_ID',
+    'NAVER_API_HUB_CLIENT_SECRET',
+    'NAVER_API_HUB_CLIENT_ID',
+    'COUPANG_WING_SECRET_KEY',
+    'COUPANG_WING_ACCESS_KEY',
+    'COUPANG_PARTNERS_SECRET_KEY',
+    'COUPANG_PARTNERS_ACCESS_KEY',
+    'GEMINI_API_KEY',
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY',
+    'AI_API_KEY',
+    'THREADSCOUT_GLOBAL_KILL_SWITCH'
+  ];
   const leaks = forbidden.filter((needle) => serialized.includes(needle));
   return { ok: leaks.length === 0, leaks };
 }

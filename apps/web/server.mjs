@@ -7,6 +7,10 @@ import { SuppressionApplicationStore } from './candidate-suppression-store.mjs';
 import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
 import { SqliteApplicationStore, isNodeSqliteAvailable } from '../../packages/database/src/sqlite-store.mjs';
 import {
+  buildLiveActivationPreflightReport,
+  toPublicWebPreflightSummary
+} from '../../packages/orchestra/src/live-activation-preflight.mjs';
+import {
   exportDeterministicMarkdownCard,
   projectPublicShowcaseCard
 } from '../../packages/core/src/public-showcase-projector.mjs';
@@ -200,6 +204,17 @@ export function createThreadScoutServer({
         const safe = assertPublicReadModelSafe(result.card);
         if (!safe.ok) throw new Error(`Unsafe showcase card: ${safe.leaks.join(', ')}`);
         return json(res, 200, { ok: true, status: 'ok', card: result.card, markdown });
+      }
+
+      if (req.method === 'GET' && requestUrl.pathname === '/api/preflight') {
+        const rawReport = buildLiveActivationPreflightReport({
+          environment: process.env,
+          clock: clock ? () => clock() : undefined
+        });
+        const preflight = toPublicWebPreflightSummary(rawReport);
+        const safe = assertPublicReadModelSafe(preflight);
+        if (!safe.ok) throw new Error(`Unsafe preflight payload: ${safe.leaks.join(', ')}`);
+        return json(res, 200, { ok: true, preflight });
       }
 
       if (req.method === 'GET' && requestUrl.pathname === '/api/today') {

@@ -327,6 +327,39 @@ function renderMetrics() {
   }
 }
 
+async function loadPreflightIntoView() {
+  try {
+    const res = await fetch('/api/preflight', { headers: { accept: 'application/json' }, cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const p = data.preflight;
+    if (!p || viewMode !== 'queue') return;
+
+    const readyHtml = (p.localReadyNow ?? []).map((item) => `
+      <div class="capability-item">
+        <strong>✔ ${escapeHtml(item.nameKo)}</strong>
+        <span>${escapeHtml(item.summaryKo)}</span>
+      </div>`).join('');
+
+    const gatesHtml = (p.liveApiGates ?? []).map((gate) => `
+      <div class="capability-item">
+        <strong>🔒 ${escapeHtml(gate.nameKo)} · ${gate.readyForLiveExecution ? '실행 가능' : '잠김 (수동 승인 전)'}</strong>
+        <span>${(gate.blockers ?? []).map(escapeHtml).join(' · ')}</span>
+      </div>`).join('');
+
+    els.capabilityView.innerHTML = `
+      <p class="section-kicker">Schedule &amp; Live Activation Preflight</p>
+      <h2>실연동 사전 점검표 및 단일 포스트 게시 안전 게이트</h2>
+      <p>현재 바로 상업 운영 가능한 <strong>수동 링크 + <a href="/showcase" target="_blank" rel="noopener">/showcase 공개 쇼케이스</a></strong> 경로와, 키·심사 승인 후 열 수 있는 외부 실시간 API 게이트를 구분해 보여줍니다(시크릿 원문 미노출, <code>reply_to_id</code> 자동 댓글 코드 차단 완료).</p>
+      <h3 class="section-heading" style="margin-top:16px;">지금 바로 사용 가능한 상업·검증 경로 (API 키 불필요)</h3>
+      <div class="capability-list">${readyHtml}</div>
+      <h3 class="section-heading" style="margin-top:18px;">외부 실시간 API 잠금 상태 (프리플라이트 체크리스트)</h3>
+      <div class="capability-list">${gatesHtml}</div>`;
+  } catch {
+    /* keep static fallback */
+  }
+}
+
 function renderView() {
   document.querySelectorAll('.nav-item').forEach((button) => {
     const active = button.dataset.view === viewMode;
@@ -338,8 +371,9 @@ function renderView() {
     els.inboxView.hidden = true;
     els.capabilityView.hidden = false;
     els.capabilityView.innerHTML = viewMode === 'queue'
-      ? `<p class="section-kicker">Schedule &amp; Showcase</p><h2>자동 외부 게시는 꺼져 있으며, 승인 건은 공개 쇼케이스에 투영됩니다.</h2><p>승인된 후보는 닫힌 9필드 화이트리스트 검증을 통과한 뒤 <a href="/showcase" target="_blank" rel="noopener">/showcase 공개 디렉터리</a>에 #번호 카드로 게시됩니다. 스레드 자동 게시 및 댓글 봇은 비활성화 상태입니다.</p><div class="capability-list"><div class="capability-item"><strong>외부 자동 게시</strong><span>disabled (단일 루트 포스트 수동 운영)</span></div><div class="capability-item"><strong>서버 저장소</strong><span>${escapeHtml(today?.capability.persistence ?? 'loading')}</span></div></div>`
+      ? `<p class="section-kicker">Schedule &amp; Showcase</p><h2>실연동 프리플라이트 상태를 불러오는 중입니다...</h2><p>승인된 후보는 닫힌 9필드 화이트리스트 검증을 통과한 뒤 <a href="/showcase" target="_blank" rel="noopener">/showcase 공개 디렉터리</a>에 #번호 카드로 게시됩니다.</p><div class="capability-list"><div class="capability-item"><strong>외부 자동 게시</strong><span>disabled (단일 루트 포스트 수동 운영)</span></div><div class="capability-item"><strong>서버 저장소</strong><span>${escapeHtml(today?.capability.persistence ?? 'loading')}</span></div></div>`
       : `<p class="section-kicker">Performance</p><h2>실제 게시 귀속 전에는 성과를 추정 학습하지 않습니다.</h2><p>클릭·정산 지표가 수집되기 전까지 허위 추천 점수를 만들지 않습니다. 제휴 순기여(ROI)는 검증 사실과 분리된 결정적 계산기로만 산출합니다.</p><div class="capability-list"><div class="capability-item"><strong>학습 상태</strong><span>측정 데이터 없음</span></div><div class="capability-item"><strong>외부 게시</strong><span>disabled</span></div></div>`;
+    if (viewMode === 'queue') loadPreflightIntoView();
     return;
   }
 
