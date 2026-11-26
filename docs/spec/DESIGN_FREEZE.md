@@ -50,7 +50,7 @@ Code stays frozen until a separate implementation request explicitly starts a bo
 - expanded implementation trap checklist
 - end-to-end scenarios and contradiction review
 - promoted reversible P1 defaults
-- consolidated traceability and behavioral acceptance through AT-44
+- consolidated traceability and behavioral acceptance through AT-48 (updated `2026-11-27` for Option B Public Verified Showcase & dual affiliate)
 - future design-focused GitHub Actions semantics
 
 ## Completed Harness Design decisions
@@ -59,7 +59,7 @@ Code stays frozen until a separate implementation request explicitly starts a bo
 - selected contract-first adaptation around existing orchestra/replay/store/broker/fixture assets
 - live-provider-first and full rewrite rejected for the first cycle
 - fixture catalog and expected semantic outcomes defined
-- AT-01~44 split across harness/UI/E2E/live/analytics validation layers
+- AT-01~48 split across harness/UI/E2E/live/analytics validation layers
 - first Coding Spike AT/fixture subset defined
 - legacy prototype classified `KEEP / MODIFY / RETIRE / MISSING`
 - normal, blocked, budget-exhausted, contaminated-evidence, and stale-approval scenarios defined
@@ -73,9 +73,10 @@ Design/Harness completion does not require guessing account-specific facts. The 
 1. Threads keyword discovery for the target account/app
 2. Threads insights retrieval for the target account/app
 3. Threads publishing
-4. live Coupang Partners commercial posting
-5. automated product/listing discovery beyond owner-supplied destinations
-6. third-party media download/transform/republish without recorded action-specific rights
+4. live Coupang Partners and Naver Shopping Connect commercial posting
+5. external Public Verified Showcase (`/showcase`) hosting
+6. automated product/listing discovery beyond owner-supplied destinations
+7. third-party media download/transform/republish without recorded action-specific rights
 
 ## Activation checks
 
@@ -83,7 +84,8 @@ Before enabling a live capability, verify the applicable current/account-specifi
 
 - Meta app/account scope, token, identity, and exposed capability
 - authorized commercial/listing source
-- current Coupang Partners account/program disclosure/link requirements
+- current Coupang Partners and Naver Shopping Connect account/program disclosure/link requirements
+- Public Verified Showcase domain/TLS identity and external global kill switch
 - deployed runtime identity and secret backend
 - source/asset/action-specific media rights
 - available analytics/attribution fields
@@ -114,8 +116,6 @@ The Harness Design is **complete as design**.
 
 The pre-baseline prototype harness is **executable but not Master-Design-compliant by default**.
 
-The Master-Design-aware harness is **not yet implemented**.
-
-The first Coding Spike is **ready but not started**.
+The Master-Design contract spine (Coding Spike 0) and local manual vertical slices (PRs #11–#23) are implemented and verified as recorded in `docs/IMPLEMENTATION_STATUS.md`; Option B (`AT-45..48`) and full AT-01~48 live capabilities remain unimplemented behind the Implementation-Resume Gate above.
 
 None of these labels imply production readiness or live enablement.

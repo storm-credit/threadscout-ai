@@ -24,6 +24,8 @@ Purpose: close the highest-severity findings from `FINAL_BLIND_SPOT_SWEEP.md` by
 | BS-46 | unsafe high-performing content can poison learning | ANALYTICS_SPEC, SAFETY_COMPLIANCE | AT-12 | mapped |
 | BS-51 | secret leakage risk is high in a public repository | SECURITY_ARCHITECTURE, CONFIGURATION_AUTHORITY, CLAUDE.md | AT-20 | mapped |
 | BS-52 | public-source excerpts may still contain personal data | PRODUCT_REQUIREMENTS, SOURCE_STRATEGY, SAFETY_COMPLIANCE, RETENTION_OPTIONS | AT-24 | mapped |
+| BS-60 | indirect `#NNN` showcase solicitation omits root-post statutory disclosure | MASTER_SPEC, AFFILIATE_SPEC, CONTENT_OUTPUT_SPEC | AT-08, AT-17, AT-45 | mapped |
+| BS-61 | public `#NNN` showcase leaks raw excerpts, PII, unpermitted media, or `likely`/`unresolved` candidates | MASTER_SPEC, PLATFORM_DECISION, AFFILIATE_SPEC, SAFETY_COMPLIANCE | AT-05, AT-10, AT-24, AT-46 | mapped |
 
 ## Result
 

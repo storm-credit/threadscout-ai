@@ -122,7 +122,9 @@ Purpose: challenge the current Master Design before promotion. This is not a lis
 | BS-56 | B1 | building a sophisticated orchestra before proving the daily habit may over-engineer the product | MVP remains one-owner, one-account, limited lane; no multi-tenant SaaS/billing |
 | BS-57 | B1 | daily 0–3 target can be misread as requirement to fill slots | zero posts is valid when evidence/value is weak |
 | BS-58 | B1 | a successful content format can make the account repetitive | duplicate/portfolio guardrails operate above per-post quality |
-| BS-59 | B2 | affiliate revenue may be too low to justify operational cost | track time/cost/revenue separately before expanding automation |
+| BS-59 | B2 | affiliate revenue may be too low to justify operational cost | track time/cost/revenue separately via `affiliate_yield_service` and `(candidate_id, lifecycle_epoch)` budget ceilings before expanding automation |
+| BS-60 | B0 | indirect showcase pointer (`#NNN`, `N번`, `/showcase`) in a root Threads post omits root-post statutory disclosure or later monetizes a previously `'none'` card | `AFFILIATE_SPEC.md` §5 requires offset-`0` verbatim statutory disclosure on every commercial solicitation surface and permanently locks any `#NNN` card referenced by a non-disclosed published post to `AffiliateMapping.state = 'none'` (`AT-45`) |
+| BS-61 | B0 | public `#NNN` showcase page leaks raw third-party excerpts, seller PII, unpermitted media, `stale` items, or `likely`/`unresolved` items, or mis-badges an `'alternative'` link as `'exact'` | `PLATFORM_DECISION.md` enforces the closed 9-field `PublicShowcaseCard` schema, deterministic `(product_state, AffiliateMapping.state) -> matchBadge` table, zero-verbatim-excerpt check, and full card withdrawal on `stale`/7d TTL expiry (`AT-46`) |
 
 ## 12. Final assessment
 

@@ -59,6 +59,44 @@ No decision is considered complete because one browser tab has local state.
 
 Desktop may expose denser evidence, side-by-side comparisons, audit lineage, and configuration panels, but cannot gain authority unavailable on mobile. The same approval and blocker rules apply on every device.
 
+## Public Verified Showcase surface (`#NNN`) & closed projection schema
+
+Because Meta Threads exposes no Direct Message API (`reported`) and `CLAUDE.md` §5 forbids automated comments/continuation replies, Option B provides a read-only **Public Verified Showcase** web route (`/showcase` and `/showcase/:cardNumber`) alongside the authenticated Owner Operations Surface.
+
+### Closed default-deny public card schema (`PublicShowcaseCard`)
+
+Public projection uses a strict allowlist (`additionalProperties: false`), never log-denylisting. Candidate `product_state` (`'exact' | 'likely' | 'substitute' | 'unresolved'`) and `AffiliateMapping.state` (`'exact' | 'alternative' | 'none'`) map deterministically as follows:
+
+| `product_state` | `AffiliateMapping.state` | Publicly projectable? | `PublicShowcaseCard.matchBadge` |
+|---|---|---|---|
+| `'exact'` | `'exact'` | **Yes** (when approved & non-stale) | `'exact'` |
+| `'exact'` | `'none'` | **Yes** (non-commercial, `verifiedDestinationUrl: null`) | `'exact'` |
+| `'exact'` | `'alternative'` | **Yes** (substitute purchase destination) | `'alternative'` |
+| `'substitute'` | `'alternative'` | **Yes** | `'alternative'` |
+| `'substitute'` | `'none'` | **Yes** (non-commercial substitute) | `'alternative'` |
+| `'substitute'` | `'exact'` | **No — invalid combination (hard-blocked)** | — |
+| `'likely'` or `'unresolved'` | *any* | **No — hard-blocked from public projection** | — |
+
+Allowed fields (`9` total):
+
+1. `cardNumber` — sequential positive integer formatted `#NNN`
+2. `canonicalProductName` — verified `brand + model + variant` string
+3. `matchBadge` — closed enum `'exact' | 'alternative'` derived strictly from the table above
+4. `verifiedPros` — 1 to 3 concise synthesized consumer-value bullets validated against `evidence_packet` verified claims and checked (after masking exact `canonicalProductName` occurrences) to share zero `>= 12`-character contiguous verbatim substrings with any third-party `rawExcerpt` and zero PII tokens (email, phone, address, `@handle`, non-public personal names)
+5. `verifiedLimitation` — non-empty concrete synthesized caution/limitation string subject to the same zero-verbatim-excerpt/PII check
+6. `disclosureText` — verbatim statutory disclosure string rendered on both `/showcase` index cards and `/showcase/:cardNumber` as the **first visible, non-clipped, readable-contrast (`>= 4.5:1`, `>= 12px` CSS font-size, non-`sr-only`) text block** above product name, media, and CTA whenever `verifiedDestinationUrl` is non-null (`null` iff `verifiedDestinationUrl` is `null`)
+7. `verifiedDestinationUrl` — HTTPS URL from the bound `AffiliateMapping`, or `null` when `AffiliateMapping.state === 'none'`
+8. `publishableMediaUrl` — HTTPS URL only when `publication_media_state` is `user_owned` or `licensed_commercial`, otherwise `null`
+9. `verifiedAt` — ISO-8601 UTC timestamp of the bound `evidence_packet`
+
+Every unlisted property (`rawSourceExcerpts`, `sellerPii`, `opportunityScore`, `internalNotes`, `auditHashes`, `suppressionHistory`, unpermitted media refs) is dropped by construction.
+
+### Stale-card withdrawal & post-publication showcase TTL
+
+Published showcase cards with a non-null `verifiedDestinationUrl` carry a **7-day rolling destination-revalidation TTL** (`12h` for fast issue-linked cards; `4h` only while a separate post claims an exact live price). Any material upstream mutation, approval invalidation, or showcase TTL expiry marks the candidate `stale` and **blocks the entire `PublicShowcaseCard` from `/showcase` and `/showcase/:cardNumber`** (returning a minimal non-commercial status notice with zero product claims, pros, media, or outbound URLs until re-verified and re-approved).
+
+Once any Threads post referencing a candidate's card (`#NNN`, `N번`, `/showcase/N`) or `/showcase` enters `published` or `unknown_remote_state` without offset-`0` statutory disclosure on that root post, that `#NNN` card is **permanently locked to `AffiliateMapping.state === 'none'`** (`BS-60`).
+
 ## PWA boundary
 
 PWA-related features are optional enhancements:

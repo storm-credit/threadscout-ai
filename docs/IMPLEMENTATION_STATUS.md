@@ -2,7 +2,7 @@
 
 ## Canonical design status
 
-- **Master Design v1: COMPLETE** — product/platform/six-agent/evidence/media/matching/content/approval/publishing/analytics/security design and AT-01~44 are canonical in `docs/spec/`.
+- **Master Design v1 / v1.1 (Option B): COMPLETE** — product/platform/showcase/six-agent/evidence/media/matching/content/approval/publishing/analytics/security design and AT-01~48 are canonical in `docs/spec/`.
 - **Harness Design v1: COMPLETE** — `HARNESS_BLUEPRINT`, `HARNESS_ACCEPTANCE_MATRIX`, gap analysis, and coding entry rules define the executable-specification approach.
 - Live-account/policy/deployment items remain capability-gated; design completion does not mean production activation.
 
@@ -158,26 +158,44 @@ Still intentionally disabled:
 - Threads keyword discovery for the target app/account
 - Threads insights
 - Threads publishing
-- live Coupang Partners commercial posting
+- live Coupang Partners and Naver Shopping Connect commercial posting
+- Public Verified Showcase (`#NNN`) external web serving (approved in design v1.1 on `2026-11-27`; not yet implemented)
 - automated listing discovery beyond owner-supplied destinations
 - live Scout/global candidate dedupe
 - third-party media download/transform/republish without action-specific rights evidence
-- schedule dispatch/reconciliation
+- schedule dispatch/reconciliation and external global kill switch
 - analytics learning
 
-No credential, new dependency/framework, workflow-file change, model provider, live-network enablement, new agent, publication path, or scheduler activation is introduced by the candidate-dedupe slice.
+No credential, new dependency/framework, workflow-file change, model provider, live-network enablement, new agent, publication path, or scheduler activation is introduced by the merged local slices (PRs #11–#23).
+
+## Post-AT-14 maintenance fixes on `main` (PRs #19–#23)
+
+- **PR #19 (`67082fe`):** closed AT-14 completion gates in status documentation.
+- **PR #20 (`b923a9f`):** unified the empty-day string (`오늘 추천 없음`) across `docs/spec/` and added the cross-spec agreement test in `tests/contract-depth.test.mjs`.
+- **PR #21 (`58a4840`):** isolated persistence-lock test setup from its own lock-timeout budget on Windows.
+- **PR #22 (`7689e26`) & MAOS `0.2.1` sync (`2026-11-27`):** upgraded `CLAUDE.md` §21 to canonical MAOS `0.2.1`, compacted `CLAUDE.md` under the `<= 200`-line root cap, and recorded the §11 Exercised ledger in `docs/AGENT_OS_ADOPTION.md`.
+- **PR #23 (`4ae6afb`):** translated user-facing server validation errors to Korean while preserving structured field diagnostics (resolving the §4.7 follow-up from AT-14 browser verification).
+
+## Option B Commercial Showcase & Dual-Affiliate Design Update (`2026-11-27`, DESIGN COMPLETE / CODE NOT STARTED)
+
+On `2026-11-27`, after comparing four commercial options and running `maos-critic` independent verification, the owner approved **Option B (Public Verified Showcase `#NNN` web surface + single-post Threads funnel + Coupang Partners & Naver Shopping Connect dual affiliate + Korean anti-AI-slop rubric)** while preserving `CLAUDE.md` §5 (unconditional automated-comment ban; no automated self-replies) and `CLAUDE.md` §7 (fixed six-agent orchestra; deterministic non-agent `affiliate_yield_service` and `public_showcase_projector`).
+
+Updated canonical specs (`MASTER_SPEC.md`, `PLATFORM_DECISION.md`, `AFFILIATE_SPEC.md`, `CONTENT_OUTPUT_SPEC.md`, `PRODUCT_REQUIREMENTS.md`, `MVP_SCOPE.md`, `PUBLISHING_SPEC.md`, `RUN_BUDGETS.md`, `DESIGN_FREEZE.md`, `FINAL_BLIND_SPOT_SWEEP.md` `BS-60..61`, `B0_TRACEABILITY_MATRIX.md`, `TRACEABILITY_MATRIX.md` `PR-25..26`/`NFR-13`, `ACCEPTANCE_TESTS.md` `AT-45..48`, `HARNESS_ACCEPTANCE_MATRIX.md` `F25..28`) and initialized the non-canonical `os-intake` watch vault under `docs/watch/` paired with NotebookLM Watch Lab `c1a08bb9-d265-4f8f-b896-03a583748cdb`. Runtime/product code remains unchanged until an explicit bounded coding slice is started under `DESIGN_FREEZE.md`.
 
 ## Remaining explicit boundaries
 
-- user category/content suppression from AT-14 is separate from duplicate suppression and is now implemented on branch `feat/at14-user-suppression`; see the AT-14 section above. It remains unmerged and not browser-verified
+- AT-14 owner suppression is merged (`484956e`, PR #17) and browser-verified; the remaining UI polish follow-up from that run is the all-suppressed empty-state line sitting 39px below the 360×740 mobile fold
+- Option B capabilities (`AT-45..48`: offset-`0` direct/indirect statutory disclosure check, closed 9-field Public Verified Showcase projection, dual-affiliate manual/rate-limited service, candidate-lifecycle cumulative token/cost ceiling, and passive-data payload fencing) are **specified in `docs/spec/`, not yet implemented in code**
 - no UPC/EAN/GTIN or external catalog matching exists
-- no embedding/LLM semantic dedupe exists
+- no embedding/LLM semantic dedupe or live LLM provider adapter is enabled yet
 - no production database/trigram index exists; O(n) comparison is limited to the current bounded local candidate history
 - multi-host/background production execution still requires database-backed transactional persistence
-- real-device/browser/touch/assistive-technology acceptance is not replaced by structural web tests
 
-## Next safe implementation boundary after PR #14
+## Next safe implementation boundary
 
-Do not jump directly to public posting. The next bounded non-live gap should be selected separately. Strong candidates are the real-device/browser acceptance harness and manual acceptance matrix, or AT-14 user/category suppression semantics. Production-store migration becomes the priority only when multi-host/background-worker execution is actually being introduced.
+Do not jump directly to public posting. Select the next bounded non-live coding slice explicitly under `DESIGN_FREEZE.md` — recommended order:
+1. **Offset-`0` statutory disclosure & anti-AI-slop deterministic checks (`AT-45`, `F25`) + `stays-quiet` negative tests** in `guardian-checks.mjs`
+2. **Candidate-lifecycle cumulative budget ceiling & passive-data payload fencing (`AT-48`, `F28`) + tiered LLM provider adapter**
+3. **Closed 9-field Public Verified Showcase read-only projection & dual-affiliate manual/rate-limited mapper (`AT-46`, `AT-47`, `F26`, `F27`)**
 
-Before any live source or publishing slice, separately verify current account permissions/policies, credential storage, source-specific terms/rate limits, publication idempotency/reconciliation, kill switch, authorization preflight, evidence freshness, destination integrity, media rights and disclosure.
+Before any live source or publishing slice, separately verify current account permissions/policies, credential storage, source-specific terms/rate limits, publication idempotency/reconciliation, external global kill switch, transactional persistence, authorization preflight, evidence freshness, destination integrity, media rights, and offset-`0` disclosure.

@@ -28,6 +28,8 @@ The goal is to prevent “implemented because it seemed useful” work. Every MV
 | PR-22 Factual-authority boundary | AGENT_CONTRACTS, AGENT_HANDOFFS, HANDOFF_VALIDATION_RULES | Verifier + Orchestrator | evidence packet authority | AT-41 |
 | PR-23 Review-attention hierarchy | UI_STATE_ACTION_MATRIX, NOTIFICATION_SPEC | UI + Orchestrator | blocker/material-change priority | AT-42 |
 | PR-24 Live activation gates | P0_P1_DECISION_TABLE, CONFIGURATION_AUTHORITY, DESIGN_FREEZE | platform/operator | capability state | AT-33, AT-43 |
+| PR-25 Public Verified Showcase (`#NNN`) | MASTER_SPEC, PLATFORM_DECISION, AFFILIATE_SPEC | deterministic showcase projector + UI | closed 9-field `PublicShowcaseCard` | AT-46 |
+| PR-26 Offset-`0` disclosure & dual affiliate | MASTER_SPEC, AFFILIATE_SPEC, CONTENT_OUTPUT_SPEC | Guardian + affiliate mapper | offset-`0` disclosure + `AffiliateMapping` | AT-45, AT-47 |
 | NFR-01 Mobile-first | PLATFORM_DECISION, USER_FLOWS, UI_SCREEN_SPEC | UI | responsive flow | AT-15, AT-32, AT-34 |
 | NFR-02 Truth first | MASTER_SPEC, EVIDENCE_THRESHOLDS | all | evidence gate | AT-16, AT-41 |
 | NFR-03 Fail closed | SAFETY_COMPLIANCE, DESIGN_FREEZE | Orchestrator/Guardian | blocker state | AT-17, AT-33 |
@@ -40,6 +42,7 @@ The goal is to prevent “implemented because it seemed useful” work. Every MV
 | NFR-10 Data minimization | SAFETY_COMPLIANCE, SOURCE_STRATEGY, RETENTION_OPTIONS | source/store | retention/redaction | AT-24 |
 | NFR-11 Blind-spot closure | FINAL_BLIND_SPOT_SWEEP, B0_TRACEABILITY_MATRIX | design authority | B0 mapping | AT-39 |
 | NFR-12 Public-figure/media safety | ISSUE_SOURCE_GRADING, MEDIA_PIPELINE, SAFETY_COMPLIANCE | Verifier + Guardian | relation/media rights | AT-37 |
+| NFR-13 Lifecycle cost ceiling, `SCRUB_ENV` & passive-data fencing | MASTER_SPEC, RUN_BUDGETS, SECURITY_ARCHITECTURE, CLAUDE.md | Orchestrator + tool broker | `(candidate_id, lifecycle_epoch)` receipt + `SCRUB_ENV` + nonce-fenced payload | AT-20, AT-21, AT-48 |
 
 ## Design-governance traceability
 

@@ -1,224 +1,80 @@
 # ThreadScout AI Project Constitution
 
 ## 1. Verify context first
-
-Read the README, `docs/spec/README.md`, Master Spec, requirements, user flows, agent contracts/handoffs, domain specs, traceability/acceptance tests, design freeze, blind spots, traps, and decision log. Verify repository and branch state rather than assuming completion.
+Read `README.md`, `docs/spec/README.md`, `MASTER_SPEC.md`, domain specs, traceability/acceptance matrices, `DESIGN_FREEZE.md`, `BLIND_SPOTS.md`, `PRE_IMPLEMENTATION_TRAPS.md`, `IMPLEMENTATION_STATUS.md`, and `DECISION_LOG.md`. Verify repository and branch state from git and tests rather than assuming completion.
 
 ## 2. Design authority and implementation freeze
-
-`docs/spec/MASTER_SPEC.md` and the supporting `docs/spec/` set are the product/system design authority.
-
-While `docs/spec/DESIGN_FREEZE.md` says design-only:
-
-- do not add or modify runtime/product code
-- do not activate live sources, models, credentials, affiliate actions, or publishing
-- documentation, design analysis, source-policy research, and requirement clarification are allowed
-- existing prototype code is evidence/prototype material, not the authority when it conflicts with the approved design
-
-Implementation resumes only through the gate defined in `DESIGN_FREEZE.md`.
+`docs/spec/MASTER_SPEC.md` and supporting `docs/spec/` documents are the canonical product/system authority. While `docs/spec/DESIGN_FREEZE.md` is active (`declared, not enforced` until a CI diff-scope job runs):
+- do not add or modify runtime/product code without an explicit owner-approved bounded slice satisfying `DESIGN_FREEZE.md`
+- do not activate live sources, models, credentials, affiliate actions, or external publishing
+- documentation, design analysis, watch-vault intake (`docs/watch/`), and requirement clarification are allowed
+- existing prototype code is regression/prototype evidence, never authority when it conflicts with `docs/spec/`
 
 ## 3. Automatic continuation boundary
-
-Use existing context first. Reversible documentation/design work may continue automatically when assumptions and open questions are recorded. Stop before spending, credentials, live external data, public posting, deletion, irreversible actions, or implementation while the design freeze is active.
+Use repository context first. Reversible documentation/design work may continue when assumptions and open questions are recorded (`declared, not enforced`). Stop before spending, credentials, live external data, public posting, deletion, irreversible side effects, or unapproved code edits (`declared, not enforced` in coding-host sessions; `interrupt_before` required in runtime code).
 
 ## 4. Four options and success conditions
-
-Compare four options before major UI, workflow, niche, runtime, provider, storage, research-source, media strategy, or roster decisions. Every task states success criteria, non-goals, verification, and stop conditions.
-
-Do not create four cosmetic variants merely to satisfy this rule. The four options must represent materially different approaches, tradeoffs, or operating models and should be presented so the owner can compare them at a glance.
+Compare four materially different options (never cosmetic variants) before major UI, workflow, niche, runtime, provider, storage, source, media, commercial-surface, or roster decisions (`declared, not enforced`). Every task states success criteria, non-goals, verification, and stop conditions.
 
 ## 5. Approval first
-
-No post may be published without explicit human approval. Guardian pass is also required before queueing. Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement.
+No post may be published without explicit human approval. Guardian `pass` is required before queueing (enforced in code). Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement (enforced for agents in `agent-registry.mjs` / `tool-broker.mjs`; single-post no-`reply_to_id` rule in `publisher_adapter` and external tools remain `declared, not enforced` until publishing code lands).
 
 ## 6. Truth and evidence
-
-- Never claim personal use without a usage record.
-- Separate verified fact, opinion, inference, unknown, and synthetic fixture data.
-- Do not invent real product, price, seller, stock, effect, review, endorsement, or public-figure relationship.
-- Exact product identity, claim sources, timestamps, media rights, and public-event context remain explicit.
-- Hashes prove consistency, not factual truth.
-- Fixture values cannot be surfaced as current market truth.
-- Public visibility of an image/video does not imply reuse rights.
+- Never claim personal use without a verified `UsageRecord` (enforced in `guardian-checks.mjs`).
+- Separate verified fact, opinion, inference, `UNVERIFIED` hypothesis, unknown, and synthetic fixture data.
+- Never invent product, price, seller, stock, effect, review, endorsement, or public-figure relationship.
+- Exact product identity (`exact / likely / substitute / unresolved`), claim sources, timestamps, media rights, and public-event context remain independent axes; hashes prove lineage consistency, not factual truth.
+- Public visibility of text/media never implies collection, republication, or commercial reuse rights.
 
 ## 7. Fixed six-agent orchestra
-
-Exactly six agents exist: `orchestrator`, `scout`, `verifier`, `strategist`, `writer`, and `guardian`.
-
-- No seventh, dynamic, removed, merged, renamed, or split role without explicit user approval, four options, decision log, and tests.
-- There is no dedicated price agent.
-- Only Orchestrator delegates.
-- Specialists return structured artifacts to Orchestrator.
-- Guardian blockers cannot be bypassed.
-- Scheduler, publisher, metrics, audit, source adapters, evidence store, media registry, and link mapper remain deterministic services.
+Exactly six runtime agents exist: `orchestrator`, `scout`, `verifier`, `strategist`, `writer`, and `guardian` (enforced in `agent-registry.mjs`).
+- No seventh, dynamic, removed, merged, renamed, or split agent without explicit owner approval, four-option review, decision-log entry, and contract tests.
+- There is no dedicated price or affiliate-yield agent; volatile price/stock/seller snapshots belong to `verifier`, and commission/ROI math belongs to deterministic services.
+- Only `orchestrator` delegates; specialists return structured artifacts to `orchestrator`; Guardian `block` decisions cannot be bypassed.
+- Scheduler, publisher, metrics, audit, source adapters, evidence store, media registry, affiliate/ROI mapper, and public showcase projector remain deterministic non-agent services.
 
 ## 8. Handoff rule
-
-Use the artifact and handoff protocol in `docs/spec/AGENT_HANDOFFS.md`.
-
-- Specialists do not call each other directly.
-- Downstream facts come from the Verifier evidence packet, not fresh Writer research.
-- Every handoff is versioned and references immutable inputs/evidence.
-- Changed evidence marks downstream artifacts stale.
-- Guardian revision requests are structured; Guardian does not silently become the Writer.
+Follow `docs/spec/AGENT_HANDOFFS.md`: specialists never call peers directly; downstream factual claims come solely from the `verifier` evidence packet; every handoff binds immutable input versions; upstream mutations mark downstream artifacts and approvals `stale` (enforced in Spike 0 / C-slice store); Guardian returns structured findings rather than rewriting copy.
 
 ## 9. Public-figure and issue boundary
-
-Public celebrity/broadcast/cultural issues may trigger product discovery only when public, product-relevant, and sourceable. Rumors/private-life speculation, health/appearance speculation, leaked/private material, and unsupported endorsement implications are blocked. Person identity must not be inferred from an image; textual/source context supplies public-figure identity/context.
+Public celebrity/broadcast/cultural moments may trigger discovery only when public, product-relevant, and sourceable (`G0–G3`, `R0–R4`). Rumor/private-life (`G4`/`R5`), health/appearance speculation, leaked material, image-inferred person identity, and unverified endorsement implications are blocked.
 
 ## 10. Media boundary
-
-A media reference may be usable for discovery/analysis without being publishable. Publication requires an explicit rights state for the intended action. Prefer user-owned or explicitly licensed media. Never fabricate imagery of a real public figure endorsing or using a product.
+Discovery/analysis media state and final-use publication rights are independent (`MEDIA_PIPELINE.md`). Publication requires explicit action-specific rights (`user_owned > licensed_commercial > permitted_embed > text_only > hold`). Never fabricate imagery implying a real public figure used or endorsed a product.
 
 ## 11. Runtime, tools, versioning, and storage
+- Each agent has one prompt and one output schema, recording prompt/schema versions and an audit receipt on every call, including preflight budget rejections (enforced in `model-runtime.mjs`).
+- Every tool call passes closed allowlists and forbids agent access to publishing or payment tools (enforced in `tool-broker.mjs`). Wrapping all untrusted external, MCP, and owner-pasted `user_evidence` text in per-call cryptographic-nonce passive-data fences and scrubbing child-process secrets (`SCRUB_ENV`) are required (`declared, not enforced` until Option B Slice 2 lands).
+- Candidate-lifecycle run budgets cap cumulative invocations, tokens, and KRW/USD cost across all retries for `(candidate_id, lifecycle_epoch)` (invocation count enforced in Spike 0; token/cost cap `declared, not enforced` until Slice 2 lands).
+- Public showcase cards project only a closed default-deny 9-field allowlist (`declared, not enforced` until Slice 3 lands).
+- `.threadscout-data/` and credentials remain outside Git (enforced by `.gitignore` and AT-20 tests; `gitleaks --redact` `Floor Guard` is `declared, not enforced` / `NOT_MEASURED` locally until binary/CI job is installed).
 
-- Each agent has one prompt and one output schema.
-- Outputs pass schema and semantic validation before progression.
-- Runtime budgets cover exactly six agents and every invocation produces a receipt.
-- Every tool call passes registry allowlists and a reviewed handler.
-- Publication, purchase, payment, and equivalent tools are forbidden to agents.
-- Sources and artifacts are content addressed; run events are sequential and hash chained.
-- Tampered or stale artifacts cannot be treated as valid.
-- `.threadscout-data/` and credentials remain outside Git.
-
-## 12. Live source readiness
-
-Every network source remains disabled until its source-specific gate is approved. Credentials alone cannot activate a source. Never silently fall back to scraping when official access is unavailable.
+## 12. Live source readiness and anti-scraping rule
+Every network source stays disabled (`ready: false` in `live-source-registry.mjs`) until its account-specific gate and explicit human activation approval pass. Never fall back to unauthorized scraping — whether browser CUA/Playwright or plain HTTP `fetch`/`curl` HTML parsing — when official API access is unavailable (code broker allowlist + `declared, not enforced` outside runtime).
 
 ## 13. Traceability
-
-Every implementation requirement must map through `docs/spec/TRACEABILITY_MATRIX.md` to design authority, owner, gate/artifact, and acceptance test. No code-only change may redefine product behavior.
+Every requirement maps through `docs/spec/TRACEABILITY_MATRIX.md` and `B0_TRACEABILITY_MATRIX.md` to design authority, owner, artifact/gate, and `AT-*` acceptance criteria. Follow the 8-step change-control sequence in `TRACEABILITY_MATRIX.md` before any implementation task (`declared, not enforced` until design-CI checks run).
 
 ## 14. Verification and deviations
+Never rewrite history to hide plan drift (`declared, not enforced`). Every deviation record states: original plan, mismatch point, exact change, reason, affected requirements/specs/tests, and residual risk.
 
-Record where plans fail, the original plan, change, reason, impact, and remaining risks. Do not hide a deviation by rewriting the plan after the fact.
+## 15. Interview gate
+Dump repository/spec/decision context first, then ask at most 3–5 unresolved high-impact questions before choices affecting intent, primary user, public surfaces, spending, credentials, live publication, or constitutional boundaries (`declared, not enforced`). Record safe reversible defaults explicitly.
 
-A deviation record must include:
-
-- original plan
-- where the plan stopped matching reality
-- what changed
-- why it changed
-- affected requirements/design/tests
-- remaining risk or follow-up
-
-## 15. Interview gate — ask only for missing high-impact context
-
-Before a major design or implementation slice, perform a context dump from the current conversation, repository, approved specs, decision log, prior user answers, and relevant evidence.
-
-Then identify only unresolved questions that can materially change the result.
-
-- Do not ask the owner to repeat information already present in the current context or repository.
-- Ask at most 3–5 high-impact questions at a time when clarification is genuinely needed.
-- If a safe, reversible default is sufficient, record the assumption and continue automatically instead of blocking.
-- Ask before making a choice that changes product intent, primary user, irreversible scope, spending, credentials, live publication, or another high-impact boundary.
-- Every implementation slice must state the user intent, primary user, job-to-be-done, success conditions, non-goals, and stop conditions before coding begins.
-
-`docs/USER_INTERVIEW.md` is a question bank, not a script that must be repeated every time.
-
-## 16. Reference-first gate — inspect examples before implementing
-
-Before a substantial implementation slice, review 3–5 relevant examples when they can materially reduce design or implementation risk.
-
-Reference type depends on the task:
-
-- software: similar GitHub repositories, official framework examples, or primary documentation
-- UI/UX: comparable product flows and interaction patterns
-- research/source adapters: official source/API documentation and existing safe adapter patterns
-- prompts/agents: relevant agent/prompt systems and evaluation patterns
-- fiction/story work in other repositories: comparable works for structural reference, never copied prose
-
-For each useful reference, record:
-
-- what pattern is worth adopting
-- what should not be adopted
-- why it fits or conflicts with ThreadScout
-- license or reuse constraints when code/content reuse is possible
-- whether the reference changes the implementation plan
-
-Do not cargo-cult code, prompts, architecture, or agent frameworks. Public visibility is not permission to copy. Prefer principles and small patterns over wholesale transplantation.
-
-Existing project references include Karpathy-style simplicity/goal discipline, Superpowers-style design and verification gates, claude-video-style capability preflight/fallback, and agentmemory-style durable decision/evidence memory. Re-check references when the implementation domain changes materially.
+## 16. Reference-first gate
+Before substantial implementation, inspect 3–5 primary docs, official SDKs, or comparable repositories and record adopted patterns, rejected patterns, fit/conflict rationale, license constraints, and plan impact under `docs/implementation/` (`declared, not enforced`). Never copy unlicensed code or prose.
 
 ## 17. Meta-prompting lifecycle
+Follow `docs/spec/PROMPT_SYSTEM_SPEC.md` and `os-preflight` §7: dump context, ask before shaving, fix success/stop conditions, translate to executor constraints (orchestrator, coder, research, image), shave redundant prose, bound tools/context, execute, and verify independently (`declared, not enforced`).
 
-Use the canonical prompt lifecycle in `docs/spec/PROMPT_SYSTEM_SPEC.md` for substantial AI instructions:
-
-1. context dump
-2. missing-context questions
-3. success criteria and stop conditions
-4. execution-environment conversion
-5. sample execution/failure classification when useful
-6. prompt reduction
-7. result review
-
-Execution-environment conversion must make the instruction fit the actual executor:
-
-- orchestration/goal prompt: objective, authority, budgets, stop conditions
-- coding agent: constraints, repository authority, test/verification requirements
-- image generation: composition, subject, style, lighting, camera/viewpoint, required text/format
-- research agent: source hierarchy, scope/time window, verification method, uncertainty rules
-
-Longer prompts are not automatically better. Remove repetition that does not protect authority, evidence, safety, recurring-failure prevention, output structure, or measurable success.
-
-## 18. Completion proof gate — tests alone are not completion
-
-Never claim a substantial slice is complete merely because code exists or automated tests pass.
-
-Completion requires evidence appropriate to the slice, including all applicable items below:
-
-- requirements and acceptance-test mapping reviewed
-- automated tests passed
-- real user flow exercised end-to-end
-- UI checked at the required mobile width and desktop where applicable
-- every visible button, form, and primary CTA actually works
-- reload/interruption/state-transition/error behavior checked when applicable
-- stale/blocked/unknown states fail closed
-- diff reviewed for unintended scope or duplicated logic
-- blind spots and pre-implementation traps rechecked against the finished behavior
-- plan deviations recorded
-- GitHub Actions checked
-- success conditions compared against observed results
-- unnecessary prompt/code/temporary scaffolding removed or explicitly retained with reason
-
-For UI work, a screenshot that merely renders is insufficient. The primary value and CTA must be understandable on the first mobile screen, and the interactions must work.
-
-For external integrations, mocked success is insufficient to claim live readiness. Live capability remains disabled until its activation/preflight gate is actually satisfied.
+## 18. Completion proof gate
+Passing automated tests is the floor, never completion proof (`declared, not enforced`). Completion requires evidence bearing on the claimed behaviour: requirement/AT mapping, full `npm run verify`, end-to-end user flow, 360px touch-only mobile + desktop UI hit-tested controls where applicable, reload/CAS/stale/blocked fail-closed checks, diff/trap/B0 review, deviation log, and green GitHub Actions. Mocked external calls never prove live readiness.
 
 ## 19. GitHub handoff discipline
-
-GitHub is the persistent project handoff surface.
-
-- Do not work directly on `main` for substantial changes; use a task branch.
-- Commit meaningful checkpoints rather than one opaque final dump.
-- Push source, tests, design updates, decision/deviation records, and verification artifacts that belong in version control.
-- Never commit secrets, tokens, real `.env` values, unnecessary raw third-party media, local databases, caches, or generated junk.
-- Open a PR for a completed substantial slice, inspect the diff, verify GitHub Actions, and fix failures before completion is claimed.
-- Another agent should be able to recover the intent, decisions, current status, and next step from GitHub without relying on hidden local context.
+Work on task branches rather than `main`, commit meaningful checkpoints, never commit secrets/raw third-party media/local stores, open a PR, inspect diffs, and verify GitHub Actions (`declared, not enforced` locally; branch protection on remote). External watch intake lives in `docs/watch/` and never overwrites `docs/spec/` canon directly.
 
 ## 20. Harness-before-coding gate
-
-Master Design completion does not authorize ad-hoc coding from the old prototype.
-
-Before the first implementation slice, read and obey:
-
-- `docs/spec/HARNESS_BLUEPRINT.md`
-- `docs/spec/HARNESS_ACCEPTANCE_MATRIX.md`
-- `docs/spec/IMPLEMENTATION_GAP_ANALYSIS.md`
-- `docs/spec/CODING_SPIKE_ENTRY.md`
-
-The pre-baseline `simulate / replay / store / fixture / readiness` assets are useful prototype harness components, not the final executable specification.
-
-For a new coding slice:
-
-- classify affected existing modules as `KEEP / MODIFY / RETIRE / MISSING`
-- select explicit fixture IDs and AT IDs
-- keep live capabilities disabled unless the task is an approved activation slice
-- use the canonical harness/report semantics rather than inventing a parallel truth source
-- prove normal, blocked, and stale behavior where applicable
-- do not widen the spike into UI/live/provider work merely because the existing prototype makes that convenient
-
-The first coding task after Harness Design v1 is `CODING_SPIKE_ENTRY.md` unless the owner explicitly chooses a different bounded slice and records why.
+Before any coding slice, obey `HARNESS_BLUEPRINT.md`, `HARNESS_ACCEPTANCE_MATRIX.md`, `IMPLEMENTATION_GAP_ANALYSIS.md`, and `CODING_SPIKE_ENTRY.md`: name baseline `main` SHA, classify modules `KEEP/MODIFY/RETIRE/MISSING`, bind explicit `F*` and `AT-*` IDs, keep unapproved live capabilities off, and prove normal, blocked, and stale paths (`declared, not enforced`).
 
 ## 21. Minimum Action Agent OS
 
@@ -226,8 +82,8 @@ This project follows the `minimum-action-agent-os` working method.
 
 - Minimize local action space. The `minimum-action-agent-os` plugin's `rules/local-action-space.md` governs the bound (`<= 5` meaningful choices where a model selects), what counts as an action, its payload test, and the record a node owes (scope limit, waiver, or deterministic-node record). Read it when sizing or auditing a node; do not maintain a hand-edited restatement here.
 - The bound is per node, not a global limit on total agents. Scale hierarchically through routers/specialists — but a router the caller must hand a means to does not reduce the count.
-- Use least tool, least context, and least authority; give decidable checks (counts, hashes, schemas, exit codes) to code rather than model confirmation, treat `0/0` or degraded-fallback gates as `NOT_MEASURED` (fail-closed), and separate `pass^k` (reliability) from `pass@k` (search) (`rules/verification-placement.md`).
-- Enforce boundary control rules (security, permissions, tool reach, budgets, side-effect prohibitions) in default-deny code outside the model's turn (labelling prose-only boundary rules `declared, not enforced`), bound delegated authority to `Caller ∩ Agent ∩ Tool`, and escalate `Single-Pass -> Bounded Loop -> State Graph` only on concrete failure modes — keeping `Hub/Tree` delegation (`no sibling mesh`) at 0-indexed `depth <= 2`, falsifiable hypothesis-bound retries, incoming `interrupt_before` gates on every irreversible or external side effect, `unknown != failed` timeout handling, and single-use hash-bound release approvals (`proposer != approver` in multi-principal repos; isolated critic + owner approval in single-principal repos; `rules/execution-architecture.md` governs).
+- Use least tool, least context, and least authority; give decidable checks (counts, hashes, schemas, exit codes) to code rather than model confirmation, pair linters/tests with a diff-scoped `Floor Guard` (blocking per-category net-new inline/config suppressions, test skips/deletions, lowered thresholds, and committed secrets via `gitleaks --redact`, reporting `NOT_MEASURED` locally if absent) plus static negative-routing (`stays-quiet`) collision checks, treat `0/0`, `NaN`, or degraded-fallback gates as `NOT_MEASURED` (fail-closed), and separate `pass^k` (reliability) from `pass@k` (search) (`rules/verification-placement.md`).
+- Enforce boundary control rules (security, permissions, tool reach, budgets, side-effect prohibitions) in default-deny code outside the model's turn (labelling prose-only boundary rules `declared, not enforced`, calibrating secret blocks across search/shell tools as well as file tools, keeping active guardrails/hooks outside runtime self-modification, and launching edit/commit sessions rooted at the target child repository rather than via shell `cd` from a hub), bound delegated authority to `Caller ∩ Agent ∩ Tool` while scrubbing ambient tokens/overrides from child subprocess environments (`SCRUB_ENV`), and escalate `Single-Pass -> Bounded Loop -> State Graph` only on concrete failure modes — keeping `Hub/Tree` delegation (`no sibling mesh`) at 0-indexed `depth <= 2`, isolated per-worker parallel output keys/files, falsifiable hypothesis-bound retries, incoming `interrupt_before` gates on every irreversible or external side effect, `unknown != failed` timeout handling, and single-use hash-bound release approvals (`proposer != approver` in multi-principal repos; isolated critic + owner approval in single-principal repos; `rules/execution-architecture.md` governs).
 - Prefer direct work/rules/skills over creating a new agent. The text below is extracted verbatim from `rules/agent-vs-skill.md`, which governs; it is regenerated from that file and never edited here (first 16 hex chars of sha256: `76e1e6d8bbd45f97`):
 
   At least one meaningful boundary exists:
@@ -246,13 +102,9 @@ This project follows the `minimum-action-agent-os` working method.
   If the role only adds a viewpoint, prefer a rubric/checklist/skill.
 - For non-trivial work, run `/minimum-action-agent-os:os-preflight` when preflight materially helps.
 - When asked to review a design, plan, or document that other people will rely on, delegate the review to the `minimum-action-agent-os:independent-critic` agent instead of reviewing it yourself, supplying the artifact, requirements, mandatory constraints, acceptance criteria, and verification evidence without your private rationale. Withholding rationale removes anchoring, and its separate undefined-term pass tests whether weaker text-consistent readings defeat normative clauses (`rules/anti-patterns.md` entry 7 and `agents/independent-critic.md` govern).
-- After meaningful state or plan changes, run `/minimum-action-agent-os:os-state` (keeping unverified working hypotheses explicitly labelled `UNVERIFIED` rather than persisted as fact).
+- After meaningful state or plan changes, run `/minimum-action-agent-os:os-state` — keeping expanded always-on root `AGENTS.md`/`CLAUDE.md`/`MEMORY.md` payloads compact (`<= 200` lines and `<= 25 KB`), omitting workspace-derivable transient facts, verifying working lessons against execution transcripts/diffs before promoting them into persistent rules, and keeping unverified working hypotheses explicitly labelled `UNVERIFIED` rather than persisted as fact.
 - State what evidence a slice owes before it can be called done, and require evidence that **bears on the behaviour whose completion is claimed** — more than "the tests passed" is the floor, not the test (a checksum is also more than passing tests and proves nothing about whether the behaviour works). In the AT-14 field slice (`2026-08-29`), this completion gate caught two runtime defects a green suite missed.
 - Adoption has two halves: **Installed** (the structure exists) and **Exercised** (at least one slice of domain work carried under it). Once a slice of this project's own work has been carried under this method, record for each adopted item one of **three** answers — *changed the outcome*, *applied and changed nothing*, or *never applied* — with a one-line reason (collapsing the last two hides an unexercised rule inside an unhelpful one, and adopting is not itself the slice). Report which half this project is at rather than reporting adoption complete (`AGENT_OS_SPEC.md` §11 governs).
 - Project-specific canon/spec/status in this repository remains the source of truth for domain content.
 
-**Domain authority is unchanged.** `docs/spec/` remains the source of truth for product and system content; the OS never overrides it. Where the two disagree on working method, the more specific project rule above wins and the deviation is recorded.
-
-These sections already satisfy the corresponding OS primitives and must not be duplicated: intent interview §15, four alternatives §4, exemplar research §16, meta-prompting §17, preflight traps and harness §20, blindspot sweep and completion proof §18, plan-drift record §14, traceability and canon update §13.
-
-The current local action space audit is recorded in `docs/AGENT_OS_ADOPTION.md`.
+**Domain authority:** `docs/spec/` governs product/system content; where project method rules above are more specific than the OS, the project rule wins and any deviation is recorded. Current action-space and §11 Exercised records live in `docs/AGENT_OS_ADOPTION.md`.

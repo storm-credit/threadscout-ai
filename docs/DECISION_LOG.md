@@ -437,3 +437,30 @@ The plugin was already installed and enabled at user scope before this adoption.
 ### Remaining risk
 
 Nothing automatically enforces that the independent critic is invoked; `CLAUDE.md` §18 remains the human-facing gate. A session started before the plugin was enabled will not list its skills or agent until a new session begins.
+
+---
+
+## 2026-11-27 — Select Option B commercial architecture, reject CUA/external agent runtimes, and upgrade to MAOS `0.2.1`
+
+### Context
+
+Three months after the initial August 2026 design and manual C-slice baseline, the owner requested a full commercial and architectural review of `threadscout-ai`: auditing required specialist agents under `minimum-action-agent-os` (`0.2.1`), evaluating external agent tools (`Meta Muse`, `Pickle AI`, `OpenClaw`), cross-checking current Meta Threads API and Korean affiliate constraints via NotebookLM watch labs and web verification, and selecting a commercially viable product direction.
+
+### Four commercial architecture options reviewed
+
+1. **Option A — Minimal single-account Threads-only affiliate engine:** lowest build cost, but ephemeral 24–48h feed decay, absence of a Threads DM API (`reported`), and low single-network commissions (`1–3%` Coupang Partners, `reported`) yield weak unit economics once live LLM costs begin.
+2. **Option B — Public Verified Showcase (`#NNN`) + single-post Threads funnel + Coupang Partners & Naver Shopping Connect dual affiliate (SELECTED):** pairs ephemeral Threads discovery with a searchable, read-only Public Verified Showcase web surface (`/showcase/:cardNumber`) projecting approved `exact`/`alternative` items via a closed default-deny 9-field schema, while adding high-margin (`5–20%+`, `reported`) Naver Shopping Connect manual link support alongside Coupang Partners.
+3. **Option C — Multi-tenant B2B2C Creator Copilot Micro-SaaS:** highest direct subscription MRR ceiling, but requires premature multi-tenant auth/billing and difficult Meta Tech Provider `threads_keyword_search` App Review before single-account conversion metrics are proven.
+4. **Option D — B2B SmartStore/D2C Brand Seeding Campaign Studio:** high per-campaign fee, but shifts the bottleneck to outbound B2B sales and advertiser substantiation liability.
+
+### Decisions approved by the owner (`2026-11-27`)
+
+1. **Select Option B (`Public Verified Showcase + Dual Affiliate`)** as the commercial target, proving unit economics on the owner's account first before any later Option C SaaS expansion.
+2. **Preserve `CLAUDE.md` §5 unconditionally (single root post, zero automated comments/continuation replies):** `maos-critic` identified that programmatic self-replies (`reply_to_id`) violate `CLAUDE.md` §5's unconditional comment ban and cannot be dispatched atomically alongside a root post over REST. Threads publishing stays single-post (routing readers via `#NNN` showcase card numbers or inline links), with verbatim statutory disclosure enforced at Unicode code-point offset `0` on **every** direct or `#NNN` indirect commercial surface (`BS-60`, `AT-45`).
+3. **Preserve `CLAUDE.md` §7 fixed six-agent orchestra (`<= 5` local action bound):** rejected adding price/margin, Korean style/copy-editor, or skeptical-reader persona agents (`rules/agent-vs-skill.md` `76e1e6d8bbd45f97`). Commission/ROI math and Coupang `<= 10/hr` rate limiting belong to deterministic `affiliate_yield_service` (outside `Verifier`'s factual `evidence_packet`); public `#NNN` rendering and optional cross-channel markdown export belong to deterministic non-LLM `public_showcase_projector`; Korean anti-AI-slop rules belong to `Writer` prompt rubrics (`declared, not enforced`) plus calibrated `Guardian` deterministic checks paired with `stays-quiet` tests (`WC-20261127-06`).
+4. **Reject Meta Muse, Pickle AI (`pickle.com` / `getpickle.ai`), and OpenClaw across runtime and host sidecars:** Meta Muse is geo-restricted and lacks Korean commerce connectors (`reported`); Pickle AI (`pickle.com`) relies on non-API headless browser CUA actively blocked by Naver, Kakao, Korean telcos, and Korail (`reported`), violating `CLAUDE.md` §12 and risking permanent real-name account bans; OpenClaw introduces RCE/indirect-prompt-injection exposure and runaway token burn (`reported`). All non-API scraping — both browser CUA and plain HTTP `fetch`/`curl` HTML parsing — remains prohibited (`AT-47`).
+5. **Upgrade governance to MAOS `0.2.1` and initialize `docs/watch/`:** compacted `CLAUDE.md` below `<= 200` LF lines (`<= 25 KB`) with explicit `declared, not enforced` boundary labels, recorded the 8-item §11 Exercised ledger in `docs/AGENT_OS_ADOPTION.md`, and created the non-canonical `docs/watch/` register/ledger paired with NotebookLM Watch Lab `c1a08bb9-d265-4f8f-b896-03a583748cdb`.
+
+### Impact & remaining boundary
+
+Canonical design authority (`docs/spec/` through `AT-48` / `F28` / `BS-61`) is updated. Runtime/product code remains untouched in Phase 1; each subsequent coding slice (Slice 1 `AT-45` Guardian checks, Slice 2 `AT-48` lifecycle budget & LLM adapter, Slice 3 `AT-46`/`AT-47` showcase & dual-affiliate mapper) requires its own bounded implementation gate under `DESIGN_FREEZE.md`.

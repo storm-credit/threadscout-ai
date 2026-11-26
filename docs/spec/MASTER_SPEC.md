@@ -25,15 +25,15 @@ The owner should quickly answer:
 
 ## v1 platform
 
-ThreadScout v1 is a **mobile-first responsive web application**.
+ThreadScout v1 is a **mobile-first responsive web application** comprising two server-authoritative surfaces backed by one canonical store:
 
-- phone browser is the primary recurring review surface
-- desktop is supported for evidence-heavy research and configuration
+- **Owner Operations Surface:** phone-first recurring review inbox, desktop evidence/configuration workbench, approval, queue, and performance views
+- **Public Verified Showcase Surface (`#NNN`):** read-only consumer web directory addressable by sequential card number (`#001`, `#042`, ...) and search query, projecting **only** `approved` non-stale items through a closed default-deny 9-field public card schema (`PLATFORM_DECISION.md`) so ephemeral Threads readers can inspect verified pros, concrete limitations, `exact` vs `alternative` badges, and disclosed commercial links without requiring a Threads DM endpoint
 - PWA capability is optional enhancement and never correctness authority
 - native iOS/Android applications are outside MVP and require an evidence-based revisit
-- durable state, scheduling, freshness, publication, approval bindings, and audit are server-authoritative
+- durable state, scheduling, freshness, publication, approval bindings, public card projection, and audit are server-authoritative
 
-The selected platform and revisit rules are defined in `PLATFORM_OPTIONS.md` and `PLATFORM_DECISION.md`.
+The selected platform, closed public-card projection schema, and revisit rules are defined in `PLATFORM_OPTIONS.md` and `PLATFORM_DECISION.md`.
 
 ## Content lanes
 
@@ -64,9 +64,9 @@ Agreement among multiple agents does not create factual confidence. The Verifier
 
 ## Deterministic services
 
-Source adapters, evidence store, media registry, scheduler, publisher adapter, metrics collector, audit/event log, duplicate detector, affiliate mapper, state machine, configuration store, secret boundary, and version/conflict controls remain deterministic services.
+Source adapters, evidence store, media registry, scheduler, publisher adapter, metrics collector, audit/event log, duplicate detector, affiliate mapper, affiliate yield/ROI & rate-limit service (`affiliate_yield_service`), public showcase projector & non-LLM template exporter (`public_showcase_projector`), state machine, configuration store, secret boundary, passive-data payload fencer, and version/conflict controls remain deterministic services.
 
-Agents never receive a direct payment or publishing tool.
+Creator commission rates and run ROI math belong exclusively to `affiliate_yield_service` and never enter the `Verifier` factual `evidence_packet`. Agents never receive a direct payment or publishing tool.
 
 ## Canonical flow
 
@@ -159,19 +159,24 @@ Cross-device stale approvals are rejected rather than silently accepted.
 
 ## Publishing model
 
-Scheduling and dispatch run on server/background workers, never browser/PWA lifecycle.
+Scheduling and dispatch run on server/background workers, never browser/PWA lifecycle. Each approved publication dispatches a **single root Threads post** (inline link or `#NNN` pointer to the Public Verified Showcase URL); automated comments and automated continuation self-replies (`reply_to_id`) are prohibited (`CLAUDE.md` §5).
 
-Before dispatch, preflight rechecks applicable volatile facts, authorization, product destination, disclosure state, media rights, issue freshness, and approval binding.
+Before dispatch, preflight rechecks applicable volatile facts, authorization, product destination, code-point offset-`0` verbatim statutory disclosure on every commercial solicitation surface (`AFFILIATE_SPEC.md` §5: direct commercial/redirect URLs, any `#NNN`/`N번`/`/showcase/N` pointer to a monetized card, or any profile `/showcase` pointer when active monetized cards exist), media rights, issue freshness, and approval binding.
 
 A timeout with unknown remote outcome enters `unknown_remote_state`. The system reconciles before any retry. Duplicate publication is never an acceptable retry strategy.
+
+Candidate-lifecycle run budgets cap cumulative specialist invocations, tool calls, and configured KRW/USD token cost across all retries for a single `(candidate_id, lifecycle_epoch)` — where `lifecycle_epoch` increments **exclusively** on an explicit owner `reopen_rejected_candidate` command after an explicit owner `reject` decision or post-retention archival (never on `Guardian` `block`/`revise`, `Verifier` `hold`, or freshness TTL `stale`) — halting with `budget_exhausted` and an audit receipt when reached. Child subprocesses scrub ambient secrets (`SCRUB_ENV`), and all untrusted text (including owner-pasted `user_evidence` as well as network/MCP outputs) enters models only inside per-call cryptographic-nonce passive-data fences.
 
 A global kill switch exists outside AI runtime.
 
 ## Affiliate baseline
 
-Coupang Partners is the first commercial target. MVP exact-product evidence may begin from a user-supplied commercial destination plus a versioned identity snapshot and manual/Verifier confirmation.
+ThreadScout supports a dual Korean affiliate baseline downstream of product verification (`AFFILIATE_SPEC.md`):
 
-Automated product search is not required for v1 and cannot be replaced by an unauthorized scraper.
+1. **Coupang Partners:** owner-supplied partner short-URL plus corroborated `CanonicalListingSnapshot` before the account clears the official API eligibility gate (`>= ₩150,000` cumulative sales and channel review approval, `reported`); once explicitly activated by the owner, deterministic search calls are rate-limited to `<= 10` requests per rolling 60-minute window (`reported`).
+2. **Naver Shopping Connect / Brand Connect:** owner-supplied official short-URL plus corroborated `CanonicalListingSnapshot` verified by `Verifier` (`exact` vs `alternative`), because no public external Open API exists (`reported`).
+
+Automated product scraping — whether headless browser CUA/Playwright or plain HTTP `fetch`/`curl` HTML/redirect parsing — is forbidden across all networks (`CLAUDE.md` §12). Every commercial solicitation surface (`AFFILIATE_SPEC.md` §5) must carry verbatim statutory disclosure at offset `0`, and any `#NNN` card referenced by a non-disclosed published post is permanently locked to `AffiliateMapping.state = 'none'` (`BS-60`).
 
 Live affiliate posting remains disabled until current account-specific program/disclosure/link rules are verified during activation.
 
@@ -200,7 +205,8 @@ Ranking changes require sufficient sample/confidence and remain reversible. Safe
 - initial opportunity review floor 65/100, non-sovereign
 - price/stock TTL 4h when explicitly claimed
 - listing revalidation within 24h of scheduled publication and as needed at dispatch
-- fast issue-linked freshness 12h
+- published monetized `#NNN` showcase card destination-revalidation TTL 7d rolling (withdrawing the entire card as `stale` on expiry or mutation)
+- fast issue-linked freshness 12h (applies to both scheduled posts and `#NNN` showcase cards)
 - attention ranking input freshness 6h
 - suppression persists until explicit restore
 - source excerpts 30d, media metadata 90d, audit 365d default retention ceilings subject to stricter source/privacy rules
@@ -214,7 +220,8 @@ Before enabling a live capability, verify its applicable gate:
 
 - target Meta Threads app/account scope and token
 - authorized product/listing source when automation beyond user-supplied destinations is required
-- current Coupang Partners account/program disclosure and link rules
+- current Coupang Partners and Naver Shopping Connect account/program disclosure and link rules
+- Public Verified Showcase hosting identity, TLS domain, and external global kill switch
 - deployed secret backend and runtime identity
 - source/asset/action-specific media rights
 - current metrics exposed by configured platforms
