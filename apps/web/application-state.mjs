@@ -983,9 +983,14 @@ export function toTodayReadModel(state, { now } = {}) {
       exclusionReason: excludedById.get(candidate.id)
     }));
 
+  const showcaseCount = state.candidates.filter(
+    (candidate) => candidate.cardNumber != null && projectPublicShowcaseCard(candidate, { now: evalNow }).projected
+  ).length;
+
   return {
     excluded,
     emptyReason: selection.emptyReason,
+    showcaseCount,
     version: state.version,
     serverUpdatedAt: state.updatedAt,
     externalPublishingEnabled: false,

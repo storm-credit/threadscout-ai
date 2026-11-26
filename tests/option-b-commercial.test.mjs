@@ -451,7 +451,8 @@ test('SQLite WAL end-to-end: retains >55 candidates without #001 loss, serves 2-
     assert.equal(withdrawnRes.status, 404);
 
     // 6. Verify SQLite BS-60 trigger blocks `locked_non_commercial` 1 -> 0 downgrade at DB level
-    if (sqliteMod) {
+    const sqliteActive = Boolean(sqliteMod && process.env.THREADSCOUT_STORAGE_MODE !== 'json');
+    if (sqliteActive) {
       const directDb = new sqliteMod.DatabaseSync(path.join(dataDir, 'threadscout.sqlite'));
       try {
         directDb.prepare('UPDATE candidates SET locked_non_commercial = 1 WHERE id = ?').run(firstId);
@@ -482,7 +483,7 @@ test('SQLite WAL end-to-end: retains >55 candidates without #001 loss, serves 2-
         }
       });
     }
-    if (sqliteMod) {
+    if (sqliteActive) {
       const auditCheckDb = new sqliteMod.DatabaseSync(path.join(dataDir, 'threadscout.sqlite'), { readOnly: true });
       try {
         const auditCount = Number(auditCheckDb.prepare('SELECT COUNT(*) AS cnt FROM audit_events').get().cnt);
