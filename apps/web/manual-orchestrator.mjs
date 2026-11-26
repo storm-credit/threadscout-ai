@@ -21,9 +21,21 @@ const HUMAN_COMMANDS = new Set([
   'restore_candidate',
   'remove_suppression_rule',
   'reopen_rejected_candidate',
-  'lock_non_commercial_showcase'
+  'lock_non_commercial_showcase',
+  'schedule_approved_post',
+  'cancel_schedule',
+  'record_manual_publication'
 ]);
-const DETERMINISTIC_COMMANDS = new Set(['reset_demo', 'add_manual_candidate', 'edit_draft']);
+const DETERMINISTIC_COMMANDS = new Set([
+  'reset_demo',
+  'add_manual_candidate',
+  'select_draft',
+  'edit_draft',
+  'run_schedule_preflight',
+  'record_schedule_timeout',
+  'reconcile_unknown_schedule',
+  'record_outcome_snapshot'
+]);
 
 function candidateFromToday(today, candidateId) {
   return today?.candidates?.find((candidate) => candidate.id === candidateId)

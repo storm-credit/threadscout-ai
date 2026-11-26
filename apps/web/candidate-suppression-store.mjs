@@ -1,7 +1,7 @@
 // AT-14 / PR-14 owner suppression, layered over the dedupe store.
 //
 // Layering: AtomicJsonApplicationStore -> Locked -> CandidateDedupe -> Suppression.
-// Nothing in `candidate-dedupe*.mjs` is modified; duplicate suppression and owner suppression
+// Duplicate suppression (`suppressed_duplicate`) and owner suppression (`owner_suppressed`)
 // stay independently readable, reversible and reason-coded (PRE_IMPLEMENTATION_TRAPS).
 //
 // Suppression stamps are DERIVED and recomputed on every read, so a rule expiry takes effect
@@ -10,7 +10,12 @@
 // `복원`. Both are written inside the existing write lock.
 
 import { randomUUID } from 'node:crypto';
-import { ApplicationCommandError, VersionConflictError } from './application-state.mjs';
+import {
+  ApplicationCommandError,
+  VersionConflictError,
+  invalidateActiveSchedulesForCandidate,
+  markApprovedCandidateStaleOnInvalidation
+} from './application-state.mjs';
 import { CandidateDedupeApplicationStore } from './candidate-dedupe-store.mjs';
 import {
   assessSuppression,
@@ -169,6 +174,15 @@ function suppressCandidate(state, request, clock) {
   state.audit = state.audit.slice(-200);
 
   applySuppressionToState(state, { at });
+  for (const item of state.candidates) {
+    if (item.suppression?.active === true) {
+      invalidateActiveSchedulesForCandidate(state, item.id, 'owner_suppressed', at);
+      markApprovedCandidateStaleOnInvalidation(
+        item,
+        '사용자가 억제한 후보여서 기존 승인이 무효화되었습니다. 복원 후 다시 검수·승인해 주세요.'
+      );
+    }
+  }
 
   return {
     result: 'candidate_suppressed',

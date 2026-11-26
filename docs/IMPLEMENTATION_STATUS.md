@@ -36,7 +36,7 @@ Implemented boundaries:
 - specialist commands map only to Verifier / Strategist / Writer / Guardian and route through the explicit Orchestrator service.
 - the fixed six-agent registry is preserved; deterministic local specialist adapters do not pretend to be live model/provider calls.
 - the Opportunity Inbox separates opportunity score from evidence readiness, risk, exact-product state, media-rights state and blocker state.
-- Queue and Performance remain explicit disabled/read-only capability surfaces rather than simulated completion.
+- Queue and Performance now expose local single-root-post scheduling/manual-publish confirmation (`S07`) and guardrailed deterministic ROI + weekly learning (`S08`, `AT-12`) without claiming live external API automation (`externalPublishingEnabled: false`).
 
 PR #12 merged as `644d3d202f35b4f50d4ac0654d12918231e182ae`; its post-merge main CI succeeded. `docs/implementation/C_VERTICAL_SLICE_ACCEPTANCE.md` records the bounded application proof and limitations.
 
@@ -147,7 +147,7 @@ all-suppressed empty-state line sits 39px below the mobile fold (§4.8), and
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION BROWSER-VERIFIED AND MERGED / OPTION B SQLITE WAL + HYBRID STUDIO UI + PUBLIC VERIFIED SHOWCASE (`AT-45..48`, `F25..28`) IMPLEMENTED AND VERIFIED LOCALLY / LIVE EXTERNAL APIS OFF.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION BROWSER-VERIFIED AND MERGED / OPTION B SQLITE WAL + HYBRID STUDIO UI + PUBLIC VERIFIED SHOWCASE (`AT-45..48`, `F25..28`) MERGED (`19cb31a`, PR #26) / LIVE PREFLIGHT & SINGLE-ROOT-POST PUBLISHER STATE MACHINE MERGED (`b44bcaa`, PR #27) / LOCAL SCHEDULE QUEUE (`S07`) + GUARDRAILED ANALYTICS & ROI (`S08`, `AT-12`) + PROVENANCE (`AT-13`) IMPLEMENTED / LIVE EXTERNAL APIS OFF.**
 
 This status intentionally does **not** claim external live-API readiness. Default persistence is now Node 24 built-in `node:sqlite` (`DatabaseSync` WAL + `STRICT` + Hangul NFD Jamo `FTS5(trigram)` + dedicated `readOnly` `/api/showcase` handle, with `THREADSCOUT_STORAGE_MODE=json` fallback preserved). External live Threads/Coupang/Naver network calls remain disabled (`ready: false`, `externalPublishingEnabled: false`).
 
@@ -162,8 +162,8 @@ Still intentionally disabled:
 - automated listing discovery beyond owner-supplied destinations
 - live Scout/global candidate dedupe
 - third-party media download/transform/republish without action-specific rights evidence
-- external schedule dispatch/reconciliation (local `THREADSCOUT_GLOBAL_KILL_SWITCH` is implemented on `/api/commands` and `/api/showcase`)
-- analytics learning
+- external schedule dispatch/reconciliation (local schedule queue `S07`, preflight drift checks, manual-publish `BS-60` lock, and `THREADSCOUT_GLOBAL_KILL_SWITCH` are implemented offline; external network dispatch remains disabled)
+- autonomous live analytics ingestion (deterministic local `OutcomeSnapshot` + `estimateNetYieldKrw` ROI + `AT-12` guardrailed `learning_summary` `S08` are implemented offline; no live Threads/affiliate network polling)
 
 No credential, external npm framework dependency, workflow-file change, live model provider call, live-network enablement, seventh agent, or automated external publication path is introduced.
 

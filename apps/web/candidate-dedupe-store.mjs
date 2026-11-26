@@ -1,4 +1,10 @@
-import { AtomicJsonApplicationStore, ApplicationCommandError, VersionConflictError, toTodayReadModel } from './application-state.mjs';
+import {
+  AtomicJsonApplicationStore,
+  ApplicationCommandError,
+  VersionConflictError,
+  invalidateActiveSchedulesForCandidate,
+  toTodayReadModel
+} from './application-state.mjs';
 import { LockedAtomicJsonApplicationStore } from './locked-application-store.mjs';
 import {
   assessCandidateDuplicate,
@@ -192,6 +198,7 @@ function resolvePossibleDuplicate(state, request, clock) {
     candidate.workflowState = 'suppressed_duplicate';
     candidate.blockers = [suppressedBlocker(candidate.duplicateAssessment)];
     candidate.audit.push({ event: 'candidate_suppressed_duplicate', at, revision: candidate.revision, matchedCandidateId: candidate.duplicateAssessment.matchedCandidate?.candidateId ?? null });
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'suppressed_as_duplicate', at);
   }
   candidate.audit = candidate.audit.slice(-60);
 
@@ -208,7 +215,7 @@ function resolvePossibleDuplicate(state, request, clock) {
 }
 
 function assertDuplicateReviewDoesNotGetBypassed(state, request) {
-  if (request.command !== 'review_decision') return;
+  if (!['review_decision', 'schedule_approved_post', 'record_manual_publication'].includes(request.command)) return;
   const candidate = getCandidate(state, request.candidateId);
   if (candidate.workflowState !== 'duplicate_review') return;
   throw new ApplicationCommandError('Resolve the possible duplicate before hold/reject/approval decisions.', {
@@ -240,6 +247,7 @@ function applyPostVerificationDedupe(state, candidate, clock) {
   if (assessment.state === DUPLICATE_STATES.EXACT_SUPPRESSED) {
     candidate.workflowState = 'suppressed_duplicate';
     candidate.blockers = [suppressedBlocker(assessment)];
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'exact_duplicate_after_verification', checkedAt);
     candidate.audit.push({ event: 'candidate_suppressed_duplicate_after_identity_change', at: checkedAt, revision: candidate.revision, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null });
     state.audit.push({ event: 'candidate_exact_duplicate_suppressed_after_verification', candidateId: candidate.id, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null, at: checkedAt });
     return {
@@ -252,6 +260,7 @@ function applyPostVerificationDedupe(state, candidate, clock) {
   if (assessment.state === DUPLICATE_STATES.POSSIBLE) {
     candidate.workflowState = 'duplicate_review';
     candidate.blockers = [duplicateBlocker(assessment), ...candidate.blockers.filter((blocker) => !blocker.startsWith(DUPLICATE_BLOCKER_PREFIX))];
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'possible_duplicate_after_verification', checkedAt);
     candidate.audit.push({ event: 'duplicate_review_reopened_after_identity_change', at: checkedAt, revision: candidate.revision, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null, similarity: assessment.similarity });
     state.audit.push({ event: 'possible_duplicate_detected_after_verification', candidateId: candidate.id, matchedCandidateId: assessment.matchedCandidate?.candidateId ?? null, at: checkedAt });
     return {

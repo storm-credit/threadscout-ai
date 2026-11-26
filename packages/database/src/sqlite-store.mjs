@@ -156,6 +156,30 @@ const SCHEMA_SQL = `
   BEGIN
     SELECT RAISE(ABORT, 'BS-60 post-publish non-commercial lock is irreversible');
   END;
+
+  CREATE TABLE IF NOT EXISTS schedules (
+    schedule_id TEXT PRIMARY KEY,
+    candidate_id TEXT NOT NULL,
+    draft_id TEXT NOT NULL,
+    approval_hash TEXT NOT NULL,
+    status TEXT NOT NULL,
+    desired_local_datetime TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    schedule_json TEXT NOT NULL
+  ) STRICT;
+
+  CREATE TABLE IF NOT EXISTS consumed_approval_hashes (
+    approval_hash TEXT PRIMARY KEY,
+    recorded_at TEXT NOT NULL
+  ) STRICT;
+
+  CREATE TABLE IF NOT EXISTS outcome_snapshots (
+    snapshot_id TEXT PRIMARY KEY,
+    candidate_id TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    quarantined INTEGER NOT NULL DEFAULT 0 CHECK (quarantined IN (0, 1)),
+    snapshot_json TEXT NOT NULL
+  ) STRICT;
 `;
 
 function nowIso(clock) {
@@ -294,12 +318,19 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
       return ev;
     });
 
+    const schedules = this.db.prepare('SELECT schedule_json FROM schedules ORDER BY updated_at DESC').all().map((row) => JSON.parse(row.schedule_json));
+    const consumedApprovalHashes = this.db.prepare('SELECT approval_hash FROM consumed_approval_hashes').all().map((row) => row.approval_hash);
+    const outcomeSnapshots = this.db.prepare('SELECT snapshot_json FROM outcome_snapshots ORDER BY recorded_at DESC').all().map((row) => JSON.parse(row.snapshot_json));
+
     const state = {
       version: APPLICATION_STATE_VERSION,
       updatedAt: meta.updatedAt || nowIso(this.clock),
       fixedAgentCount: 6,
       externalPublishingEnabled: false,
       candidates,
+      schedules,
+      consumedApprovalHashes,
+      outcomeSnapshots,
       suppressionRules,
       commandHistory,
       commandOrder,
@@ -391,6 +422,49 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
           this.db.prepare('DELETE FROM public_showcase_cards WHERE candidate_id = ?').run(old.id);
           this.db.prepare('DELETE FROM candidates WHERE id = ?').run(old.id);
         }
+      }
+
+      // Sync schedules, consumed single-use approval hashes, and outcome snapshots
+      this.db.exec('DELETE FROM schedules');
+      const insertSchedule = this.db.prepare(`
+        INSERT INTO schedules(schedule_id, candidate_id, draft_id, approval_hash, status, desired_local_datetime, updated_at, schedule_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const sched of state.schedules ?? []) {
+        insertSchedule.run(
+          sched.scheduleId,
+          sched.candidateId,
+          sched.draftId,
+          sched.approvalHash,
+          sched.status,
+          sched.desiredLocalDatetime || now,
+          sched.updatedAt || now,
+          JSON.stringify(sched)
+        );
+      }
+
+      this.db.exec('DELETE FROM consumed_approval_hashes');
+      const insertConsumed = this.db.prepare(`
+        INSERT OR REPLACE INTO consumed_approval_hashes(approval_hash, recorded_at)
+        VALUES (?, ?)
+      `);
+      for (const hash of state.consumedApprovalHashes ?? []) {
+        if (hash) insertConsumed.run(String(hash), now);
+      }
+
+      this.db.exec('DELETE FROM outcome_snapshots');
+      const insertSnapshot = this.db.prepare(`
+        INSERT INTO outcome_snapshots(snapshot_id, candidate_id, recorded_at, quarantined, snapshot_json)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      for (const snap of state.outcomeSnapshots ?? []) {
+        insertSnapshot.run(
+          snap.snapshotId,
+          snap.candidateId,
+          snap.recordedAt || now,
+          snap.quarantined ? 1 : 0,
+          JSON.stringify(snap)
+        );
       }
 
       // Sync suppression rules
@@ -549,6 +623,9 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
       return parsed;
     });
     const suppressionRules = this.db.prepare('SELECT rule_json FROM suppression_rules ORDER BY created_at ASC').all().map((r) => JSON.parse(r.rule_json));
+    const schedules = this.db.prepare('SELECT schedule_json FROM schedules ORDER BY updated_at DESC').all().map((r) => JSON.parse(r.schedule_json));
+    const consumedApprovalHashes = this.db.prepare('SELECT approval_hash FROM consumed_approval_hashes').all().map((r) => r.approval_hash);
+    const outcomeSnapshots = this.db.prepare('SELECT snapshot_json FROM outcome_snapshots ORDER BY recorded_at DESC').all().map((r) => JSON.parse(r.snapshot_json));
     const cmdRows = this.db.prepare('SELECT request_id, fingerprint, command, candidate_id, response_candidate_id, result, entry_json, recorded_at FROM command_history ORDER BY rowid ASC').all();
     const commandHistory = {};
     const commandOrder = [];
@@ -573,6 +650,9 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
       externalPublishingEnabled: false,
       fixedAgentCount: 6,
       candidates,
+      schedules,
+      consumedApprovalHashes,
+      outcomeSnapshots,
       suppressionRules,
       commandHistory,
       commandOrder,

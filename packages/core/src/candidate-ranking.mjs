@@ -133,16 +133,17 @@ export function evaluateRisk({ matchState, mediaRightsResolved, publicFigureRela
  * disabled this is advisory, but a stale timestamp must still be visible rather than
  * silently reused as current truth.
  */
-export function evaluateFreshness({ observedAt, now }) {
+export function evaluateFreshness({ observedAt, now, ttlHours = LISTING_IDENTITY_TTL_HOURS } = {}) {
   if (!observedAt) return { state: 'stale', reasons: ['확인 시각이 없습니다.'] };
   const ageMs = Date.parse(now) - Date.parse(observedAt);
   if (!Number.isFinite(ageMs)) return { state: 'stale', reasons: ['확인 시각을 해석할 수 없습니다.'] };
 
+  const effectiveTtlHours = Number.isFinite(ttlHours) && ttlHours > 0 ? ttlHours : LISTING_IDENTITY_TTL_HOURS;
   const ageHours = ageMs / 3_600_000;
-  if (ageHours > LISTING_IDENTITY_TTL_HOURS) {
-    return { state: 'stale', reasons: ['제품 확인 근거가 ' + LISTING_IDENTITY_TTL_HOURS + '시간 기준을 넘겼습니다.'] };
+  if (ageHours > effectiveTtlHours) {
+    return { state: 'stale', reasons: ['제품 확인 근거가 ' + effectiveTtlHours + '시간 기준을 넘겼습니다.'] };
   }
-  if (ageHours > LISTING_IDENTITY_TTL_HOURS * 0.75) {
+  if (ageHours > effectiveTtlHours * 0.75) {
     return { state: 'aging', reasons: ['제품 확인 근거가 곧 만료됩니다.'] };
   }
   return { state: 'fresh', reasons: [] };
