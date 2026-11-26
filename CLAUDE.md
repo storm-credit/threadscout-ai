@@ -17,7 +17,7 @@ Use repository context first. Reversible documentation/design work may continue 
 Compare four materially different options (never cosmetic variants) before major UI, workflow, niche, runtime, provider, storage, source, media, commercial-surface, or roster decisions (`declared, not enforced`). Every task states success criteria, non-goals, verification, and stop conditions.
 
 ## 5. Approval first
-No post may be published without explicit human approval. Guardian `pass` is required before queueing (enforced in code). Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement (enforced for agents in `agent-registry.mjs` / `tool-broker.mjs`; single-post no-`reply_to_id` rule in `publisher_adapter` and external tools remain `declared, not enforced` until publishing code lands).
+No post may be published without explicit human approval. Guardian `pass` is required before queueing (enforced in code). Do not automate comments, likes, follows, purchases, payments, or unsolicited engagement (enforced for agents in `agent-registry.mjs` / `tool-broker.mjs` and for single-post `no reply_to_id` publishing payloads in `threads-publisher-service.mjs`; external host/CLI usage remains `declared, not enforced`, and live network publishing remains disabled).
 
 ## 6. Truth and evidence
 - Never claim personal use without a verified `UsageRecord` (enforced in `guardian-checks.mjs`).
