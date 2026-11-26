@@ -44,9 +44,9 @@ Discovery/analysis media state and final-use publication rights are independent 
 
 ## 11. Runtime, tools, versioning, and storage
 - Each agent has one prompt and one output schema, recording prompt/schema versions and an audit receipt on every call, including preflight budget rejections (enforced in `model-runtime.mjs`).
-- Every tool call passes closed allowlists and forbids agent access to publishing or payment tools (enforced in `tool-broker.mjs`). Wrapping all untrusted external, MCP, and owner-pasted `user_evidence` text in per-call cryptographic-nonce passive-data fences and scrubbing child-process secrets (`SCRUB_ENV`) are required (`declared, not enforced` until Option B Slice 2 lands).
-- Candidate-lifecycle run budgets cap cumulative invocations, tokens, and KRW/USD cost across all retries for `(candidate_id, lifecycle_epoch)` (invocation count enforced in Spike 0; token/cost cap `declared, not enforced` until Slice 2 lands).
-- Public showcase cards project only a closed default-deny 9-field allowlist (`declared, not enforced` until Slice 3 lands).
+- Every tool call passes closed allowlists and forbids agent access to publishing or payment tools (enforced in `tool-broker.mjs`). Wrapping untrusted external, MCP, and owner-pasted `user_evidence` inputs in per-call CSPRNG passive-data fences is enforced unconditionally in `model-runtime.mjs` and `application-state.mjs` (`passive-data-fencer.mjs`), and child-process secret scrubbing (`scrubSubprocessEnv` in `scrub-env.mjs`) is provided for subprocess boundaries (no runtime path currently spawns child processes).
+- Candidate-lifecycle run budgets cap cumulative invocations, tokens/chars, and KRW cost across all retries for `(candidate_id, lifecycle_epoch)` (enforced by default in `model-runtime.mjs`, `application-state.mjs`, and `sqlite-store.mjs` `lifecycle_budgets`, reset solely by `reopen_rejected_candidate` from `'rejected'`).
+- Public showcase cards project only a closed default-deny 9-field allowlist (enforced in `public-showcase-projector.mjs` and read-only SQLite WAL `/api/showcase` in `sqlite-store.mjs`).
 - `.threadscout-data/` and credentials remain outside Git (enforced by `.gitignore` and AT-20 tests; `gitleaks --redact` `Floor Guard` is `declared, not enforced` / `NOT_MEASURED` locally until binary/CI job is installed).
 
 ## 12. Live source readiness and anti-scraping rule

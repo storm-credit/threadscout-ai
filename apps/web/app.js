@@ -1,8 +1,14 @@
+const STANDARD_DISCLOSURES = {
+  naver_shopping_connect: '[광고] 이 게시물은 네이버 쇼핑커넥트 활동의 일환으로, 판매 발생 시 수수료를 제공받습니다.',
+  coupang_partners: '[광고] 이 게시물은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.'
+};
+
 const els = {
   list: document.querySelector('#candidate-list'),
   candidateDialog: document.querySelector('#candidate-dialog'),
   candidateForm: document.querySelector('#candidate-form'),
   workspace: document.querySelector('#workspace-dialog'),
+  studioPlaceholder: document.querySelector('#studio-placeholder'),
   dialogTitle: document.querySelector('#dialog-title'),
   dialogSubtitle: document.querySelector('#dialog-subtitle'),
   workspaceAlert: document.querySelector('#workspace-alert'),
@@ -21,15 +27,26 @@ const els = {
   excludedBlock: document.querySelector('#excluded-block'),
   excludedList: document.querySelector('#excluded-list'),
   mediaRights: document.querySelector('#media-rights'),
+  publishableMediaRow: document.querySelector('#publishable-media-row'),
+  publishableMediaUrl: document.querySelector('#evidence-publishable-media-url'),
   personalUse: document.querySelector('#personal-use'),
   affiliate: document.querySelector('#affiliate'),
+  affiliateFields: document.querySelector('#affiliate-fields'),
+  affiliateNetwork: document.querySelector('#evidence-affiliate-network'),
+  affiliateState: document.querySelector('#evidence-affiliate-state'),
+  destinationUrl: document.querySelector('#evidence-destination-url'),
+  verifiedLimitation: document.querySelector('#evidence-limitation'),
   disclosure: document.querySelector('#disclosure'),
   evidenceBasis: document.querySelector('#evidence-basis'),
   strategyList: document.querySelector('#strategy-list'),
   draftList: document.querySelector('#draft-list'),
   guardianResult: document.querySelector('#guardian-result'),
   approvalBinding: document.querySelector('#approval-binding'),
+  showcasePreviewBox: document.querySelector('#showcase-preview-box'),
+  showcaseCountBadge: document.querySelector('#showcase-count-badge'),
   revisionLabel: document.querySelector('#revision-label'),
+  reopenCandidate: document.querySelector('#reopen-candidate'),
+  lockNonCommercial: document.querySelector('#lock-non-commercial'),
   capabilityView: document.querySelector('#capability-view'),
   inboxView: document.querySelector('#inbox-view'),
   filter: document.querySelector('#state-filter'),
@@ -47,6 +64,13 @@ const els = {
 let today = null;
 let activeCandidateId = null;
 let viewMode = 'today';
+let activeStep = 1;
+
+const desktopMedia = window.matchMedia('(min-width: 1120px)');
+
+function isDesktopSplitMode() {
+  return desktopMedia.matches;
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -68,6 +92,15 @@ function showToast(message) {
   showToast.timeout = setTimeout(() => els.toast.classList.remove('show'), 2800);
 }
 
+function laneLabel(value) {
+  return {
+    'practical-novel': '실용 신박템',
+    family: '가족·생활',
+    desk: '데스크·수납',
+    'curiosity-only': '호기심 탐색'
+  }[value] ?? value;
+}
+
 function statusLabel(value) {
   return {
     duplicate_review: '유사 후보 검토',
@@ -87,24 +120,33 @@ function statusLabel(value) {
 }
 
 function evidenceLabel(value) {
-  return { ready: '근거 준비', partial: '근거 일부', weak: '근거 약함' }[value] ?? value;
+  return { ready: '근거 준비됨', partial: '근거 일부', weak: '근거 보완 필요', blocked: '권리 차단' }[value] ?? value;
 }
 
 function riskLabel(value) {
-  return { low: '낮은 위험', review: '검토 필요', high: '높은 위험', blocked: '차단' }[value] ?? value;
+  return { low: '낮은 위험', review: '검토 필요', high: '높은 위험', blocked: '위험 차단' }[value] ?? value;
 }
 
 function exactLabel(value) {
   return {
     exact: '동일 제품 확인',
     likely: '유력 · 단정 불가',
-    substitute: '대체품',
+    substitute: '검증 대체품',
     unresolved: '제품 미확인'
   }[value] ?? value;
 }
 
 function mediaLabel(value) {
   return { owned: '직접 소유', licensed: '사용 허가', not_required: '미디어 없음', unknown: '권리 미확인' }[value] ?? value;
+}
+
+function angleLabel(angleId) {
+  return {
+    'problem-result': '문제→판단',
+    'mechanism-demo': '모델·옵션 구분',
+    'buying-checklist': '구매 체크리스트',
+    'honest-fit': '적합·비추천 대상'
+  }[angleId] ?? angleId;
 }
 
 function duplicateStateLabel(value) {
@@ -114,6 +156,40 @@ function duplicateStateLabel(value) {
     confirmed_distinct: '다른 제품 확인',
     confirmed_duplicate: '중복 억제'
   }[value] ?? value;
+}
+
+function recommendedStepFor(candidate) {
+  if (!candidate) return 1;
+  if (['duplicate_review', 'verification_needed', 'evidence_partial'].includes(candidate.workflowState)) return 1;
+  if (['evidence_ready', 'strategy_ready', 'draft_ready'].includes(candidate.workflowState)) return 2;
+  return 3;
+}
+
+function setStudioStep(stepNumber) {
+  activeStep = [1, 2, 3].includes(Number(stepNumber)) ? Number(stepNumber) : 1;
+  document.querySelectorAll('.step-tab').forEach((tab) => {
+    const selected = Number(tab.dataset.step) === activeStep;
+    tab.classList.toggle('active', selected);
+    tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+  });
+  for (const num of [1, 2, 3]) {
+    const panel = document.querySelector(`#step-panel-${num}`);
+    if (panel) panel.hidden = num !== activeStep;
+  }
+}
+
+function syncStudioVisibility() {
+  if (els.studioPlaceholder) {
+    els.studioPlaceholder.hidden = Boolean(els.workspace.open);
+  }
+}
+
+function closeWorkspaceDialog() {
+  if (els.workspace.open) els.workspace.close();
+  els.workspace.removeAttribute('open');
+  activeCandidateId = null;
+  syncStudioVisibility();
+  renderCandidates();
 }
 
 function candidateById(id) {
@@ -150,12 +226,20 @@ function cardTemplate(candidate) {
   const duplicateBadge = candidate.duplicateAssessment?.state === 'possible_duplicate'
     ? '<span class="status-pill warn">유사 후보</span>'
     : '';
+  const showcaseBadge = candidate.cardCode && candidate.showcaseProjected
+    ? `<span class="status-pill ok">쇼케이스 ${escapeHtml(candidate.cardCode)}</span>`
+    : '';
   const canHoldFromCard = !['approved', 'held', 'rejected', 'duplicate_review'].includes(candidate.workflowState);
+  const isSelected = activeCandidateId === candidate.id && els.workspace.open;
   return `
-    <article class="candidate-card ${candidate.topBlocker ? 'has-blocker' : ''} ${candidate.workflowState === 'stale' ? 'stale-card' : ''}" data-id="${escapeHtml(candidate.id)}">
+    <article class="candidate-card ${isSelected ? 'active-studio-card' : ''} ${candidate.topBlocker ? 'has-blocker' : ''} ${candidate.workflowState === 'stale' ? 'stale-card' : ''}" data-id="${escapeHtml(candidate.id)}">
       <div class="card-top">
         <div class="card-copy">
-          <div class="card-meta"><span class="card-kicker">${escapeHtml(candidate.lane)} · ${sourceBadge}</span><span class="status-pill ${statusClass(candidate.workflowState)}">${escapeHtml(statusLabel(candidate.workflowState))}</span></div>
+          <div class="card-meta">
+            <span class="card-kicker">${escapeHtml(laneLabel(candidate.lane))} · ${sourceBadge}</span>
+            <span class="status-pill ${statusClass(candidate.workflowState)}">${escapeHtml(statusLabel(candidate.workflowState))}</span>
+            ${showcaseBadge}
+          </div>
           <h3>${escapeHtml(candidate.name)}</h3>
           <p><strong>왜 지금:</strong> ${escapeHtml(candidate.whyNow)}</p>
           <p><strong>독자 가치:</strong> ${escapeHtml(candidate.readerValue)}</p>
@@ -167,13 +251,13 @@ function cardTemplate(candidate) {
         <span class="status-pill ${statusClass(candidate.riskLevel, 'risk')}">${escapeHtml(riskLabel(candidate.riskLevel))}</span>
         <span class="status-pill ${statusClass(candidate.exactMatchStatus, 'exact')}">${escapeHtml(exactLabel(candidate.exactMatchStatus))}</span>
         <span class="status-pill ${statusClass(candidate.mediaRights, 'media')}">${escapeHtml(mediaLabel(candidate.mediaRights))}</span>
-        ${candidate.verifierDecisionLabel ? `<span class="status-pill ${statusClass(candidate.verifierDecision, 'verifier')}">검증 ${escapeHtml(candidate.verifierDecisionLabel)}</span>` : ''}
+        ${candidate.verifierDecisionLabel ? `<span class="status-pill ${statusClass(candidate.verifierDecision, 'verifier')}">${escapeHtml(candidate.verifierDecisionLabel)}</span>` : ''}
         ${candidate.freshnessState && candidate.freshnessState !== 'fresh' ? `<span class="status-pill ${statusClass(candidate.freshnessState, 'freshness')}">근거 ${candidate.freshnessState === 'aging' ? '만료 임박' : '기한 초과'}</span>` : ''}
         ${duplicateBadge}
       </div>
       ${blocker}
       <div class="card-actions">
-        <button class="secondary-button card-primary" type="button" data-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
+        <button class="primary-button card-primary" type="button" data-action="${escapeHtml(primaryAction.action)}">${escapeHtml(primaryAction.label)}</button>
         ${canHoldFromCard ? '<button class="ghost-button card-hold" type="button">보류</button>' : ''}
         <button class="ghost-button card-suppress" type="button">그만 보기</button>
       </div>
@@ -203,9 +287,6 @@ function renderCandidates() {
   renderSuppressed();
 }
 
-// UI_STATE_ACTION_MATRIX line 17: the `suppressed` state takes `복원` as its primary action and
-// `상세 보기` as its secondary, and is excluded from normal ranking. The candidate is not deleted,
-// so this block is where it stays reachable.
 function suppressedCardTemplate(candidate) {
   const suppression = candidate.suppression ?? {};
   const driftNote = suppression.needsReDecision
@@ -215,7 +296,7 @@ function suppressedCardTemplate(candidate) {
     <article class="candidate-card suppressed-card" data-id="${escapeHtml(candidate.id)}">
       <div class="card-top">
         <div class="card-copy">
-          <div class="card-meta"><span class="card-kicker">${escapeHtml(candidate.lane)}</span><span class="status-pill">억제됨</span></div>
+          <div class="card-meta"><span class="card-kicker">${escapeHtml(laneLabel(candidate.lane))}</span><span class="status-pill">억제됨</span></div>
           <h3>${escapeHtml(candidate.name)}</h3>
           <p><strong>억제 이유:</strong> ${escapeHtml(suppression.reason ?? '기록 없음')}</p>
           <p><strong>기준:</strong> ${escapeHtml(suppression.axis ?? '')} = ${escapeHtml(suppression.value ?? '')}</p>
@@ -241,6 +322,9 @@ function renderMetrics() {
   document.querySelector('#metric-ready').textContent = today.counters.recommended;
   document.querySelector('#metric-verification').textContent = today.counters.verificationNeeded + (today.counters.duplicateReview ?? 0);
   document.querySelector('#metric-approved').textContent = today.counters.approved;
+  if (els.showcaseCountBadge) {
+    els.showcaseCountBadge.textContent = today.showcaseCount ?? today.counters.approved ?? 0;
+  }
 }
 
 function renderView() {
@@ -254,8 +338,8 @@ function renderView() {
     els.inboxView.hidden = true;
     els.capabilityView.hidden = false;
     els.capabilityView.innerHTML = viewMode === 'queue'
-      ? `<p class="section-kicker">Schedule</p><h2>예약은 아직 외부 실행하지 않습니다.</h2><p>현재 C 슬라이스는 사람 승인까지 증명합니다. 브라우저나 서비스 워커가 예약·게시 권한을 갖지 않으며, 다음 게시 슬라이스 전까지 외부 게시 기능은 OFF입니다.</p><div class="capability-list"><div class="capability-item"><strong>외부 게시</strong><span>disabled</span></div><div class="capability-item"><strong>서버 상태</strong><span>${escapeHtml(today?.capability.persistence ?? 'loading')}</span></div></div>`
-      : `<p class="section-kicker">Performance</p><h2>게시 전에는 성과를 학습하지 않습니다.</h2><p>실제 게시와 귀속 가능한 지표가 없으므로 성과 점수나 학습 추천을 만들어내지 않습니다. 안전하지 않은 고성과 패턴을 학습하는 기능도 현재 비활성화 상태입니다.</p><div class="capability-list"><div class="capability-item"><strong>학습 상태</strong><span>측정 데이터 없음</span></div><div class="capability-item"><strong>외부 게시</strong><span>disabled</span></div></div>`;
+      ? `<p class="section-kicker">Schedule &amp; Showcase</p><h2>자동 외부 게시는 꺼져 있으며, 승인 건은 공개 쇼케이스에 투영됩니다.</h2><p>승인된 후보는 닫힌 9필드 화이트리스트 검증을 통과한 뒤 <a href="/showcase" target="_blank" rel="noopener">/showcase 공개 디렉터리</a>에 #번호 카드로 게시됩니다. 스레드 자동 게시 및 댓글 봇은 비활성화 상태입니다.</p><div class="capability-list"><div class="capability-item"><strong>외부 자동 게시</strong><span>disabled (단일 루트 포스트 수동 운영)</span></div><div class="capability-item"><strong>서버 저장소</strong><span>${escapeHtml(today?.capability.persistence ?? 'loading')}</span></div></div>`
+      : `<p class="section-kicker">Performance</p><h2>실제 게시 귀속 전에는 성과를 추정 학습하지 않습니다.</h2><p>클릭·정산 지표가 수집되기 전까지 허위 추천 점수를 만들지 않습니다. 제휴 순기여(ROI)는 검증 사실과 분리된 결정적 계산기로만 산출합니다.</p><div class="capability-list"><div class="capability-item"><strong>학습 상태</strong><span>측정 데이터 없음</span></div><div class="capability-item"><strong>외부 게시</strong><span>disabled</span></div></div>`;
     return;
   }
 
@@ -272,7 +356,7 @@ function renderView() {
   } else {
     els.viewKicker.textContent = 'Today';
     els.inboxTitle.textContent = '오늘의 Opportunity Inbox';
-    els.viewDescription.textContent = '최대 5개 후보만 보여주고, 점수와 근거 준비도·중복 가능성을 따로 표시합니다.';
+    els.viewDescription.textContent = '최대 5개 후보만 보여주고, 기회 점수와 근거·위험 상태를 분리해 표시합니다.';
   }
   renderCandidates();
 }
@@ -281,6 +365,7 @@ function render() {
   renderMetrics();
   renderView();
   if (activeCandidateId && els.workspace.open) renderWorkspace();
+  syncStudioVisibility();
 }
 
 async function loadToday() {
@@ -288,25 +373,25 @@ async function loadToday() {
   if (!response.ok) throw new Error('서버 상태를 불러오지 못했습니다.');
   today = await response.json();
   render();
+  if (isDesktopSplitMode() && !activeCandidateId && today?.candidates?.length > 0) {
+    openWorkspace(today.candidates[0].id, { autoStep: true });
+  }
 }
 
-// 서버 오류를 한국어로 옮긴다. 서버 메시지는 영어로 두고(로그·API 소비자가 읽는다) 화면에 보이는
-// 문장만 여기서 만든다. 필드 이름은 `details.field`에서 오므로 영어 문장을 파싱하지 않는다.
 const FIELD_LABELS = {
-  name: '제품 이름', whyNow: '지금 다루는 이유', readerValue: '독자에게 주는 값',
+  name: '제품 이름', whyNow: '지금 다루는 이유', readerValue: '독자에게 주는 가치',
   axis: '억제 기준', reason: '이유', decision: '결정', text: '내용',
   draftId: '초안', ruleId: '억제 규칙', requestId: '요청 번호', command: '명령',
-  mediaRights: '미디어 권리', personalUse: '실사용 여부', expiresAt: '만료 시각'
+  mediaRights: '미디어 권리', personalUse: '실사용 여부', expiresAt: '만료 시각',
+  affiliateNetwork: '제휴 프로그램'
 };
 
-// 억제 축의 값. index.html의 select 옵션 문구와 같은 말을 쓴다.
 const AXIS_LABELS = { product: '이 제품', brand: '이 브랜드', category: '이 카테고리', source: '이 출처' };
 
-// 받침 유무로 조사를 고른다. "이름을(를)"처럼 둘 다 적는 표기는 화면에서 읽기 나쁘다.
 function josa(word, withFinal, withoutFinal) {
   const last = String(word ?? '').trim().slice(-1);
   const code = last.charCodeAt(0);
-  if (!(code >= 0xac00 && code <= 0xd7a3)) return withFinal; // 한글이 아니면 기본형
+  if (!(code >= 0xac00 && code <= 0xd7a3)) return withFinal;
   return (code - 0xac00) % 28 === 0 ? withoutFinal : withFinal;
 }
 
@@ -317,6 +402,7 @@ const ERROR_MESSAGES = {
     }
     const field = FIELD_LABELS[d?.field] ?? d?.field;
     if (!field) return '입력한 내용을 다시 확인해 주세요.';
+    if (d.rule === 'maxCodePoints') return `스레드 단일 게시물 본문은 서두 고지를 포함해 ${d.max ?? 500}자 이내여야 합니다.`;
     if (d.rule === 'required') return `${field}${josa(field, '을', '를')} 입력해 주세요.`;
     if (d.rule === 'oneOf') return `${field}${josa(field, '은', '는')} ${(d.allowed ?? []).join(' 또는 ')} 중 하나여야 합니다.`;
     if (d.rule === 'timestamp') return `${field}${josa(field, '은', '는')} 날짜 형식이어야 합니다.`;
@@ -330,17 +416,22 @@ const ERROR_MESSAGES = {
   not_suppressed: () => '이 후보는 지금 억제되어 있지 않습니다.',
   duplicate_review_required: () => '유사 후보를 먼저 확인해 주세요. 그 뒤에 진행할 수 있습니다.',
   duplicate_review_not_pending: () => '확인할 유사 후보가 없습니다.',
-  evidence_not_ready: () => '근거가 아직 준비되지 않았습니다. 근거를 먼저 확인해 주세요.',
+  evidence_not_ready: () => '근거가 아직 준비되지 않았습니다. 1단계에서 브랜드·모델·옵션과 두 곳의 출처를 확인해 주세요.',
   verifier_authority_missing: () => '제품 신원을 확인한 근거가 없습니다. 근거를 먼저 확인해 주세요.',
   strategy_not_ready: () => '전략 4개가 준비되어야 초안을 만들 수 있습니다.',
   draft_not_ready: () => '초안이 아직 준비되지 않았습니다.',
   guardian_gate: () => '최종 검수를 통과해야 승인할 수 있습니다.',
   stale_guardian: () => '검수 이후 내용이 바뀌었습니다. 검수를 다시 실행해 주세요.',
   stale_rebuild_required: () => '근거가 바뀌어 이후 결과가 오래되었습니다. 다시 만들어 주세요.',
+  post_publish_monetization_locked: () => '무고지로 게시된 카드는 사후에 제휴 수익화를 켤 수 없습니다(BS-60). 새 후보로 등록해 주세요.',
+  lock_requires_approved_non_commercial: () => '승인된 무고지 비수익화 후보만 BS-60 게시 잠금을 설정할 수 있습니다.',
+  budget_exhausted: () => '이 후보의 현재 주기(epoch) 누적 호출·비용 예산 상한에 도달했습니다. 거절 후 새 주기로 재오픈해야 합니다.',
+  reopen_requires_rejected_state: () => '거절된 후보만 새 예산 주기로 다시 열 수 있습니다.',
+  global_kill_switch_active: () => '긴급 중단 스위치(Kill Switch)가 켜져 있어 변경 명령이 일시 정지되었습니다.',
   storage_lock_timeout: () => '다른 저장이 진행 중입니다. 잠시 후 다시 시도해 주세요.',
   payload_too_large: () => '보낸 내용이 너무 큽니다.',
   invalid_json: () => '요청 형식이 올바르지 않습니다.',
-  route_not_allowed: () => '이 작업은 허용된 경로가 아닙니다.',
+  route_not_allowed: () => '현재 단계에서 바로 실행할 수 없는 작업입니다.',
   route_authority_invalid: () => '이 작업을 수행할 권한 설정이 올바르지 않습니다.',
   specialist_unavailable: () => '담당 에이전트를 사용할 수 없습니다.',
   agent_registry_invalid: () => '에이전트 구성이 올바르지 않습니다.',
@@ -348,11 +439,10 @@ const ERROR_MESSAGES = {
   orchestrator_command_unknown: () => '지원하지 않는 명령입니다.'
 };
 
-// version_conflict is handled separately at the call site, because it also reloads state.
 function errorToKorean(result) {
   const build = ERROR_MESSAGES[result?.error];
   if (build) {
-    try { return build(result.details ?? {}); } catch { /* fall through to the default */ }
+    try { return build(result.details ?? {}); } catch { /* fall through */ }
   }
   return '요청을 처리하지 못했습니다.';
 }
@@ -414,26 +504,32 @@ function renderStrategies(candidate) {
   const angles = candidate.strategies?.angles ?? [];
   els.strategyList.innerHTML = angles.length
     ? angles.map((angle, index) => `<article class="strategy-card"><strong>${index + 1}. ${escapeHtml(angle.title)}</strong><p><b>훅:</b> ${escapeHtml(angle.hook)}</p><p><b>독자 약속:</b> ${escapeHtml(angle.readerPromise)}</p><p><b>한계:</b> ${escapeHtml(angle.limitation)}</p></article>`).join('')
-    : '<div class="empty-state">근거가 준비되면 서로 다른 전략 4개를 만들 수 있습니다.</div>';
+    : '<div class="empty-state">1단계 근거 확인이 끝나면 서로 다른 전략 4개를 만들 수 있습니다.</div>';
 }
 
 function renderDrafts(candidate) {
   const drafts = candidate.drafts ?? [];
   els.draftList.innerHTML = drafts.length
-    ? drafts.map((draft, index) => `
+    ? drafts.map((draft, index) => {
+        const hasOffsetZeroDisclosure = draft.disclosure && String(draft.text ?? '').startsWith(draft.disclosure);
+        return `
         <article class="draft-card ${candidate.selectedDraftId === draft.id ? 'selected' : ''}" data-draft-id="${escapeHtml(draft.id)}">
-          <div class="draft-head"><label><input type="radio" name="active-draft" value="${escapeHtml(draft.id)}" ${candidate.selectedDraftId === draft.id || (!candidate.selectedDraftId && index === 0) ? 'checked' : ''} />${index + 1}. ${escapeHtml(draft.title)}</label><span class="status-pill">${escapeHtml(draft.angleId)}</span></div>
-          <textarea rows="6" data-draft-text="${escapeHtml(draft.id)}">${escapeHtml(draft.text)}</textarea>
-          ${draft.disclosure ? `<p class="muted"><strong>고지:</strong> ${escapeHtml(draft.disclosure)}</p>` : ''}
-        </article>`).join('')
-    : '<div class="empty-state">전략 4개가 준비되면 초안 4개를 만들 수 있습니다.</div>';
+          <div class="draft-head">
+            <label><input type="radio" name="active-draft" value="${escapeHtml(draft.id)}" ${candidate.selectedDraftId === draft.id || (!candidate.selectedDraftId && index === 0) ? 'checked' : ''} />${index + 1}. ${escapeHtml(draft.title)}</label>
+            <span class="status-pill">${escapeHtml(angleLabel(draft.angleId))} · ${escapeHtml(String(draft.text ?? '').length)}자</span>
+          </div>
+          <textarea rows="5" data-draft-text="${escapeHtml(draft.id)}">${escapeHtml(draft.text)}</textarea>
+          ${draft.disclosure ? `<p class="muted"><strong>${hasOffsetZeroDisclosure ? '✔ 오프셋 0 서두 고지 확인됨:' : '! 서두 고지 확인 필요:'}</strong> ${escapeHtml(draft.disclosure)}</p>` : ''}
+        </article>`;
+      }).join('')
+    : '<div class="empty-state">전략 4개가 준비되면 바로 한국어 초안 4개를 생성해 비교할 수 있습니다.</div>';
 }
 
 function renderGuardian(candidate) {
   const guardian = candidate.guardian;
   if (!guardian) {
     els.guardianResult.className = 'review-result';
-    els.guardianResult.textContent = '초안이 준비된 뒤 Guardian이 근거·체험 표현·과장·고지를 독립 검수합니다.';
+    els.guardianResult.textContent = '초안이 준비된 뒤 Guardian이 근거·체험 표현·서두 대가성 고지(오프셋 0)·한국어 번역투를 독립 검수합니다.';
     return;
   }
   els.guardianResult.className = `review-result ${guardian.decision}`;
@@ -443,15 +539,13 @@ function renderGuardian(candidate) {
     publicFigureClaimCheck: '공인 표현',
     rightsCheck: '미디어 권리',
     firstHandCheck: '체험 표현',
-    affiliateDisclosureCheck: '제휴 고지',
+    affiliateDisclosureCheck: '제휴·대가성 고지',
     duplicationCheck: '중복',
-    exaggerationCheck: '과장',
+    exaggerationCheck: '과장·문체',
     sensitiveClaimCheck: '민감 주장'
   };
   const symbols = { pass: '✔', warn: '!', block: '✕' };
 
-  // A blocking finding is shown separately from a fixable one, because approval can
-  // never pass the first and can pass the second once fixed (AT-08, AT-42).
   const nonOverridable = guardian.nonOverridableBlockers?.length
     ? `<p class="blocker-line"><strong>승인으로 넘길 수 없는 차단</strong></p><ul>${
         guardian.nonOverridableBlockers.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
@@ -479,17 +573,44 @@ function renderGuardian(candidate) {
 function renderApproval(candidate) {
   const review = candidate.review;
   const duplicatePending = candidate.workflowState === 'duplicate_review';
-  els.revisionLabel.textContent = `rev ${candidate.revision}`;
+  els.revisionLabel.textContent = `rev ${candidate.revision} · epoch ${candidate.lifecycleEpoch ?? 1}`;
   if (duplicatePending) {
     els.approvalBinding.textContent = '유사 후보 확인이 끝나기 전에는 보류·거절·승인을 포함한 다른 사람 결정을 적용하지 않습니다.';
   } else if (review) {
     els.approvalBinding.innerHTML = review.stale
-      ? `<strong>기존 ${escapeHtml(review.decision)} 결정은 무효화됨</strong><br />${escapeHtml(review.staleReason || '상위 자료가 변경되었습니다.')}<br /><small>바인딩: ${escapeHtml(review.boundMaterialRevision)}</small>`
-      : `<strong>${escapeHtml(review.decision)} · ${escapeHtml(review.actor)}</strong><br />이 결정은 아래 자료 해시에 묶여 있습니다.<br /><small>${escapeHtml(review.boundMaterialRevision)}</small>`;
+      ? `<strong>기존 ${escapeHtml(review.decision)} 결정은 무효화됨</strong><br />${escapeHtml(review.staleReason || '상위 자료가 변경되었습니다.')}<br /><small>바인딩 해시: ${escapeHtml(review.boundMaterialRevision)}</small>`
+      : `<strong>${escapeHtml(statusLabel(review.decision))} · ${escapeHtml(review.actor)}</strong><br />이 결정은 현재 자료 해시에 묶여 있습니다.<br /><small>${escapeHtml(review.boundMaterialRevision)}</small>`;
   } else {
     els.approvalBinding.textContent = candidate.guardian?.decision === 'pass'
-      ? 'Guardian 통과 버전과 현재 자료 버전이 일치합니다. 승인하면 이 material revision에 결정이 묶입니다.'
-      : 'Guardian pass 전에는 승인할 수 없습니다. 보류·거절은 언제든 가능합니다.';
+      ? 'Guardian 통과 버전과 현재 자료 버전이 일치합니다. 승인하면 이 버전 해시에 결정이 묶이고 공개 쇼케이스(#번호)에 반영됩니다.'
+      : 'Guardian 통과 전에는 승인할 수 없습니다. 보류·거절은 언제든 가능합니다.';
+  }
+
+  if (els.showcasePreviewBox) {
+    if (candidate.workflowState === 'approved' && candidate.cardCode && candidate.showcaseProjected) {
+      const numOnly = String(candidate.cardNumber ?? '');
+      els.showcasePreviewBox.hidden = false;
+      els.showcasePreviewBox.innerHTML = `
+        <strong>공개 쇼케이스 게시됨 · ${escapeHtml(candidate.cardCode)}</strong><br />
+        스레드 단일 본문에서 <code>프로필 쇼케이스 ${escapeHtml(candidate.cardCode)}</code>로 안내할 수 있습니다.<br />
+        <a href="/showcase/${escapeHtml(numOnly)}" target="_blank" rel="noopener">소비자 쇼케이스 카드(${escapeHtml(candidate.cardCode)}) 열기 ↗</a>`;
+    } else if (candidate.workflowState === 'approved' && !candidate.showcaseProjected) {
+      els.showcasePreviewBox.hidden = false;
+      els.showcasePreviewBox.innerHTML = `<strong>로컬 승인 완료 (쇼케이스 미투영)</strong><br />제휴를 켠 경우 https:// 도착 URL과 대가성 고지 원문이 모두 있어야 공개 쇼케이스에 노출됩니다.`;
+    } else {
+      els.showcasePreviewBox.hidden = true;
+      els.showcasePreviewBox.textContent = '';
+    }
+  }
+
+  if (els.reopenCandidate) {
+    els.reopenCandidate.hidden = candidate.workflowState !== 'rejected';
+    els.reopenCandidate.disabled = duplicatePending || candidate.workflowState !== 'rejected';
+  }
+  if (els.lockNonCommercial) {
+    const showLock = candidate.workflowState === 'approved' && !candidate.affiliate && !candidate.lockedNonCommercialAfterPublish;
+    els.lockNonCommercial.hidden = !showLock;
+    els.lockNonCommercial.disabled = duplicatePending || !showLock;
   }
 
   document.querySelector('#approve-draft').disabled = duplicatePending || candidate.guardian?.decision !== 'pass' || candidate.guardian?.boundMaterialRevision !== candidate.materialRevision || candidate.review?.stale === true || candidate.workflowState === 'approved';
@@ -500,12 +621,11 @@ function renderApproval(candidate) {
 function renderWorkspace() {
   const candidate = candidateById(activeCandidateId);
   if (!candidate) {
-    els.workspace.close();
-    activeCandidateId = null;
+    closeWorkspaceDialog();
     return;
   }
-  els.dialogTitle.textContent = candidate.name;
-  els.dialogSubtitle.textContent = `${candidate.synthetic ? '예시 데이터' : '사용자 제공'} · ${statusLabel(candidate.workflowState)} · 서버 revision ${candidate.revision}`;
+  els.dialogTitle.textContent = `${candidate.cardCode ? `${candidate.cardCode} · ` : ''}${candidate.name}`;
+  els.dialogSubtitle.textContent = `${candidate.synthetic ? '예시 데이터' : '사용자 제공'} · ${statusLabel(candidate.workflowState)} · 서버 rev ${candidate.revision}`;
   els.workspaceAlert.hidden = !candidate.topBlocker;
   els.workspaceAlert.textContent = candidate.topBlocker ?? '';
   renderWorkspaceStatus(candidate);
@@ -520,8 +640,17 @@ function renderWorkspace() {
   els.evidenceCorroborationOrigin.value = candidate.corroborationOrigin ?? '';
   els.evidenceSubstitute.checked = candidate.ownerDeclaredSubstitute === true;
   els.mediaRights.value = candidate.mediaRights;
+  if (els.publishableMediaRow) {
+    els.publishableMediaRow.hidden = !['owned', 'licensed'].includes(candidate.mediaRights);
+  }
+  if (els.publishableMediaUrl) els.publishableMediaUrl.value = candidate.publishableMediaUrl ?? '';
   els.personalUse.value = candidate.personalUse;
   els.affiliate.checked = candidate.affiliate;
+  if (els.affiliateFields) els.affiliateFields.hidden = !candidate.affiliate;
+  if (els.affiliateNetwork) els.affiliateNetwork.value = candidate.affiliateNetwork ?? '';
+  if (els.affiliateState) els.affiliateState.value = candidate.affiliateMappingState ?? '';
+  if (els.destinationUrl) els.destinationUrl.value = candidate.destinationUrl ?? '';
+  if (els.verifiedLimitation) els.verifiedLimitation.value = candidate.verifiedLimitation ?? '';
   els.disclosure.value = candidate.disclosure;
   els.evidenceBasis.textContent = candidate.sourceMode === 'synthetic_fixture' ? '예시 근거' : '사용자 제공 · 네트워크 미검증';
   els.evidenceBasis.className = `status-pill ${candidate.evidenceReadiness === 'ready' ? 'ok' : 'warn'}`;
@@ -539,21 +668,66 @@ function renderWorkspace() {
   document.querySelector('#run-guardian').disabled = duplicatePending || candidate.drafts?.length !== 4;
 }
 
-function openWorkspace(candidateId) {
+function openWorkspace(candidateId, { autoStep = true } = {}) {
   activeCandidateId = candidateId;
+  const candidate = candidateById(candidateId);
+  if (autoStep && candidate) {
+    setStudioStep(recommendedStepFor(candidate));
+  }
+  if (isDesktopSplitMode()) {
+    if (!els.workspace.open) els.workspace.setAttribute('open', '');
+  } else if (!els.workspace.open) {
+    els.workspace.showModal();
+  }
   renderWorkspace();
-  if (!els.workspace.open) els.workspace.showModal();
+  renderCandidates();
+  syncStudioVisibility();
 }
 
 async function runCandidateAction(candidate, action) {
-  if (action === 'open_workspace') return openWorkspace(candidate.id);
+  if (action === 'open_workspace') return openWorkspace(candidate.id, { autoStep: true });
   const command = action;
   const result = await sendCommand(command, { candidateId: candidate.id, expectedRevision: candidate.revision });
   if (result.ok) {
     showToast({ request_strategies: '전략 4개를 만들었습니다.', request_drafts: '초안 4개를 만들었습니다.', run_guardian: 'Guardian 검수를 완료했습니다.' }[command] ?? '처리했습니다.');
-    openWorkspace(candidate.id);
+    openWorkspace(candidate.id, { autoStep: true });
   }
 }
+
+document.querySelectorAll('.step-tab').forEach((tab) => {
+  tab.addEventListener('click', () => setStudioStep(Number(tab.dataset.step)));
+});
+
+document.querySelector('#jump-to-guardian')?.addEventListener('click', () => setStudioStep(3));
+
+els.mediaRights?.addEventListener('change', () => {
+  if (els.publishableMediaRow) {
+    els.publishableMediaRow.hidden = !['owned', 'licensed'].includes(els.mediaRights.value);
+  }
+});
+
+els.affiliate?.addEventListener('change', () => {
+  if (els.affiliateFields) els.affiliateFields.hidden = !els.affiliate.checked;
+  if (els.affiliate.checked && !els.disclosure.value.trim() && els.affiliateNetwork?.value) {
+    els.disclosure.value = STANDARD_DISCLOSURES[els.affiliateNetwork.value] ?? '';
+  }
+});
+
+els.affiliateNetwork?.addEventListener('change', () => {
+  const net = els.affiliateNetwork.value;
+  if (net && (!els.disclosure.value.trim() || Object.values(STANDARD_DISCLOSURES).includes(els.disclosure.value.trim()))) {
+    els.disclosure.value = STANDARD_DISCLOSURES[net] ?? '';
+  }
+});
+
+document.querySelectorAll('.preset-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    const whyEl = document.querySelector('#quick-why-now');
+    const valEl = document.querySelector('#quick-reader-value');
+    if (whyEl && chip.dataset.why) whyEl.value = chip.dataset.why;
+    if (valEl && chip.dataset.value) valEl.value = chip.dataset.value;
+  });
+});
 
 els.list.addEventListener('click', async (event) => {
   const card = event.target.closest('.candidate-card');
@@ -567,6 +741,8 @@ els.list.addEventListener('click', async (event) => {
     if (result.ok) showToast('후보를 보류했습니다.');
   } else if (event.target.closest('.card-suppress')) {
     openSuppressDialog(candidate);
+  } else if (isDesktopSplitMode() && !event.target.closest('button')) {
+    openWorkspace(candidate.id, { autoStep: true });
   }
 });
 
@@ -583,7 +759,7 @@ els.excludedList.addEventListener('click', async (event) => {
     });
     if (result.ok) showToast('후보를 복원했습니다. 억제 규칙은 그대로 남아 있습니다.');
   } else if (event.target.closest('.card-detail')) {
-    openWorkspace(candidate.id);
+    openWorkspace(candidate.id, { autoStep: true });
   }
 });
 
@@ -633,9 +809,12 @@ els.candidateForm.addEventListener('submit', async (event) => {
       showToast('같은 브랜드·모델·옵션 후보가 이미 있어 새 후보를 만들지 않았습니다.');
     } else if (result.result.result === 'candidate_added_possible_duplicate') {
       showToast('비슷한 기존 후보가 있습니다. 같은 제품인지 먼저 확인하세요.');
-      if (candidateById(result.result.candidateId)) openWorkspace(result.result.candidateId);
+      if (candidateById(result.result.candidateId)) openWorkspace(result.result.candidateId, { autoStep: true });
     } else {
       showToast('제품 후보를 추가했습니다. 다음 단계는 근거 확인입니다.');
+      if (result.result.candidateId && candidateById(result.result.candidateId)) {
+        openWorkspace(result.result.candidateId, { autoStep: true });
+      }
     }
     document.querySelector('#inbox-view').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -681,8 +860,12 @@ els.evidenceForm.addEventListener('submit', async (event) => {
   if (!updated) return;
   if (updated.workflowState === 'duplicate_review') {
     showToast('제품 식별값이 바뀌어 유사 후보 확인이 다시 필요합니다.');
+    setStudioStep(1);
+  } else if (updated.evidenceReadiness === 'ready') {
+    showToast('근거 확인 완료. 2단계 전략·초안 탭으로 이동합니다.');
+    setStudioStep(2);
   } else {
-    showToast(updated.evidenceReadiness === 'ready' ? '사용자 제공 근거 기준으로 다음 단계가 열렸습니다.' : '근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
+    showToast('근거가 아직 부족합니다. 막힌 이유를 확인하세요.');
   }
   renderWorkspace();
 });
@@ -722,7 +905,8 @@ document.querySelector('#run-guardian').addEventListener('click', async () => {
   const result = await sendCommand('run_guardian', { candidateId: candidate.id, expectedRevision: candidate.revision });
   if (result.ok) {
     const updated = candidateById(candidate.id);
-    showToast(updated.guardian?.decision === 'pass' ? 'Guardian 검수를 통과했습니다.' : '수정 또는 차단 사유가 있습니다.');
+    showToast(updated.guardian?.decision === 'pass' ? 'Guardian 검수를 통과했습니다. 이제 승인할 수 있습니다.' : '수정 또는 차단 사유가 있습니다.');
+    setStudioStep(3);
     renderWorkspace();
   }
 });
@@ -732,7 +916,13 @@ async function decide(decision) {
   if (!candidate) return;
   const result = await sendCommand('review_decision', { candidateId: candidate.id, expectedRevision: candidate.revision, payload: { decision } });
   if (result.ok) {
-    showToast({ approved: '이 버전을 승인했습니다. 외부 게시 기능은 여전히 꺼져 있습니다.', held: '보류했습니다.', rejected: '거절했습니다.' }[decision]);
+    const updated = candidateById(candidate.id);
+    const cardNotice = decision === 'approved' && updated?.cardCode ? ` 공개 쇼케이스 ${updated.cardCode}번으로 반영되었습니다.` : '';
+    showToast({
+      approved: `이 버전을 승인했습니다.${cardNotice} 외부 자동 게시는 꺼져 있습니다.`,
+      held: '보류했습니다.',
+      rejected: '거절했습니다.'
+    }[decision]);
     renderWorkspace();
   }
 }
@@ -741,8 +931,43 @@ document.querySelector('#approve-draft').addEventListener('click', () => decide(
 document.querySelector('#hold-candidate').addEventListener('click', () => decide('held'));
 document.querySelector('#reject-candidate').addEventListener('click', () => decide('rejected'));
 
+els.reopenCandidate?.addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('reopen_rejected_candidate', {
+    candidateId: candidate.id,
+    expectedRevision: candidate.revision,
+    payload: {}
+  });
+  if (result.ok) {
+    showToast('거절 후보를 새 예산 주기(epoch)로 다시 열었습니다.');
+    setStudioStep(1);
+    renderWorkspace();
+  }
+});
+
+els.lockNonCommercial?.addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const result = await sendCommand('lock_non_commercial_showcase', {
+    candidateId: candidate.id,
+    expectedRevision: candidate.revision,
+    payload: {}
+  });
+  if (result.ok) {
+    showToast('무고지 비수익화 게시물로 영구 잠갔습니다(BS-60). 사후 제휴 링크 추가가 차단됩니다.');
+    renderWorkspace();
+  }
+});
+
 document.querySelector('#open-add-candidate').addEventListener('click', () => els.candidateDialog.showModal());
-document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => document.querySelector(`#${button.dataset.closeDialog}`).close()));
+document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => {
+  if (button.dataset.closeDialog === 'workspace-dialog') {
+    closeWorkspaceDialog();
+  } else {
+    document.querySelector(`#${button.dataset.closeDialog}`)?.close();
+  }
+}));
 
 els.filter.addEventListener('change', renderCandidates);
 document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => {
@@ -754,11 +979,10 @@ document.querySelectorAll('.nav-item').forEach((button) => button.addEventListen
 }));
 
 document.querySelector('#reset-demo').addEventListener('click', async () => {
-  if (!confirm('서버에 저장된 로컬 C 슬라이스 상태를 예시 초기값으로 되돌릴까요?')) return;
+  if (!confirm('서버에 저장된 로컬 상태를 예시 초기값으로 되돌릴까요?')) return;
   const result = await sendCommand('reset_demo');
   if (result.ok) {
-    activeCandidateId = null;
-    if (els.workspace.open) els.workspace.close();
+    closeWorkspaceDialog();
     showToast('서버 예시 상태를 초기화했습니다.');
   }
 });

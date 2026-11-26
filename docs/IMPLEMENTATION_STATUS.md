@@ -147,9 +147,9 @@ all-suppressed empty-state line sits 39px below the mobile fold (§4.8), and
 
 ## Current precise status
 
-**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION BROWSER-VERIFIED AND MERGED / FULL MASTER-DESIGN HARNESS + LIVE INTEGRATIONS NOT COMPLETE / LIVE CAPABILITIES OFF.**
+**DESIGN COMPLETE / HARNESS DESIGN COMPLETE / SPIKE 0 VERIFIED / MANUAL-PRODUCT C VERTICAL SLICE MERGED / LOCAL SAME-HOST PERSISTENCE SERIALIZATION MERGED / MANUAL-CANDIDATE DEDUPE GUARDRAIL MERGED / AT-14 OWNER SUPPRESSION BROWSER-VERIFIED AND MERGED / OPTION B SQLITE WAL + HYBRID STUDIO UI + PUBLIC VERIFIED SHOWCASE (`AT-45..48`, `F25..28`) IMPLEMENTED AND VERIFIED LOCALLY / LIVE EXTERNAL APIS OFF.**
 
-This status intentionally does **not** claim production readiness. The current persistence bridge is single-host/local-filesystem only. Dedupe compares current persisted local manual-candidate history, not a global catalog or live Scout stream. Automated responsive/accessibility structure is tested, but a real-device/browser/assistive-technology acceptance matrix remains a separate verification item.
+This status intentionally does **not** claim external live-API readiness. Default persistence is now Node 24 built-in `node:sqlite` (`DatabaseSync` WAL + `STRICT` + Hangul NFD Jamo `FTS5(trigram)` + dedicated `readOnly` `/api/showcase` handle, with `THREADSCOUT_STORAGE_MODE=json` fallback preserved). External live Threads/Coupang/Naver network calls remain disabled (`ready: false`, `externalPublishingEnabled: false`).
 
 ## Live capability state
 
@@ -157,16 +157,15 @@ Still intentionally disabled:
 
 - Threads keyword discovery for the target app/account
 - Threads insights
-- Threads publishing
-- live Coupang Partners and Naver Shopping Connect commercial posting
-- Public Verified Showcase (`#NNN`) external web serving (approved in design v1.1 on `2026-11-27`; not yet implemented)
+- Threads automated publishing (manual single-root-post copy only; zero automated comments/self-replies)
+- live network calls to Coupang Partners Open API and external scraping (local Coupang `<= 10/hr` limiter & Naver Shopping Connect manual snapshot validator are implemented offline)
 - automated listing discovery beyond owner-supplied destinations
 - live Scout/global candidate dedupe
 - third-party media download/transform/republish without action-specific rights evidence
-- schedule dispatch/reconciliation and external global kill switch
+- external schedule dispatch/reconciliation (local `THREADSCOUT_GLOBAL_KILL_SWITCH` is implemented on `/api/commands` and `/api/showcase`)
 - analytics learning
 
-No credential, new dependency/framework, workflow-file change, model provider, live-network enablement, new agent, publication path, or scheduler activation is introduced by the merged local slices (PRs #11–#23).
+No credential, external npm framework dependency, workflow-file change, live model provider call, live-network enablement, seventh agent, or automated external publication path is introduced.
 
 ## Post-AT-14 maintenance fixes on `main` (PRs #19–#23)
 
@@ -176,26 +175,23 @@ No credential, new dependency/framework, workflow-file change, model provider, l
 - **PR #22 (`7689e26`) & MAOS `0.2.1` sync (`2026-11-27`):** upgraded `CLAUDE.md` §21 to canonical MAOS `0.2.1`, compacted `CLAUDE.md` under the `<= 200`-line root cap, and recorded the §11 Exercised ledger in `docs/AGENT_OS_ADOPTION.md`.
 - **PR #23 (`4ae6afb`):** translated user-facing server validation errors to Korean while preserving structured field diagnostics (resolving the §4.7 follow-up from AT-14 browser verification).
 
-## Option B Commercial Showcase & Dual-Affiliate Design Update (`2026-11-27`, DESIGN COMPLETE / CODE NOT STARTED)
+## Option B Commercial Showcase, SQLite WAL & Hybrid Editorial Studio (`2026-11-27`, IMPLEMENTED & VERIFIED)
 
-On `2026-11-27`, after comparing four commercial options and running `maos-critic` independent verification, the owner approved **Option B (Public Verified Showcase `#NNN` web surface + single-post Threads funnel + Coupang Partners & Naver Shopping Connect dual affiliate + Korean anti-AI-slop rubric)** while preserving `CLAUDE.md` §5 (unconditional automated-comment ban; no automated self-replies) and `CLAUDE.md` §7 (fixed six-agent orchestra; deterministic non-agent `affiliate_yield_service` and `public_showcase_projector`).
-
-Updated canonical specs (`MASTER_SPEC.md`, `PLATFORM_DECISION.md`, `AFFILIATE_SPEC.md`, `CONTENT_OUTPUT_SPEC.md`, `PRODUCT_REQUIREMENTS.md`, `MVP_SCOPE.md`, `PUBLISHING_SPEC.md`, `RUN_BUDGETS.md`, `DESIGN_FREEZE.md`, `FINAL_BLIND_SPOT_SWEEP.md` `BS-60..61`, `B0_TRACEABILITY_MATRIX.md`, `TRACEABILITY_MATRIX.md` `PR-25..26`/`NFR-13`, `ACCEPTANCE_TESTS.md` `AT-45..48`, `HARNESS_ACCEPTANCE_MATRIX.md` `F25..28`) and initialized the non-canonical `os-intake` watch vault under `docs/watch/` paired with NotebookLM Watch Lab `c1a08bb9-d265-4f8f-b896-03a583748cdb`. Runtime/product code remains unchanged until an explicit bounded coding slice is started under `DESIGN_FREEZE.md`.
+On `2026-11-27`, after comparing four commercial options and four UI/UX + DBA options and running `maos-critic` independent verification, the owner approved **Option B + Director's Hybrid Studio Proposal**:
+- **Core & Guardian (`AT-45..47`, `F25..27`):** Offset-`0` direct/indirect statutory disclosure check, `BS-60` post-publish non-commercial lock, incentivized comment/DM bait blocker, Korean anti-AI-slop conjugated-stem check with mandatory `AT-10`/`AT-23` disclaimer pre-stripping (`stays-quiet`), closed 9-field `PublicShowcaseCard` projector + Markdown exporter (`public-showcase-projector.mjs`), and deterministic dual-affiliate mapper + `<= 10/hr` Coupang limiter (`affiliate-yield-service.mjs`).
+- **Runtime Hardening (`AT-48`, `F28`):** Cumulative `(candidateId, lifecycleEpoch)` token/KRW ceiling tracker (`createLifecycleBudgetTracker`), 128-bit CSPRNG hex-nonce passive-data fencer (`passive-data-fencer.mjs`), and child-process secret scrubber (`scrub-env.mjs`).
+- **DBA (`packages/database/src/sqlite-store.mjs`):** Zero-dependency Node 24 `node:sqlite` (`WAL` + `STRICT` + Hangul NFD Jamo `FTS5(trigram)` + `readOnly: true` `/api/showcase` handle + `BS-60` irreversible DB trigger), eliminating the 50-candidate truncation bug while preserving `THREADSCOUT_STORAGE_MODE=json` and fixing Windows NTFS `DELETE_PENDING` `EPERM` lock contention in `locked-application-store.mjs`.
+- **UI/UX (`apps/web/{index.html,styles.css,app.js,showcase.html,showcase.js}`):** Compact above-the-fold Action Desk (resolving the AT-14 §4.8 39px below-the-fold mobile empty-state issue), 15-second 2-field + preset Quick Capture modal, 3-Step Tabbed Decision Studio (mobile sheet `< 1120px` + right-docked 2-column Split Studio `>= 1120px`), and editorial magazine `/showcase` with offset-`0` statutory disclosure and `#NNN` / Hangul instant search.
 
 ## Remaining explicit boundaries
 
-- AT-14 owner suppression is merged (`484956e`, PR #17) and browser-verified; the remaining UI polish follow-up from that run is the all-suppressed empty-state line sitting 39px below the 360×740 mobile fold
-- Option B capabilities (`AT-45..48`: offset-`0` direct/indirect statutory disclosure check, closed 9-field Public Verified Showcase projection, dual-affiliate manual/rate-limited service, candidate-lifecycle cumulative token/cost ceiling, and passive-data payload fencing) are **specified in `docs/spec/`, not yet implemented in code**
-- no UPC/EAN/GTIN or external catalog matching exists
-- no embedding/LLM semantic dedupe or live LLM provider adapter is enabled yet
-- no production database/trigram index exists; O(n) comparison is limited to the current bounded local candidate history
-- multi-host/background production execution still requires database-backed transactional persistence
+- Live network credentials/activation (`THREADS_*`, `COUPANG_*`, live LLM API keys) remain off (`ready: false`) until explicit owner live-activation slice
+- No UPC/EAN/GTIN or external catalog matching exists
+- Multi-host distributed cloud database replication remains future post-solo-validation scope (current SQLite WAL is single-host ACID)
 
 ## Next safe implementation boundary
 
-Do not jump directly to public posting. Select the next bounded non-live coding slice explicitly under `DESIGN_FREEZE.md` — recommended order:
-1. **Offset-`0` statutory disclosure & anti-AI-slop deterministic checks (`AT-45`, `F25`) + `stays-quiet` negative tests** in `guardian-checks.mjs`
-2. **Candidate-lifecycle cumulative budget ceiling & passive-data payload fencing (`AT-48`, `F28`) + tiered LLM provider adapter**
-3. **Closed 9-field Public Verified Showcase read-only projection & dual-affiliate manual/rate-limited mapper (`AT-46`, `AT-47`, `F26`, `F27`)**
-
-Before any live source or publishing slice, separately verify current account permissions/policies, credential storage, source-specific terms/rate limits, publication idempotency/reconciliation, external global kill switch, transactional persistence, authorization preflight, evidence freshness, destination integrity, media rights, and offset-`0` disclosure.
+Do not jump directly to public posting without live-account preflight. With Option B's local SQLite WAL, Hybrid Studio UI, `/showcase` 9-field projector, dual-affiliate mapper/rate-limiter, offset-`0` & anti-AI-slop Guardian checks, and `(candidate_id, lifecycle_epoch)` budget/fence guardrails (`AT-45..48`, `F25..28`) now verified locally (`ready: false` for live APIs), any future live-activation slice must separately verify:
+1. Live Meta Threads App Review permissions (`threads_basic`, `threads_content_publish`, `threads_keyword_search`), single-post idempotency/reconciliation, and external secret vaulting.
+2. Live Coupang Partners Open API approval (`>= ₩150,000` threshold) and live LLM provider key routing under the enforced `(candidate_id, lifecycle_epoch)` KRW ceiling.
+3. Public domain/TLS deployment of the read-only `/showcase` endpoint with external global kill-switch monitoring.

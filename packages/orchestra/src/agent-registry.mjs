@@ -127,6 +127,14 @@ export const DETERMINISTIC_SERVICES = deepFreeze([
   {
     id: 'audit_log',
     reason: '실행 이력은 에이전트 해석이 아닌 변경 불가능한 이벤트로 기록한다.'
+  },
+  {
+    id: 'affiliate_yield_service',
+    reason: '제휴 네트워크(쿠팡 파트너스·네이버 쇼핑커넥트) 스냅샷 검증·순기여(ROI) 계산·시간당 10회 한도 차단은 창의적 판단이 아닌 결정적 규칙 서비스로 처리한다.'
+  },
+  {
+    id: 'public_showcase_projector',
+    reason: '공개 쇼케이스(/showcase) 9필드 화이트리스트 투영·TTL 만료 철회·마스크다운 내보내기는 모델이 아닌 default-deny 코드로 강제한다.'
   }
 ]);
 

@@ -19,18 +19,22 @@ const HUMAN_COMMANDS = new Set([
   'resolve_duplicate',
   'suppress_candidate',
   'restore_candidate',
-  'remove_suppression_rule'
+  'remove_suppression_rule',
+  'reopen_rejected_candidate',
+  'lock_non_commercial_showcase'
 ]);
 const DETERMINISTIC_COMMANDS = new Set(['reset_demo', 'add_manual_candidate', 'edit_draft']);
 
 function candidateFromToday(today, candidateId) {
-  return today?.candidates?.find((candidate) => candidate.id === candidateId) ?? null;
+  return today?.candidates?.find((candidate) => candidate.id === candidateId)
+    ?? today?.excluded?.find((candidate) => candidate.id === candidateId)
+    ?? null;
 }
 
 function allowedStates(command) {
   return {
     request_verification: new Set(['verification_needed', 'evidence_partial', 'evidence_ready', 'strategy_ready', 'draft_ready', 'guardian_revise', 'guardian_pass', 'approved', 'stale', 'blocked']),
-    request_strategies: new Set(['evidence_ready']),
+    request_strategies: new Set(['evidence_ready', 'evidence_partial']),
     request_drafts: new Set(['strategy_ready']),
     run_guardian: new Set(['draft_ready', 'guardian_revise', 'stale'])
   }[command] ?? null;
@@ -78,12 +82,13 @@ function validateSpecialistRoute(command, today, request) {
     });
   }
 
-  if (command === 'request_strategies' && (candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact')) {
+  if (command === 'request_strategies' && !['verified', 'limited'].includes(candidate.verifierDecision)) {
     throw new ApplicationCommandError('Evidence is not ready for content strategy.', {
       code: 'evidence_not_ready',
       statusCode: 422,
       details: {
         evidenceReadiness: candidate.evidenceReadiness,
+        verifierDecision: candidate.verifierDecision,
         exactMatchStatus: candidate.exactMatchStatus,
         blockers: candidate.blockers
       }
@@ -100,7 +105,7 @@ function validateSpecialistRoute(command, today, request) {
   }
 
   if (command === 'run_guardian' && candidate.workflowState === 'stale') {
-    if (candidate.evidenceReadiness !== 'ready' || candidate.exactMatchStatus !== 'exact' || candidate.drafts?.length !== 4) {
+    if (!['exact', 'substitute'].includes(candidate.exactMatchStatus) || !['verified', 'limited'].includes(candidate.verifierDecision) || candidate.drafts?.length !== 4) {
       throw new ApplicationCommandError('Stale candidate must rebuild current evidence/content before Guardian review.', {
         code: 'stale_rebuild_required',
         statusCode: 422,

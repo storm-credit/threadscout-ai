@@ -464,3 +464,22 @@ Three months after the initial August 2026 design and manual C-slice baseline, t
 ### Impact & remaining boundary
 
 Canonical design authority (`docs/spec/` through `AT-48` / `F28` / `BS-61`) is updated. Runtime/product code remains untouched in Phase 1; each subsequent coding slice (Slice 1 `AT-45` Guardian checks, Slice 2 `AT-48` lifecycle budget & LLM adapter, Slice 3 `AT-46`/`AT-47` showcase & dual-affiliate mapper) requires its own bounded implementation gate under `DESIGN_FREEZE.md`.
+
+---
+
+## 2026-11-27 — Approve Hybrid Editorial Studio UI (Mockup A+B) and Node 24 `node:sqlite` WAL + Hangul NFD FTS5 persistence
+
+### Context
+
+Following owner inspection of the August 2026 prototype (`http://127.0.0.1:4173/`), four specialist engineering reviews (`ui-ux-architect`, `dba-architect`, `system-architect`, `maos-critic`) and four interactive UI mockups (`Mockup A` Clean Editorial Desk, `Mockup B` Desktop Split Studio, `Mockup C` 29CM Magazine Showcase + Admin, `Mockup D` Keyboard Triage Rail) were compared.
+
+### Decisions approved by the owner (`네제안대로진행`)
+
+1. **UI/UX Architecture (`Mockup A` Mobile + `Mockup B` Desktop `>= 1120px` Hybrid + `Mockup C` `/showcase`):**
+   - Shrink non-candidate top chrome so primary inbox cards appear immediately above the fold on both `360x740` mobile and desktop (resolving the AT-14 §4.8 39px below-the-fold empty-state issue).
+   - Replace the 14-field upfront entry form with a 15-second Quick Capture modal (2 core fields + quick value presets + `<details>` optional detail fields) and a 3-Step Tabbed Decision Studio (`1. 근거·신원` / `2. 전략·초안 4종` / `3. 검수·승인`), docked right on `>= 1120px` desktop.
+   - Serve the public consumer directory at `/showcase` with offset-`0` high-contrast (`>= 4.5:1`, `13px`) statutory disclosure banners, `#NNN` badges, honest limitation callouts, and instant search.
+2. **Database Architecture (`packages/database/src/sqlite-store.mjs`):**
+   - Replace the flat-JSON 50-item truncating default with zero-dependency Node 24 built-in `node:sqlite` (`DatabaseSync`, `WAL` + `STRICT` + Hangul NFD Jamo space-padded `FTS5(trigram)` + dedicated `readOnly: true` `/api/showcase` handle + `BS-60` irreversible DB trigger), while preserving `THREADSCOUT_STORAGE_MODE=json` and post-commit JSON mirroring for rollback and audit compatibility.
+3. **Boundary Enforcement (`AT-45..48`, `F25..28`):**
+   - Implement `guardian-checks.mjs` offset-`0` commercial surface + Korean anti-AI-slop checks (`stays-quiet` calibrated), `public-showcase-projector.mjs`, `affiliate-yield-service.mjs`, `passive-data-fencer.mjs`, `scrub-env.mjs`, and `createLifecycleBudgetTracker` while keeping all external live APIs and automated publishing disabled (`externalPublishingEnabled: false`).
