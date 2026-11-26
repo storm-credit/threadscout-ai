@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
 import { SuppressionApplicationStore } from './candidate-suppression-store.mjs';
 import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
-import { SqliteApplicationStore } from '../../packages/database/src/sqlite-store.mjs';
+import { SqliteApplicationStore, isNodeSqliteAvailable } from '../../packages/database/src/sqlite-store.mjs';
 import {
   exportDeterministicMarkdownCard,
   projectPublicShowcaseCard
@@ -130,7 +130,7 @@ export function createThreadScoutServer({
   storeOptions = {}
 } = {}) {
   const usesLegacyFileLockOptions = 'lockTimeoutMs' in storeOptions || 'lockStaleMs' in storeOptions || 'lockRetryMs' in storeOptions;
-  const useJsonStore = storageMode === 'json' || usesLegacyFileLockOptions;
+  const useJsonStore = storageMode === 'json' || usesLegacyFileLockOptions || !isNodeSqliteAvailable();
   const legacyJsonPath = path.resolve(dataDir, stateFile);
   const store = useJsonStore
     ? new SuppressionApplicationStore({

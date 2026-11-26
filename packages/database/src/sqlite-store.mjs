@@ -2,7 +2,17 @@
 // Eliminates the flat-JSON 50-candidate truncation bug, fixes commandHistory fingerprint checks,
 // enforces permanent `#NNN` card numbers, and serves `/api/showcase` via a dedicated readOnly handle.
 
-import { DatabaseSync } from 'node:sqlite';
+let DatabaseSync = null;
+try {
+  ({ DatabaseSync } = await import('node:sqlite'));
+} catch {
+  DatabaseSync = null;
+}
+
+export function isNodeSqliteAvailable() {
+  return typeof DatabaseSync === 'function';
+}
+
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -188,6 +198,9 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
   }
 
   async initialize() {
+    if (!isNodeSqliteAvailable()) {
+      throw new Error('Built-in node:sqlite is unavailable on this Node runtime; use storageMode="json".');
+    }
     if (this.db) return this.readState();
     if (this.dbPath !== ':memory:') {
       await mkdir(path.dirname(this.dbPath), { recursive: true });

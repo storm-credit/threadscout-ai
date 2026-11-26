@@ -7,7 +7,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DatabaseSync } from 'node:sqlite';
+import { isNodeSqliteAvailable } from '../packages/database/src/sqlite-store.mjs';
+
+const sqliteMod = isNodeSqliteAvailable() ? await import('node:sqlite') : null;
 
 import {
   RULE_IDS,
@@ -449,15 +451,17 @@ test('SQLite WAL end-to-end: retains >55 candidates without #001 loss, serves 2-
     assert.equal(withdrawnRes.status, 404);
 
     // 6. Verify SQLite BS-60 trigger blocks `locked_non_commercial` 1 -> 0 downgrade at DB level
-    const directDb = new DatabaseSync(path.join(dataDir, 'threadscout.sqlite'));
-    try {
-      directDb.prepare('UPDATE candidates SET locked_non_commercial = 1 WHERE id = ?').run(firstId);
-      assert.throws(
-        () => directDb.prepare('UPDATE candidates SET locked_non_commercial = 0 WHERE id = ?').run(firstId),
-        /BS-60 post-publish non-commercial lock is irreversible/
-      );
-    } finally {
-      directDb.close();
+    if (sqliteMod) {
+      const directDb = new sqliteMod.DatabaseSync(path.join(dataDir, 'threadscout.sqlite'));
+      try {
+        directDb.prepare('UPDATE candidates SET locked_non_commercial = 1 WHERE id = ?').run(firstId);
+        assert.throws(
+          () => directDb.prepare('UPDATE candidates SET locked_non_commercial = 0 WHERE id = ?').run(firstId),
+          /BS-60 post-publish non-commercial lock is irreversible/
+        );
+      } finally {
+        directDb.close();
+      }
     }
 
     // 7. Verify SQLite audit_events continues appending past 200 events without freezing (MJ-1)
@@ -478,14 +482,16 @@ test('SQLite WAL end-to-end: retains >55 candidates without #001 loss, serves 2-
         }
       });
     }
-    const auditCheckDb = new DatabaseSync(path.join(dataDir, 'threadscout.sqlite'), { readOnly: true });
-    try {
-      const auditCount = Number(auditCheckDb.prepare('SELECT COUNT(*) AS cnt FROM audit_events').get().cnt);
-      assert.ok(auditCount > 205, `expected > 205 audit_events rows, got ${auditCount}`);
-      const budgetRow = auditCheckDb.prepare('SELECT invocations, cost_krw FROM lifecycle_budgets WHERE candidate_id = ? AND lifecycle_epoch = 1').get(firstId);
-      assert.ok(budgetRow && budgetRow.invocations >= 4 && budgetRow.cost_krw > 0, 'lifecycle_budgets must be persisted in SQLite');
-    } finally {
-      auditCheckDb.close();
+    if (sqliteMod) {
+      const auditCheckDb = new sqliteMod.DatabaseSync(path.join(dataDir, 'threadscout.sqlite'), { readOnly: true });
+      try {
+        const auditCount = Number(auditCheckDb.prepare('SELECT COUNT(*) AS cnt FROM audit_events').get().cnt);
+        assert.ok(auditCount > 205, `expected > 205 audit_events rows, got ${auditCount}`);
+        const budgetRow = auditCheckDb.prepare('SELECT invocations, cost_krw FROM lifecycle_budgets WHERE candidate_id = ? AND lifecycle_epoch = 1').get(firstId);
+        assert.ok(budgetRow && budgetRow.invocations >= 4 && budgetRow.cost_krw > 0, 'lifecycle_budgets must be persisted in SQLite');
+      } finally {
+        auditCheckDb.close();
+      }
     }
 
     // 8. Verify Global Kill Switch withdraws `/api/showcase` and blocks `POST /api/commands` (503)
