@@ -78,6 +78,14 @@ Every run must preserve source references, agent artifacts, revisions, decisions
 
 Support product/category/source suppression and record the reason.
 
+### PR-25 Public Verified Showcase projection (`#NNN`)
+
+Project approved non-stale candidates with `product_state` in `['exact', 'substitute']` onto a read-only consumer showcase web surface using the closed default-deny 9-field `PublicShowcaseCard` schema and deterministic `matchBadge` mapping (`PLATFORM_DECISION.md`), blocking `likely`, `unresolved`, and `stale` candidates and withholding all raw third-party excerpts, PII, internal scores, and unpermitted media.
+
+### PR-26 Offset-`0` disclosure, post-publish monetization lock & dual-affiliate mapping
+
+Support Coupang Partners (corroborated manual link/snapshot pre-eligibility; `<= 10/hr` rate-limited official API post-activation) and Naver Shopping Connect (owner-issued manual link + corroborated `CanonicalListingSnapshot`, zero CUA or HTTP HTML/redirect scraping), block any commercial solicitation surface (`AFFILIATE_SPEC.md` §5: direct/redirect commercial URLs, `#NNN`/`N번`/`/showcase/N` pointers to monetized cards, `/showcase` pointers when active monetized cards exist, and monetized showcase cards) missing verbatim statutory disclosure at offset `0`, and permanently lock any `#NNN` card referenced by an undisclosed published post to `AffiliateMapping.state = 'none'`.
+
 ## 4. Non-functional requirements
 
 ### NFR-01 Mobile-first
@@ -119,6 +127,10 @@ Drafts must sound natural in Korean and preserve distinction between fact, infer
 ### NFR-10 Data minimization
 
 Store only source excerpts and identifiers required for evidence/audit; do not retain unnecessary personal information or raw scraped payloads.
+
+### NFR-13 Lifecycle cost ceiling, `SCRUB_ENV` & passive-data fencing
+
+Enforce a cumulative invocation, token, and KRW/USD cost ceiling across all specialist calls and revision retries for each `(candidate_id, lifecycle_epoch)` run (where `lifecycle_epoch` increments exclusively on explicit owner re-open after owner `reject` or archival), scrub ambient secrets from child-process environments (`SCRUB_ENV`), and wrap all untrusted text — including owner-pasted `user_evidence` as well as network/MCP outputs — in per-call cryptographic-nonce passive-data fences verified absent from the payload.
 
 ## 5. MVP exclusions
 

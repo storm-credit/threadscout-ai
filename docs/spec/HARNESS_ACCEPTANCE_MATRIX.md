@@ -40,8 +40,12 @@ A single AT may require more than one layer.
 | F22 | warning overload | blocker + material change + informational notices | blocker/change dominates; approval disabled until resolved |
 | F23 | duplicate/portfolio concentration | 20 candidates include near-duplicates and same-lane clustering | final set uses portfolio/repetition reason codes, not top score only |
 | F24 | publishable media fallback | candidate useful, external viral asset not reusable, owned/text fallback available | allowed fallback selected without lowering rights threshold |
+| F25 | commercial solicitation surfaces, post-publish lock & `stays-quiet` | redirect URL / `42번` / `/showcase` pointer missing offset-`0` disclosure or post-publish `'none' -> 'exact'` upgrade vs compliant offset-`0` + stripped `AT-10`/`AT-23` disclaimers + single contrast | missing/displaced disclosure and post-publish monetization upgrade block; compliant draft passes (`stays-quiet`) |
+| F26 | public showcase 9-field projection, `matchBadge` & `stale` withdrawal | `('exact','alternative')` mapping, verbatim `rawExcerpt` leak attempt, and `likely` / 7d-expired `stale` record | emits `matchBadge: 'alternative'` with zero verbatim excerpt/PII; blocks entire card for `likely` and `stale` |
+| F27 | dual-affiliate corroborated snapshot & 10/hr cap without scraping | Naver Shopping Connect `CanonicalListingSnapshot` + second origin, uncorroborated single input, and 11th Coupang search double within 60m | corroborated manual snapshot passes with zero HTTP/CUA calls; uncorroborated `exact` and 11th search fail closed with receipt |
+| F28 | lifecycle cost ceiling, `SCRUB_ENV` & nonce passive-data fencing | `Guardian` `revise`/TTL re-runs cross KRW cap without resetting `lifecycle_epoch`; child subprocess env check; `user_evidence` with fake closing delimiter + injection | halts with `budget_exhausted` receipt; ambient tokens scrubbed via `SCRUB_ENV`; nonce-fenced `user_evidence` prevents breakout |
 
-## AT-01 through AT-44 ownership
+## AT-01 through AT-48 ownership
 
 | AT | Primary layer | Fixture(s) / method | First Harness Spike |
 |---|---|---|---:|
@@ -89,10 +93,14 @@ A single AT may require more than one layer.
 | AT-42 Approval attention hierarchy | UI + H state | F22 | later UI; state priority can be modeled in harness |
 | AT-43 Dispatch authorization freshness | H + LIVE | F17 double, later real auth | later publishing slice |
 | AT-44 Affiliate destination mutation | H + E2E | F10 | later commercial/preflight slice |
+| AT-45 Offset-`0` statutory disclosure & `stays-quiet` | H | F25 | Option B Slice 1 (`guardian-checks`) |
+| AT-46 Public Verified Showcase 9-field projection | H + E2E | F26 | Option B Slice 3 (`public_showcase_projector`) |
+| AT-47 Dual-affiliate manual & 10/hr cap without scraping | H | F27 | Option B Slice 3 (`affiliate_yield_service`) |
+| AT-48 Lifecycle cost ceiling & passive-data fencing | H | F28 | Option B Slice 2 (`model-runtime` / `tool-broker`) |
 
 ## First Harness Coding Spike acceptance set
 
-The first spike must not attempt all 44 criteria. It proves the highest-risk contract spine before UI/live integration.
+The first spike must not attempt all 48 criteria. It proves the highest-risk contract spine before UI/live integration.
 
 Required AT set:
 

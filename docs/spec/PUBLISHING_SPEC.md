@@ -2,7 +2,7 @@
 
 ## 1. Principle
 
-Publishing is deterministic infrastructure behind explicit human approval. No agent may directly publish.
+Publishing is deterministic infrastructure behind explicit human approval. No agent may directly publish. Each approved schedule dispatches a **single root Threads post** (inline link or `#NNN` Public Verified Showcase pointer); automated comments and automated continuation self-replies (`reply_to_id`) are prohibited (`CLAUDE.md` §5), because Meta Threads exposes no DM API (`reported`) and sequential REST calls cannot publish root + reply atomically.
 
 ## 2. Preconditions
 
@@ -46,6 +46,7 @@ Before dispatch:
 - verify approval hashes still match
 - recheck critical evidence TTL
 - recheck affiliate destination if present
+- recheck code-point offset-`0` verbatim statutory disclosure against current commercial solicitation state (including whether `/showcase` gained an active monetized card after approval)
 - confirm media asset still eligible
 - confirm post has not already been published
 - confirm schedule is still within issue freshness window

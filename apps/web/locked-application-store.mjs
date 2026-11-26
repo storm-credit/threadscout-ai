@@ -95,7 +95,8 @@ export class LockedAtomicJsonApplicationStore extends AtomicJsonApplicationStore
         }
         return token;
       } catch (error) {
-        if (error?.code !== 'EEXIST') throw error;
+        const isLockContention = error?.code === 'EEXIST' || (process.platform === 'win32' && (error?.code === 'EPERM' || error?.code === 'EACCES'));
+        if (!isLockContention) throw error;
         await this.clearStaleLockIfNeeded();
         if (this.lockClock() - startedAt >= this.lockTimeoutMs) {
           throw new ApplicationCommandError('Application state is busy; retry after the current writer finishes.', {

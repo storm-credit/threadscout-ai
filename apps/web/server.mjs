@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
 import { SuppressionApplicationStore } from './candidate-suppression-store.mjs';
 import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
+import { SqliteApplicationStore, isNodeSqliteAvailable } from '../../packages/database/src/sqlite-store.mjs';
+import {
+  exportDeterministicMarkdownCard,
+  projectPublicShowcaseCard
+} from '../../packages/core/src/public-showcase-projector.mjs';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = path.resolve(currentDir, '../..');
@@ -24,7 +29,8 @@ function json(res, statusCode, value) {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(body),
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff'
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer'
   });
   res.end(body);
 }
@@ -48,7 +54,10 @@ async function readJsonBody(req) {
 }
 
 function resolveStaticRequestPath(repoRoot, urlPath) {
-  const normalized = urlPath === '/' ? '/apps/web/index.html' : decodeURIComponent(urlPath);
+  let mapped = urlPath;
+  if (urlPath === '/') mapped = '/apps/web/index.html';
+  else if (urlPath === '/showcase' || urlPath.startsWith('/showcase/')) mapped = '/apps/web/showcase.html';
+  const normalized = decodeURIComponent(mapped);
   if (!normalized.startsWith('/apps/web/')) return null;
   const webRoot = path.resolve(repoRoot, 'apps/web');
   const fullPath = path.resolve(repoRoot, `.${normalized}`);
@@ -65,23 +74,75 @@ async function serveStatic(repoRoot, requestUrl, res) {
   res.writeHead(200, {
     'content-type': contentTypes[path.extname(filePath)] ?? 'application/octet-stream',
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff'
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer'
   });
   res.end(body);
+}
+
+function queryShowcaseFallback(candidates = [], { query = '', cardNumber = null, now } = {}) {
+  const projectedCards = candidates
+    .filter((c) => c.cardNumber != null)
+    .map((c) => projectPublicShowcaseCard(c, { now }))
+    .filter((p) => p.projected)
+    .map((p) => p.card)
+    .sort((a, b) => Number(b.cardNumber.slice(1)) - Number(a.cardNumber.slice(1)));
+
+  if (cardNumber != null) {
+    const numeric = Number(String(cardNumber).replace(/^#/, ''));
+    if (!Number.isInteger(numeric) || numeric <= 0) return { card: null, status: 'invalid_card_number' };
+    const hit = projectedCards.find((card) => Number(card.cardNumber.slice(1)) === numeric) ?? null;
+    return hit ? { card: hit, status: 'ok' } : { card: null, status: 'withdrawn_or_not_found' };
+  }
+
+  const trimmed = String(query ?? '').trim();
+  if (!trimmed) return { query: '', cards: projectedCards.slice(0, 50) };
+
+  const numMatch = trimmed.match(/^#?0*(\d{1,5})$/);
+  if (numMatch) {
+    const numeric = Number(numMatch[1]);
+    return { query: trimmed, cards: projectedCards.filter((card) => Number(card.cardNumber.slice(1)) === numeric) };
+  }
+
+  const needle = trimmed.toLowerCase().normalize('NFD');
+  const filtered = projectedCards.filter((card) =>
+    [card.cardNumber, card.canonicalProductName, ...(card.verifiedPros ?? []), card.verifiedLimitation]
+      .join(' ')
+      .toLowerCase()
+      .normalize('NFD')
+      .includes(needle)
+  );
+  return { query: trimmed, cards: filtered.slice(0, 30) };
+}
+
+function isGlobalKillSwitchActive() {
+  const raw = String(process.env.THREADSCOUT_GLOBAL_KILL_SWITCH ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'on';
 }
 
 export function createThreadScoutServer({
   repoRoot = defaultRepoRoot,
   dataDir = process.env.THREADSCOUT_DATA_DIR || path.resolve(repoRoot, '.threadscout-data'),
   stateFile = 'application-state.json',
+  dbFile = 'threadscout.sqlite',
+  storageMode = process.env.THREADSCOUT_STORAGE_MODE || 'sqlite',
   clock,
   storeOptions = {}
 } = {}) {
-  const store = new SuppressionApplicationStore({
-    filePath: path.resolve(dataDir, stateFile),
-    clock,
-    ...storeOptions
-  });
+  const usesLegacyFileLockOptions = 'lockTimeoutMs' in storeOptions || 'lockStaleMs' in storeOptions || 'lockRetryMs' in storeOptions;
+  const useJsonStore = storageMode === 'json' || usesLegacyFileLockOptions || !isNodeSqliteAvailable();
+  const legacyJsonPath = path.resolve(dataDir, stateFile);
+  const store = useJsonStore
+    ? new SuppressionApplicationStore({
+        filePath: legacyJsonPath,
+        clock,
+        ...storeOptions
+      })
+    : new SqliteApplicationStore({
+        dbPath: path.resolve(dataDir, dbFile),
+        legacyJsonPath,
+        clock
+      });
   const orchestrator = new ManualProductOrchestratorService({ store });
   let initialized = null;
   const ensureInitialized = () => {
@@ -89,7 +150,7 @@ export function createThreadScoutServer({
     return initialized;
   };
 
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     try {
       await ensureInitialized();
       const requestUrl = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
@@ -99,12 +160,46 @@ export function createThreadScoutServer({
           ok: true,
           fixedAgentCount: 6,
           orchestratorOnlyDispatch: true,
-          persistence: 'server_atomic_json_local_interprocess_locked',
-          persistenceScope: 'single_host_local_filesystem',
+          persistence: useJsonStore ? 'server_atomic_json_local_interprocess_locked' : 'server_sqlite_wal_acid_fts5',
+          persistenceScope: useJsonStore ? 'single_host_local_filesystem' : 'single_host_sqlite_wal',
           duplicateGuardrail: 'deterministic_exact_plus_human_reviewed_possible_duplicate',
           ownerSuppression: 'deterministic_faceted_rules_unordered_any_match',
+          publicShowcase: 'closed_9_field_default_deny_projection',
+          killSwitchActive: isGlobalKillSwitchActive(),
           externalPublishingEnabled: false
         });
+      }
+
+      if (req.method === 'GET' && requestUrl.pathname === '/api/showcase') {
+        if (isGlobalKillSwitchActive()) {
+          return json(res, 200, { ok: true, query: '', cards: [], killSwitchActive: true });
+        }
+        const query = requestUrl.searchParams.get('q') ?? '';
+        const now = (clock?.() ?? new Date()).toISOString();
+        const payload = typeof store.readShowcase === 'function'
+          ? await store.readShowcase({ query })
+          : queryShowcaseFallback((await store.readState()).candidates, { query, now });
+        const safe = assertPublicReadModelSafe(payload);
+        if (!safe.ok) throw new Error(`Unsafe showcase payload: ${safe.leaks.join(', ')}`);
+        return json(res, 200, { ok: true, ...payload, killSwitchActive: false });
+      }
+
+      if (req.method === 'GET' && requestUrl.pathname.startsWith('/api/showcase/')) {
+        if (isGlobalKillSwitchActive()) {
+          return json(res, 503, { ok: false, status: 'kill_switch_active', card: null });
+        }
+        const rawNumber = decodeURIComponent(requestUrl.pathname.slice('/api/showcase/'.length));
+        const now = (clock?.() ?? new Date()).toISOString();
+        const result = typeof store.readShowcase === 'function'
+          ? await store.readShowcase({ cardNumber: rawNumber })
+          : queryShowcaseFallback((await store.readState()).candidates, { cardNumber: rawNumber, now });
+        if (!result.card) {
+          return json(res, 404, { ok: false, status: result.status, card: null });
+        }
+        const markdown = exportDeterministicMarkdownCard(result.card);
+        const safe = assertPublicReadModelSafe(result.card);
+        if (!safe.ok) throw new Error(`Unsafe showcase card: ${safe.leaks.join(', ')}`);
+        return json(res, 200, { ok: true, status: 'ok', card: result.card, markdown });
       }
 
       if (req.method === 'GET' && requestUrl.pathname === '/api/today') {
@@ -115,6 +210,12 @@ export function createThreadScoutServer({
       }
 
       if (req.method === 'POST' && requestUrl.pathname === '/api/commands') {
+        if (isGlobalKillSwitchActive()) {
+          return json(res, 503, {
+            error: 'global_kill_switch_active',
+            message: 'External kill switch is active; command mutations are halted.'
+          });
+        }
         const body = await readJsonBody(req);
         const response = await orchestrator.execute(body);
         const safe = assertPublicReadModelSafe(response.today);
@@ -154,6 +255,11 @@ export function createThreadScoutServer({
       res.end(statusCode === 404 ? 'Not found' : statusCode === 403 ? 'Forbidden' : 'Server error');
     }
   });
+
+  server.on('close', () => {
+    store.close?.();
+  });
+  return server;
 }
 
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

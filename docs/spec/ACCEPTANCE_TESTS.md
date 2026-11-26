@@ -178,6 +178,22 @@ If publishing authorization is expired, revoked, or invalid at preflight, dispat
 
 If the same commercial URL now resolves to a different product, variant, package, or materially different seller destination than the approved mapping, preflight invalidates the mapping and requires new verification/reapproval rather than publishing with the old exact-product claim.
 
+## AT-45 Offset-`0` verbatim statutory disclosure, post-publish lock & `stays-quiet` exemptions
+
+Given any commercial solicitation surface (`AFFILIATE_SPEC.md` §5: a draft with a commercial/redirect URL, a draft pointing to a monetized card via `#NNN`/`N번`/`/showcase/N` or to `/showcase` when active monetized cards exist, or a monetized `PublicShowcaseCard` index/detail view), Guardian/projector blocks progression unless the verbatim `required_disclosure_text` appears at code-point offset `0` (and as the first visible, non-clipped, `>= 4.5:1` contrast, `>= 12px` non-`sr-only` text block on HTML cards), and any `#NNN` card referenced by a non-disclosed `published`/`unknown_remote_state` post cannot transition from `AffiliateMapping.state = 'none'` to `'exact'` or `'alternative'`. Given a pure non-commercial draft or a draft containing approved morphological variants of `AT-10`/`AT-23` disclaimers (stripped prior to counting `>= 2` `A가 아니라 B` matches), Guardian passes (`stays-quiet`).
+
+## AT-46 Closed 9-field Public Verified Showcase projection, `matchBadge` & `stale` withdrawal
+
+Given an approved non-stale candidate with `product_state` in `['exact', 'substitute']`, `/showcase` and `/showcase/:cardNumber` emit only the 9 `PublicShowcaseCard` fields (`PLATFORM_DECISION.md`), computing `matchBadge` from `(product_state, AffiliateMapping.state)` (`('exact', 'alternative') -> 'alternative'`; `'substitute' + 'exact'` blocked) and rejecting `>= 12`-char verbatim third-party `rawExcerpt` spans or PII. Given a `likely`, `unresolved`, unapproved, `stale`, or 7d-TTL-expired candidate, the entire `PublicShowcaseCard` (all product claims, media, and URLs) is blocked from public projection.
+
+## AT-47 Dual-affiliate manual snapshot & rate-limited safety without scraping
+
+Given a Naver Shopping Connect or pre-API Coupang Partners candidate, `exact` mapping succeeds only from an owner-supplied official short-URL plus a `CanonicalListingSnapshot` (`{ brand, model, variant, seller, destinationUrl, capturedAt }`) corroborated by an independent second origin (`AT-40`), with zero browser CUA or HTTP `fetch`/`curl` HTML/redirect scraping. In approved Coupang API mode doubles, the 11th search request within a rolling 60-minute window fails closed with a rate-limit receipt.
+
+## AT-48 Lifecycle cumulative cost ceiling, `SCRUB_ENV` & nonce passive-data fencing
+
+Given repeated specialist invocations, `Guardian` `block`/`revise` loops, or TTL `stale` re-runs under one `(candidate_id, lifecycle_epoch)` (incrementing exclusively on explicit owner re-open after owner `reject` or archival), breaching either the invocation cap or cumulative token/KRW ceiling halts with `budget_exhausted` and an audit receipt. Child subprocesses scrub ambient secrets (`SCRUB_ENV`), and all untrusted text — including owner-pasted `user_evidence` and network/MCP payloads, even when containing closing-tag strings — is wrapped in per-call cryptographic-nonce passive-data fences verified absent from the payload.
+
 ## Design acceptance gate
 
 Master Design v1 is accepted when:

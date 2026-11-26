@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="광고 미끼 없이 실제 모델·스펙과 한계까지 교차 검증한 ThreadScout AI 공개 쇼케이스" />
+    <title>ThreadScout · 검증 실용템 쇼케이스</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f6f4ee;
+        --card: #ffffff;
+        --ink: #141613;
+        --ink-soft: #424740;
+        --muted: #62685f;
+        --line: #dbd6ca;
+        --forest: #1d543e;
+        --forest-soft: #ddebe3;
+        --amber-bg: #fff3d1;
+        --amber-ink: #3b2600;
+        --amber-border: #e3c270;
+        --limit-bg: #f9efec;
+        --limit-ink: #6e2414;
+        font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 15px;
+        line-height: 1.6;
+        word-break: keep-all;
+      }
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(246, 244, 238, 0.94);
+        backdrop-filter: blur(12px);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: inherit;
+        text-decoration: none;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .brand strong { display: block; font-size: 15px; line-height: 1.2; }
+      .brand span { display: block; font-size: 12px; color: var(--muted); }
+      .studio-return {
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .container {
+        width: min(1040px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 28px 0 64px;
+      }
+      .masthead {
+        display: grid;
+        gap: 14px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .kicker {
+        margin: 0;
+        color: var(--forest);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(26px, 4.5vw, 40px);
+        line-height: 1.18;
+        letter-spacing: -0.035em;
+      }
+      .subtitle {
+        margin: 0;
+        max-width: 680px;
+        color: var(--ink-soft);
+        font-size: 15px;
+      }
+      .search-bar {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .search-bar input {
+        flex: 1;
+        min-height: 48px;
+        padding: 0 16px;
+        border: 1.5px solid var(--ink);
+        border-radius: 14px;
+        background: var(--card);
+        color: var(--ink);
+        font: inherit;
+        font-size: 15px;
+      }
+      .search-bar button {
+        min-height: 48px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--ink);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+      .showcase-card {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--card);
+        box-shadow: 0 6px 22px rgba(20, 22, 19, 0.045);
+      }
+      /* Statutory high-contrast (>= 4.5:1) disclosure ALWAYS rendered as first child (offset 0) */
+      .disclosure-banner {
+        margin: 0;
+        padding: 9px 12px;
+        border: 1px solid var(--amber-border);
+        border-radius: 10px;
+        background: var(--amber-bg);
+        color: var(--amber-ink);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+      .card-meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .card-num {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .match-badge {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--forest-soft);
+        color: var(--forest);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .match-badge.alternative {
+        background: #e7eef8;
+        color: #234b78;
+      }
+      .showcase-card h2 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.32;
+        letter-spacing: -0.025em;
+      }
+      .card-media {
+        width: 100%;
+        max-height: 220px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      .pros-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--ink-soft);
+        font-size: 14px;
+      }
+      .pros-list li + li { margin-top: 4px; }
+      .limit-box {
+        padding: 11px 13px;
+        border-radius: 12px;
+        background: var(--limit-bg);
+        color: var(--limit-ink);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .limit-box strong { display: block; margin-bottom: 2px; font-size: 12px; }
+      .card-footer {
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid #ece8de;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .verified-date { color: var(--muted); font-size: 12px; }
+      .cta-row { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
+      .dest-btn {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 14px;
+        border-radius: 11px;
+        background: var(--forest);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .copy-md-btn {
+        min-height: 44px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: transparent;
+        color: var(--ink-soft);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .empty-showcase {
+        grid-column: 1 / -1;
+        padding: 40px 20px;
+        border: 1px dashed var(--line);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.65);
+        text-align: center;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="/showcase">
+        <span class="mark" aria-hidden="true">TS</span>
+        <div>
+          <strong>ThreadScout Verified Showcase</strong>
+          <span>교차 검증된 정품·대체품 아카이브</span>
+        </div>
+      </a>
+      <a class="studio-return" href="/">운영 스튜디오 →</a>
+    </header>
+
+    <main class="container">
+      <section class="masthead">
+        <p class="kicker">Editorial Product Verification Index</p>
+        <h1>댓글 유도 없이 바로 확인하는<br />#번호 검증 실용템 아카이브</h1>
+        <p class="subtitle">스레드 본문의 <strong>#카드번호</strong> 또는 한글 제품 키워드로 검색하세요. 모든 카드는 독립 출처 식별 검증과 사기 전 확인할 단점을 함께 공개합니다.</p>
+        <form id="showcase-search-form" class="search-bar" role="search">
+          <input id="showcase-query" type="search" placeholder="#001 번호 또는 한글 키워드 검색 (예: 물튐, 실리콘, 수납)" aria-label="쇼케이스 번호 또는 키워드 검색" />
+          <button type="submit">찾기</button>
+        </form>
+      </section>
+
+      <section id="showcase-grid" class="grid" aria-live="polite"></section>
+    </main>
+
+    <script type="module" src="/apps/web/showcase.js"></script>
+  </body>
+</html>

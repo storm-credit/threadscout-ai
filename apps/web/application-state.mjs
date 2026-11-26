@@ -12,6 +12,16 @@ import {
 } from '../../packages/core/src/product-matching.mjs';
 import { GUARDIAN_CHECK_KEYS, runGuardianChecks } from '../../packages/core/src/guardian-checks.mjs';
 import {
+  AFFILIATE_NETWORKS,
+  DEFAULT_DISCLOSURE_BY_NETWORK,
+  buildAffiliateMapping
+} from '../../packages/core/src/affiliate-yield-service.mjs';
+import {
+  formatCardNumber,
+  projectPublicShowcaseCard
+} from '../../packages/core/src/public-showcase-projector.mjs';
+import { fenceUntrustedPayload } from '../../packages/orchestra/src/passive-data-fencer.mjs';
+import {
   evaluateEvidenceReadiness,
   evaluateFreshness,
   evaluateRisk,
@@ -126,9 +136,48 @@ function materialRevision(candidate) {
     selectedDraftId: candidate.selectedDraftId,
     mediaRights: candidate.mediaRights,
     affiliate: candidate.affiliate,
+    affiliateNetwork: candidate.affiliateNetwork ?? '',
+    affiliateMappingState: candidate.affiliateMappingState ?? '',
+    destinationUrl: candidate.destinationUrl ?? '',
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
     disclosure: candidate.disclosure,
     configRevision: candidate.configRevision
   });
+}
+
+function createFreshEpochBudget(lifecycleEpoch = 1, { maxInvocations = 16, maxCostKrw = 150 } = {}) {
+  return {
+    lifecycleEpoch,
+    invocations: 0,
+    totalChars: 0,
+    costKrw: 0,
+    maxInvocations,
+    maxCostKrw
+  };
+}
+
+function chargeEpochBudget(candidate, { chars = 600 } = {}) {
+  const epoch = candidate.lifecycleEpoch ?? 1;
+  if (!candidate.epochBudget || candidate.epochBudget.lifecycleEpoch !== epoch) {
+    candidate.epochBudget = createFreshEpochBudget(epoch);
+  }
+  const eb = candidate.epochBudget;
+  const nextInvocations = eb.invocations + 1;
+  const nextChars = eb.totalChars + Math.max(100, Number(chars) || 0);
+  const nextCost = Number(((nextChars / 1000) * 1.5).toFixed(4));
+  if (nextInvocations > eb.maxInvocations || nextCost > eb.maxCostKrw) {
+    throw new ApplicationCommandError(
+      `Candidate ${candidate.id} (epoch ${epoch}) cumulative specialist budget exhausted.`,
+      {
+        code: 'budget_exhausted',
+        statusCode: 429,
+        details: { candidateId: candidate.id, lifecycleEpoch: epoch, invocations: eb.invocations, costKrw: eb.costKrw }
+      }
+    );
+  }
+  eb.invocations = nextInvocations;
+  eb.totalChars = nextChars;
+  eb.costKrw = nextCost;
 }
 
 function invalidateDownstream(candidate, reason, { keepEvidence = true, keepStrategies = false, keepDrafts = false } = {}) {
@@ -172,7 +221,26 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
   const mediaRights = safeMediaRights(payload.mediaRights);
   const personalUse = safePersonalUse(payload.personalUse);
   const affiliate = Boolean(payload.affiliate);
-  const disclosure = cleanString(payload.disclosure, { max: 500 });
+  const affiliateNetwork = cleanString(payload.affiliateNetwork, { max: 64 });
+  if (affiliateNetwork && !Object.values(AFFILIATE_NETWORKS).includes(affiliateNetwork)) {
+    throw new ApplicationCommandError('affiliateNetwork is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'affiliateNetwork', rule: 'invalid' }
+    });
+  }
+  const affiliateMappingState = cleanString(payload.affiliateMappingState, { max: 32 });
+  if (affiliateMappingState && !['exact', 'alternative'].includes(affiliateMappingState)) {
+    throw new ApplicationCommandError('affiliateMappingState is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'affiliateMappingState', rule: 'invalid' }
+    });
+  }
+  const destinationUrl = cleanString(payload.destinationUrl, { max: 1200 });
+  const publishableMediaUrl = cleanString(payload.publishableMediaUrl, { max: 1200 });
+  const verifiedPros = Array.isArray(payload.verifiedPros)
+    ? payload.verifiedPros.map((item) => cleanString(item, { max: 200 })).filter(Boolean).slice(0, 3)
+    : [];
+  const verifiedLimitation = cleanString(payload.verifiedLimitation, { max: 240 });
+  const rawDisclosure = cleanString(payload.disclosure, { max: 500 });
+  const disclosure = rawDisclosure || (affiliate && affiliateNetwork ? DEFAULT_DISCLOSURE_BY_NETWORK[affiliateNetwork] : '');
   const createdAt = nowIso(clock);
 
   const candidate = {
@@ -194,7 +262,21 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     mediaRights,
     personalUse,
     affiliate,
+    affiliateNetwork,
+    affiliateMappingState,
+    affiliateMapping: null,
+    destinationUrl,
+    publishableMediaUrl,
+    verifiedPros,
+    verifiedLimitation,
     disclosure,
+    cardNumber: null,
+    lifecycleEpoch: 1,
+    epochBudget: createFreshEpochBudget(1, {
+      maxInvocations: Number.isInteger(payload.maxEpochInvocations) ? payload.maxEpochInvocations : 16,
+      maxCostKrw: Number.isFinite(payload.maxEpochCostKrw) ? Number(payload.maxEpochCostKrw) : 150
+    }),
+    lockedNonCommercialAfterPublish: Boolean(payload.lockedNonCommercialAfterPublish),
     opportunityScore: Number.isFinite(payload.opportunityScore)
       ? Math.max(0, Math.min(100, Number(payload.opportunityScore)))
       : scoreOwnerSuppliedCandidate({
@@ -274,6 +356,7 @@ export function createInitialApplicationState({ clock } = {}) {
     version: APPLICATION_STATE_VERSION,
     externalPublishingEnabled: EXTERNAL_PUBLISHING_ENABLED,
     fixedAgentCount: AGENT_REGISTRY.length,
+    nextCardNumber: 0,
     candidates: [seedReadyCandidate(clock), seedHighScoreUnresolved(clock)],
     commandHistory: {},
     commandOrder: [],
@@ -296,17 +379,53 @@ function assertExpectedRevision(candidate, expectedRevision) {
 }
 
 function applyEvidenceFields(candidate, payload) {
-  for (const key of ['brand', 'model', 'variant', 'sourceRef', 'sourceOrigin', 'corroborationRef', 'corroborationOrigin']) {
+  for (const key of ['brand', 'model', 'variant', 'sourceRef', 'sourceOrigin', 'corroborationRef', 'corroborationOrigin', 'destinationUrl', 'publishableMediaUrl', 'verifiedLimitation']) {
     if (key in payload) {
-      const max = key.endsWith('Ref') ? 1200 : 160;
+      const max = (key.endsWith('Ref') || key.endsWith('Url')) ? 1200 : 240;
       candidate[key] = cleanString(payload[key], { max });
     }
+  }
+  if ('affiliateNetwork' in payload) {
+    const net = cleanString(payload.affiliateNetwork, { max: 64 });
+    if (net && !Object.values(AFFILIATE_NETWORKS).includes(net)) {
+      throw new ApplicationCommandError('affiliateNetwork is invalid.', {
+        code: 'invalid_input', statusCode: 422, details: { field: 'affiliateNetwork', rule: 'invalid' }
+      });
+    }
+    candidate.affiliateNetwork = net;
+  }
+  if ('affiliateMappingState' in payload) {
+    const mapState = cleanString(payload.affiliateMappingState, { max: 32 });
+    if (mapState && !['exact', 'alternative'].includes(mapState)) {
+      throw new ApplicationCommandError('affiliateMappingState is invalid.', {
+        code: 'invalid_input', statusCode: 422, details: { field: 'affiliateMappingState', rule: 'invalid' }
+      });
+    }
+    candidate.affiliateMappingState = mapState;
+  }
+  if ('verifiedPros' in payload && Array.isArray(payload.verifiedPros)) {
+    candidate.verifiedPros = payload.verifiedPros.map((item) => cleanString(item, { max: 200 })).filter(Boolean).slice(0, 3);
   }
   if ('ownerDeclaredSubstitute' in payload) candidate.ownerDeclaredSubstitute = Boolean(payload.ownerDeclaredSubstitute);
   if ('mediaRights' in payload) candidate.mediaRights = safeMediaRights(payload.mediaRights);
   if ('personalUse' in payload) candidate.personalUse = safePersonalUse(payload.personalUse);
-  if ('affiliate' in payload) candidate.affiliate = Boolean(payload.affiliate);
+  if ('affiliate' in payload) {
+    const nextAffiliate = Boolean(payload.affiliate);
+    if (nextAffiliate && candidate.lockedNonCommercialAfterPublish) {
+      throw new ApplicationCommandError('Post-publish non-commercial showcase card cannot be monetized retroactively (BS-60).', {
+        code: 'post_publish_monetization_locked',
+        statusCode: 422
+      });
+    }
+    candidate.affiliate = nextAffiliate;
+  }
   if ('disclosure' in payload) candidate.disclosure = cleanString(payload.disclosure, { max: 500 });
+  if (candidate.affiliate && !candidate.disclosure && candidate.affiliateNetwork) {
+    candidate.disclosure = DEFAULT_DISCLOSURE_BY_NETWORK[candidate.affiliateNetwork] ?? '';
+  }
+  if ('lockedNonCommercialAfterPublish' in payload && payload.lockedNonCommercialAfterPublish === true) {
+    candidate.lockedNonCommercialAfterPublish = true;
+  }
 }
 
 /**
@@ -317,10 +436,17 @@ function applyEvidenceFields(candidate, payload) {
  * because fetching it would activate a live source that P0-02 keeps disabled.
  */
 function verifyCandidate(candidate, payload, clock) {
+  if (!candidate.synthetic || candidate.evidencePacket !== null) {
+    chargeEpochBudget(candidate, { chars: JSON.stringify(payload ?? {}).length + 600 });
+  }
   const wasApproved = candidate.review?.decision === 'approved' && candidate.review?.stale !== true;
   applyEvidenceFields(candidate, payload);
 
   const observedAt = nowIso(clock);
+  const untrustedBlob = [candidate.name, candidate.sourceRef, candidate.corroborationRef, candidate.whyNow, candidate.readerValue]
+    .filter(Boolean)
+    .join('\n');
+  const fencedEvidence = fenceUntrustedPayload(untrustedBlob, { source: 'owner_user_evidence' });
   const sources = collectSources(candidate).map((source) => ({ ...source, observedAt }));
   const rightsReady = SAFE_MEDIA_RIGHTS.has(candidate.mediaRights);
 
@@ -408,13 +534,17 @@ function verifyCandidate(candidate, payload, clock) {
     unresolvedQuestions,
     publicFigureRelation: null,
     freshness: { state: freshness.state, evaluatedAt: observedAt, reasons: freshness.reasons },
+    passiveDataFence: { nonce: fencedEvidence.nonce, openTag: fencedEvidence.openTag, closeTag: fencedEvidence.closeTag },
     conflicts: [],
     blockers: candidate.blockers
   };
 
   invalidateDownstream(candidate, '승인 후 제품 근거가 변경되어 다시 검토해야 합니다.', { keepEvidence: true });
   if (!wasApproved) {
-    candidate.workflowState = candidate.evidenceReadiness === 'ready' ? 'evidence_ready' : 'evidence_partial';
+    const strategyEligible = ['verified', 'limited'].includes(candidate.verifierDecision) && candidate.evidencePacket.claimEvidence.length > 0;
+    candidate.workflowState = (candidate.evidenceReadiness === 'ready' || (candidate.exactMatchStatus === 'substitute' && strategyEligible))
+      ? 'evidence_ready'
+      : 'evidence_partial';
     candidate.review = null;
   }
   bump(candidate, clock, 'verification_completed', { exactMatchStatus: candidate.exactMatchStatus, evidenceReadiness: candidate.evidenceReadiness });
@@ -447,6 +577,7 @@ function createStrategies(candidate, clock) {
   assertEvidenceReady(candidate);
   const identity = candidate.evidencePacket?.claimEvidence?.find((claim) => claim.claimId === 'claim-identity');
   if (!identity) throw new ApplicationCommandError('Verifier identity evidence is missing.', { code: 'verifier_authority_missing', statusCode: 422 });
+  chargeEpochBudget(candidate, { chars: 1200 });
   const createdAt = nowIso(clock);
   candidate.strategies = {
     agentId: AGENT_IDS.STRATEGIST,
@@ -496,20 +627,26 @@ function createStrategies(candidate, clock) {
 }
 
 function draftDisclosure(candidate) {
-  return candidate.affiliate ? candidate.disclosure : '';
+  if (!candidate.affiliate) return '';
+  return candidate.disclosure || (candidate.affiliateNetwork ? DEFAULT_DISCLOSURE_BY_NETWORK[candidate.affiliateNetwork] ?? '' : '');
 }
 
 function createDrafts(candidate, clock) {
   if (!candidate.strategies?.angles || candidate.strategies.angles.length !== 4) {
     throw new ApplicationCommandError('Four strategies are required before drafts.', { code: 'strategy_not_ready', statusCode: 422 });
   }
+  chargeEpochBudget(candidate, { chars: 1600 });
   const identity = `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim();
   const disclosure = draftDisclosure(candidate);
+  const offsetZeroPrefix = candidate.affiliate && disclosure ? `${disclosure}\n` : '';
+  const showcasePointer = candidate.affiliate && (candidate.destinationUrl || candidate.affiliateNetwork)
+    ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에서 확인하세요.`
+    : '';
 
   // A substitute must be labelled as an alternative in the copy itself, not only in
   // the internal state (PRODUCT_MATCHING.md section 5, AT-10). The Writer states it;
   // the Guardian independently checks that it is there.
-  const substituteNotice = candidate.exactMatchStatus === 'substitute'
+  const substituteNotice = (candidate.exactMatchStatus === 'substitute' || candidate.affiliateMappingState === 'alternative')
     ? ' 이 링크는 같은 제품이 아니라 비슷한 제품입니다.'
     : '';
   const identityCaveat = candidate.exactMatchStatus === 'likely'
@@ -526,7 +663,7 @@ function createDrafts(candidate, clock) {
     id: `draft-${index + 1}`,
     angleId: angle.id,
     title: angle.title,
-    text: `${texts[index]}${substituteNotice}${identityCaveat}`,
+    text: `${offsetZeroPrefix}${texts[index]}${substituteNotice}${identityCaveat}${showcasePointer}`,
     claimIds: ['claim-identity'],
     disclosure
   }));
@@ -549,6 +686,13 @@ function editDraft(candidate, payload, clock) {
   if (!candidate.drafts?.length) throw new ApplicationCommandError('Drafts do not exist.', { code: 'draft_not_ready', statusCode: 422 });
   const draftId = cleanString(payload.draftId, { required: true, max: 80, label: 'draftId' });
   const text = cleanString(payload.text, { required: true, max: 5000, label: 'text' });
+  if ([...text].length > 500) {
+    throw new ApplicationCommandError('Draft text must not exceed 500 code points.', {
+      code: 'invalid_input',
+      statusCode: 422,
+      details: { field: 'text', rule: 'maxCodePoints', max: 500 }
+    });
+  }
   const index = candidate.drafts.findIndex((draft) => draft.id === draftId);
   if (index < 0) throw new ApplicationCommandError('Draft not found.', { code: 'not_found', statusCode: 404 });
   const hadApprovedReview = candidate.review?.decision === 'approved' && candidate.review?.stale !== true;
@@ -568,17 +712,20 @@ function editDraft(candidate, payload, clock) {
   return candidate;
 }
 
-function runGuardian(candidate, clock) {
+function runGuardian(candidate, clock, state = null) {
   if (!candidate.drafts?.length || candidate.drafts.length !== 4) {
     throw new ApplicationCommandError('Four drafts are required for Guardian review.', { code: 'draft_not_ready', statusCode: 422 });
   }
-  if (candidate.exactMatchStatus !== 'exact' || candidate.evidenceReadiness !== 'ready') {
+  chargeEpochBudget(candidate, { chars: JSON.stringify(candidate.drafts).length });
+  const now = nowIso(clock);
+
+  if (!['exact', 'substitute'].includes(candidate.exactMatchStatus) || !['verified', 'limited'].includes(candidate.verifierDecision) || !SAFE_MEDIA_RIGHTS.has(candidate.mediaRights)) {
     candidate.guardian = {
       agentId: AGENT_IDS.GUARDIAN,
       decision: 'block',
-      blockers: ['제품 동일성 또는 근거 준비 상태가 충분하지 않습니다.'],
+      blockers: ['제품 동일성(정품/검증 대체품) 또는 미디어 권리 근거가 충분하지 않습니다.'],
       warnings: [],
-      reviewedAt: nowIso(clock),
+      reviewedAt: now,
       boundMaterialRevision: candidate.materialRevision
     };
     candidate.workflowState = 'blocked';
@@ -586,6 +733,47 @@ function runGuardian(candidate, clock) {
     bump(candidate, clock, 'guardian_blocked');
     return candidate;
   }
+
+  let affiliateMappingError = null;
+  if (candidate.affiliate) {
+    const desiredState = candidate.affiliateMappingState
+      || (candidate.exactMatchStatus === 'substitute' ? 'alternative' : 'exact');
+    const mappingCheck = buildAffiliateMapping({
+      candidateId: candidate.id,
+      productState: candidate.exactMatchStatus,
+      state: desiredState,
+      affiliateNetwork: candidate.affiliateNetwork,
+      acquisitionMode: 'manual_owner_link',
+      destinationUrl: candidate.destinationUrl,
+      canonicalListingSnapshot: {
+        brand: candidate.brand,
+        model: candidate.model,
+        variant: candidate.variant,
+        seller: candidate.sourceOrigin || 'owner_verified_seller',
+        destinationUrl: candidate.destinationUrl,
+        capturedAt: candidate.evidencePacket?.observedAt || now
+      },
+      sources: collectSources(candidate),
+      requiredDisclosureText: candidate.disclosure,
+      lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true,
+      verifiedAt: candidate.evidencePacket?.observedAt || now
+    });
+    if (!mappingCheck.ok) {
+      affiliateMappingError = mappingCheck.message;
+      candidate.affiliateMapping = null;
+    } else {
+      candidate.affiliateMapping = mappingCheck.mapping;
+    }
+  } else {
+    candidate.affiliateMapping = null;
+  }
+
+  const monetizedShowcaseCards = (state?.candidates ?? [])
+    .filter((item) => item.id !== candidate.id && item.cardNumber != null)
+    .map((item) => projectPublicShowcaseCard(item, { now }))
+    .filter((proj) => proj.projected && proj.card.verifiedDestinationUrl !== null)
+    .map((proj) => proj.card);
+  const monetizedCardNumbers = monetizedShowcaseCards.map((c) => Number(String(c.cardNumber).replace(/^#/, '')));
 
   // The Guardian reads the drafts as they currently stand, owner edits included, and
   // the evidence packet — never the Writer's reasoning. Its blocking findings cannot
@@ -597,8 +785,14 @@ function runGuardian(candidate, clock) {
     personalUseConfirmed: candidate.personalUse === 'confirmed',
     mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights),
     affiliate: candidate.affiliate,
+    affiliateNetwork: candidate.affiliateNetwork,
+    affiliateMappingError,
     disclosure: candidate.disclosure,
-    publicFigureVerifiedEndorsement: false
+    publicFigureVerifiedEndorsement: false,
+    activeMonetizedShowcaseCount: monetizedShowcaseCards.length,
+    monetizedCardNumbers,
+    enforceOffsetZeroDisclosure: Boolean(candidate.affiliate),
+    lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true
   });
 
   candidate.guardian = {
@@ -625,7 +819,7 @@ function runGuardian(candidate, clock) {
   return candidate;
 }
 
-function recordReviewDecision(candidate, payload, clock) {
+function recordReviewDecision(candidate, payload, clock, state = null) {
   const decision = cleanString(payload.decision, { required: true, max: 32, label: 'decision' });
   if (!REVIEW_DECISIONS.has(decision)) {
     throw new ApplicationCommandError('Review decision is invalid.', {
@@ -639,6 +833,14 @@ function recordReviewDecision(candidate, payload, clock) {
     }
     if (candidate.guardian.boundMaterialRevision !== candidate.materialRevision) {
       throw new ApplicationCommandError('Guardian review is stale. Run Guardian again.', { code: 'stale_guardian', statusCode: 409 });
+    }
+    if (candidate.cardNumber == null && ['exact', 'substitute'].includes(candidate.exactMatchStatus)) {
+      const currentMax = Math.max(
+        Number(state?.nextCardNumber ?? 0),
+        ...(state?.candidates ?? []).map((item) => Number(item.cardNumber ?? 0))
+      );
+      candidate.cardNumber = currentMax + 1;
+      if (state) state.nextCardNumber = candidate.cardNumber;
     }
   }
 
@@ -657,6 +859,36 @@ function recordReviewDecision(candidate, payload, clock) {
   return candidate;
 }
 
+function reopenRejectedCandidate(candidate, clock) {
+  if (candidate.workflowState !== 'rejected') {
+    throw new ApplicationCommandError('Only owner-rejected candidates can increment lifecycle_epoch.', {
+      code: 'reopen_requires_rejected_state',
+      statusCode: 422
+    });
+  }
+  candidate.lifecycleEpoch = (candidate.lifecycleEpoch ?? 1) + 1;
+  candidate.epochBudget = createFreshEpochBudget(candidate.lifecycleEpoch, {
+    maxInvocations: candidate.epochBudget?.maxInvocations ?? 16,
+    maxCostKrw: candidate.epochBudget?.maxCostKrw ?? 150
+  });
+  candidate.workflowState = 'verification_needed';
+  candidate.review = null;
+  bump(candidate, clock, 'reopen_rejected_candidate', { lifecycleEpoch: candidate.lifecycleEpoch });
+  return candidate;
+}
+
+function lockNonCommercialShowcase(candidate, clock) {
+  if (candidate.workflowState !== 'approved' || candidate.affiliate === true) {
+    throw new ApplicationCommandError('Only approved non-commercial candidates can be locked as non-commercial published posts.', {
+      code: 'lock_requires_approved_non_commercial',
+      statusCode: 422
+    });
+  }
+  candidate.lockedNonCommercialAfterPublish = true;
+  bump(candidate, clock, 'lock_non_commercial_showcase');
+  return candidate;
+}
+
 function nextAction(candidate) {
   if (candidate.workflowState === 'stale') return { label: '다시 확인', action: 'open_workspace', disabled: false, reason: candidate.blockers[0] ?? '승인한 버전과 현재 버전이 다릅니다.' };
   if (candidate.workflowState === 'verification_needed' || candidate.workflowState === 'evidence_partial') return { label: '근거 확인', action: 'open_workspace', disabled: false, reason: candidate.blockers[0] ?? null };
@@ -672,7 +904,8 @@ function nextAction(candidate) {
   return { label: '상세 보기', action: 'open_workspace', disabled: false, reason: null };
 }
 
-function toCandidateReadModel(candidate) {
+function toCandidateReadModel(candidate, { now } = {}) {
+  const evalNow = now || candidate.updatedAt;
   return {
     id: candidate.id,
     synthetic: candidate.synthetic,
@@ -705,7 +938,21 @@ function toCandidateReadModel(candidate) {
     mediaRights: candidate.mediaRights,
     personalUse: candidate.personalUse,
     affiliate: candidate.affiliate,
+    affiliateNetwork: candidate.affiliateNetwork ?? '',
+    affiliateMappingState: candidate.affiliateMappingState ?? '',
+    destinationUrl: candidate.destinationUrl ?? '',
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    verifiedPros: structuredClone(candidate.verifiedPros ?? []),
+    verifiedLimitation: candidate.verifiedLimitation ?? '',
     disclosure: candidate.disclosure,
+    cardNumber: candidate.cardNumber ?? null,
+    cardCode: candidate.cardNumber != null ? formatCardNumber(candidate.cardNumber) : null,
+    lifecycleEpoch: candidate.lifecycleEpoch ?? 1,
+    epochBudget: structuredClone(candidate.epochBudget ?? null),
+    lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true,
+    showcaseProjected: candidate.cardNumber != null
+      ? projectPublicShowcaseCard(candidate, { now: evalNow }).projected
+      : false,
     workflowState: candidate.workflowState,
     blockers: structuredClone(candidate.blockers),
     topBlocker: candidate.blockers[0] ?? null,
@@ -721,23 +968,29 @@ function toCandidateReadModel(candidate) {
   };
 }
 
-export function toTodayReadModel(state) {
+export function toTodayReadModel(state, { now } = {}) {
+  const evalNow = now || state.updatedAt;
   // The first five are not simply the five highest scores, and every inclusion or
   // exclusion states its reason (RANKING_SCORING_SPEC section 11, AT-29). Returning
   // fewer than five, or none, is a valid outcome rather than a failure (AT-28).
   const selection = selectFirstScreen(state.candidates);
-  const candidates = selection.selected.map(toCandidateReadModel);
+  const candidates = selection.selected.map((c) => toCandidateReadModel(c, { now: evalNow }));
   const excludedById = new Map(selection.excluded.map((item) => [item.candidateId, item]));
   const excluded = state.candidates
     .filter((candidate) => excludedById.has(candidate.id))
     .map((candidate) => ({
-      ...toCandidateReadModel(candidate),
+      ...toCandidateReadModel(candidate, { now: evalNow }),
       exclusionReason: excludedById.get(candidate.id)
     }));
+
+  const showcaseCount = state.candidates.filter(
+    (candidate) => candidate.cardNumber != null && projectPublicShowcaseCard(candidate, { now: evalNow }).projected
+  ).length;
 
   return {
     excluded,
     emptyReason: selection.emptyReason,
+    showcaseCount,
     version: state.version,
     serverUpdatedAt: state.updatedAt,
     externalPublishingEnabled: false,
@@ -805,7 +1058,7 @@ function applyCommandToState(state, request, clock) {
   if (command === 'add_manual_candidate') {
     const candidate = createCandidate(request.payload, { clock });
     state.candidates.unshift(candidate);
-    state.candidates = state.candidates.slice(0, 50);
+    state.candidates = state.candidates.slice(0, 10000);
     state.updatedAt = nowIso(clock);
     state.audit.push({ event: 'manual_candidate_added', candidateId: candidate.id, at: state.updatedAt });
     const response = { result: 'candidate_added', candidateId: candidate.id, today: toTodayReadModel(state) };
@@ -819,15 +1072,22 @@ function applyCommandToState(state, request, clock) {
   if (command === 'request_verification') verifyCandidate(candidate, request.payload, clock);
   else if (command === 'request_strategies') createStrategies(candidate, clock);
   else if (command === 'request_drafts') createDrafts(candidate, clock);
-  else if (command === 'run_guardian') runGuardian(candidate, clock);
+  else if (command === 'run_guardian') runGuardian(candidate, clock, state);
   else if (command === 'edit_draft') editDraft(candidate, request.payload, clock);
-  else if (command === 'review_decision') recordReviewDecision(candidate, request.payload, clock);
+  else if (command === 'review_decision') recordReviewDecision(candidate, request.payload, clock, state);
+  else if (command === 'reopen_rejected_candidate') reopenRejectedCandidate(candidate, clock);
+  else if (command === 'lock_non_commercial_showcase') lockNonCommercialShowcase(candidate, clock);
   else throw new ApplicationCommandError(`Unsupported command: ${command}`, { code: 'unsupported_command', statusCode: 400 });
 
   state.updatedAt = nowIso(clock);
   state.audit.push({ event: command, candidateId: candidate.id, at: state.updatedAt, revision: candidate.revision });
   state.audit = state.audit.slice(-200);
-  const response = { result: command, candidateId: candidate.id, revision: candidate.revision, today: toTodayReadModel(state) };
+  const resultLabel = command === 'reopen_rejected_candidate'
+    ? 'candidate_reopened'
+    : command === 'lock_non_commercial_showcase'
+      ? 'non_commercial_showcase_locked'
+      : command;
+  const response = { result: resultLabel, candidateId: candidate.id, revision: candidate.revision, today: toTodayReadModel(state, { now: state.updatedAt }) };
   recordCommand(state, request, response);
   return { state, response, changed: true };
 }
@@ -874,7 +1134,7 @@ export class AtomicJsonApplicationStore {
 
   async readToday() {
     const state = await this.readState();
-    return toTodayReadModel(state);
+    return toTodayReadModel(state, { now: nowIso(this.clock) });
   }
 
   async execute(request) {

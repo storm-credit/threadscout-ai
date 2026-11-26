@@ -14,6 +14,8 @@ Status: DESIGN ONLY.
 - four strategies and four mapped drafts
 - Guardian review and bound human review state
 - suppression controls
+- read-only Public Verified Showcase (`#NNN`) closed 9-field projection and owner-supplied dual-affiliate mapping (Coupang Partners + Naver Shopping Connect, zero scraping)
+- offset-`0` verbatim statutory disclosure enforcement across direct and `#NNN` indirect commercial surfaces
 - local schedule state and preflight model
 - auditability and stale-evidence invalidation
 

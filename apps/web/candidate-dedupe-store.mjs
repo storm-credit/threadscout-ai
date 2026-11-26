@@ -108,11 +108,12 @@ function selectInboxCandidates(candidates) {
   return [...pending, ...remainder].slice(0, 5);
 }
 
-function todayFromState(state) {
+function todayFromState(state, clock) {
+  const now = nowIso(clock);
   const active = activeCandidates(state);
-  const fullBase = toTodayReadModel({ ...state, candidates: active });
+  const fullBase = toTodayReadModel({ ...state, candidates: active }, { now });
   const selected = selectInboxCandidates(active);
-  const selectedBase = toTodayReadModel({ ...state, candidates: selected });
+  const selectedBase = toTodayReadModel({ ...state, candidates: selected }, { now });
   const byId = new Map(state.candidates.map((candidate) => [candidate.id, candidate]));
 
   fullBase.candidates = selectedBase.candidates.map((candidate) => decorateCandidateReadModel(candidate, byId.get(candidate.id)));
@@ -266,21 +267,21 @@ function applyPostVerificationDedupe(state, candidate, clock) {
 
 export class CandidateDedupeApplicationStore extends LockedAtomicJsonApplicationStore {
   async readToday() {
-    return todayFromState(await this.readState());
+    return todayFromState(await this.readState(), this.clock);
   }
 
   async execute(rawRequest) {
     return this.withWriteLock(async () => {
       const request = normalizeRequest(rawRequest);
       let state = await this.readState();
-      const replay = replayFromHistory(state, request, todayFromState(state));
+      const replay = replayFromHistory(state, request, todayFromState(state, this.clock));
       if (replay) return replay;
 
       if (request.command === 'resolve_duplicate') {
         const response = resolvePossibleDuplicate(state, request, this.clock);
         recordExtendedCommand(state, request, response);
         await this.persist(state);
-        return { ...response, idempotentReplay: false, today: todayFromState(state) };
+        return { ...response, idempotentReplay: false, today: todayFromState(state, this.clock) };
       }
 
       assertDuplicateReviewDoesNotGetBypassed(state, request);
@@ -297,12 +298,12 @@ export class CandidateDedupeApplicationStore extends LockedAtomicJsonApplication
             state.audit = state.audit.slice(-200);
             recordExtendedCommand(state, request, dedupeResponse);
             await this.persist(state);
-            return { ...dedupeResponse, revision: candidate.revision, idempotentReplay: false, today: todayFromState(state) };
+            return { ...dedupeResponse, revision: candidate.revision, idempotentReplay: false, today: todayFromState(state, this.clock) };
           }
           await this.persist(state);
         }
 
-        return { ...response, today: todayFromState(state) };
+        return { ...response, today: todayFromState(state, this.clock) };
       }
 
       const baseResponse = await AtomicJsonApplicationStore.prototype.execute.call(this, request);
@@ -330,7 +331,7 @@ export class CandidateDedupeApplicationStore extends LockedAtomicJsonApplication
         };
         recordExtendedCommand(state, request, response);
         await this.persist(state);
-        return { ...response, idempotentReplay: false, today: todayFromState(state) };
+        return { ...response, idempotentReplay: false, today: todayFromState(state, this.clock) };
       }
 
       candidate.duplicateAssessment = assessment;
@@ -350,7 +351,7 @@ export class CandidateDedupeApplicationStore extends LockedAtomicJsonApplication
       };
       recordExtendedCommand(state, request, response);
       await this.persist(state);
-      return { ...response, idempotentReplay: false, today: todayFromState(state) };
+      return { ...response, idempotentReplay: false, today: todayFromState(state, this.clock) };
     });
   }
 }

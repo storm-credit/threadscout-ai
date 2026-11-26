@@ -10,7 +10,7 @@ The OS ships as a Claude Code plugin and was already installed and enabled at **
 
 - marketplace `storm-credit-agent-os` → `storm-credit/minimum-action-agent-os`
 - plugin `minimum-action-agent-os@storm-credit-agent-os` enabled
-- local clone present with a clean working tree, carrying 1 agent and 2 skills
+- local clone present with a clean working tree, carrying 1 agent and 2 skills (at initial `2026-08-19` adoption; expanded upstream to 1 agent and 3 skills at `0.1.16` with `os-intake`)
 
 Nothing was installed, vendored, or copied into this repository. `CLAUDE.md` §21 carries only the short adoption rule; the full OS documentation deliberately stays in the plugin.
 
@@ -65,7 +65,7 @@ No router layer is warranted now, and adding one would contradict `MASTER_SPEC.m
 | project `.claude/agents/` | 0 (directory does not exist) |
 | project `.claude/skills/` | 0 |
 | project MCP servers | 0 |
-| OS plugin (user scope) | 1 agent, 2 skills |
+| OS plugin (user scope) | 1 agent, 3 skills (`os-intake` added at `0.1.16`; was 2 skills at `2026-08-19`) |
 
 The project itself widens nothing. Built-in harness tools are supplied by Claude Code, not configured by this repository, and are outside the project's control.
 
@@ -127,3 +127,44 @@ defective — *"make it more than 'the tests passed'"* is satisfiable by evidenc
 whose completion is claimed. A repaired local variant was considered and rejected: a hand-improved copy is
 exactly what produced the 21-day drift, and the defect is tracked upstream where its fix belongs.
 
+## Updated to canonical `0.2.0` block, 2026-11-19
+
+Pinned upstream source: `storm-credit/minimum-action-agent-os` version `0.2.0`, commit `7ff9935` (`adapters/claude-code.md`). The user-scope OS plugin ships 1 agent (`independent-critic`, narrowed to `3` read-only tools `Read, Grep, Glob` at `0.1.18`) and 3 skills (`os-preflight`, `os-state`, and `os-intake` added at `0.1.16`).
+
+Replaced `CLAUDE.md` §21 programmatically from `adapters/claude-code.md` (`7ff9935`) and verified byte-identity of the extracted body. Four upstream updates arrive with this replacement:
+
+- **Self-contained agent-boundary and critic triggers (`0.1.17`, D32):** replaces the pointer-only `agent-vs-skill` line with the verbatim `rules/agent-vs-skill.md` extract (`sha256` prefix `76e1e6d8bbd45f97`) and replaces `"material independent review"` with concrete review-input and undefined-term obligations, after `claude plugin eval` measured `0/3` on both pointer-only lines and `3/3` on the self-contained replacements.
+- **Completion-proof defect repaired upstream (`0.1.18`, D33):** the defect noted under `2026-09-13` above (*"make it more than 'the tests passed'"*) is resolved upstream and here — completion evidence must **bear on the behaviour whose completion is claimed**.
+- **Three-answer §11 Exercised ledger & epistemic hygiene (`0.1.18`, D30/D33):** distinguishes *changed the outcome*, *applied and changed nothing*, and *never applied* so unexercised rules are not reported as unhelpful ones, and adds `UNVERIFIED` hypothesis labelling.
+- **Harness, loop, graph, and evaluation-integrity invariants (`0.2.0`, D34):** adds `rules/execution-architecture.md` (default-deny code enforcement outside the model's turn with prose-only boundary rules marked `declared, not enforced`, `Caller ∩ Agent ∩ Tool` delegated authority, `Single-Pass -> Bounded Loop -> State Graph` escalation at 0-indexed `depth <= 2` with `no sibling mesh`, falsifiable hypothesis-bound retries, incoming `interrupt_before` gates on irreversible/external side effects, `unknown != failed` timeout handling, and single-use hash-bound release approvals) plus `rules/verification-placement.md` evaluation integrity (`0/0` and degraded-fallback runs evaluate to `NOT_MEASURED` fail-closed; `pass^k` vs `pass@k`).
+
+## Updated to canonical `0.2.1` block & Exercised ledger, 2026-11-27
+
+Pinned upstream source: `storm-credit/minimum-action-agent-os` version `0.2.1` (`adapters/claude-code.md` + Antigravity bundle `minimum-action-agent-os` `0.2.1`).
+
+### Root payload compaction & boundary audit (`0.2.1`)
+
+- **Always-on root cap (`<= 200` LF lines and `<= 25 KB`):** `CLAUDE.md` previously stood at `258` lines (`17,850` bytes), exceeding `0.2.1`'s `<= 200` line bound across expanded root instruction files. Compacted `CLAUDE.md` to `< 150` lines with zero `@import` indirection, keeping every section's normative trigger inline (avoiding D32's pointer-only `0/3` regression) and replacing §21 verbatim from `0.2.1`'s `adapters/claude-code.md` (`sha256` extract prefix `76e1e6d8bbd45f97` preserved).
+- **Explicit `declared, not enforced` boundary labelling:** `CLAUDE.md` now distinguishes code-enforced controls (`agent-registry.mjs`, `tool-broker.mjs`, `guardian-checks.mjs`, `locked-application-store.mjs`) from prose-only host/process rules (`declared, not enforced`). In Google Antigravity sessions, `maos-critic` declares `tools: [read_file]` (`1` tool), which is **`declared, not enforced`** because the host runtime unconditionally injects MCP/task/workspace callables; in Claude Code sessions, `independent-critic` declares `3` read-only tools (`Read, Grep, Glob`).
+- **Payload-tested node freeze under Option B commercial expansion:** Kept all six product agents at or under `<= 5` (`orchestrator` 4 deterministic, `scout` 4, `verifier` 5, `strategist` 3, `writer` 3, `guardian` 5), prohibiting multiplexed `mode` parameters inside `verifier` and routing commission/ROI calculation (`affiliate_yield_service`) and public card rendering (`public_showcase_projector`) to deterministic non-agent services.
+
+### Adoption status: **Installed and Exercised** (`AGENT_OS_SPEC.md` §11)
+
+Both halves of OS adoption are now complete across three carried domain slices: the **AT-14 owner-suppression slice (`2026-08-29`, PR #17)**, the **Option B commercial-showcase & dual-affiliate specification slice (`2026-11-27`)**, and the **Option B SQLite WAL + Hybrid Editorial Studio + `/showcase` implementation slice (`2026-11-27`, `154/154` tests + browser hit-test + critic Round 2 `PASS_WITH_RISKS`)**. Per `AGENT_OS_SPEC.md` §11, each installed item is recorded with one of three outcomes (*changed the outcome*, *applied and changed nothing*, or *never applied*) and a one-line empirical reason:
+
+| §11 Installed item | Exercised verdict | One-line reason from carried project slices |
+|---|---|---|
+| 1. Clear OS entry point (`CLAUDE.md` §21) | *changed the outcome* | Kept the AT-14 (`2026-08-29`) and Option B (`2026-11-27`) domain slices routed through preflight, four-option comparison, and independent critique directly from root context without custom `.claude/` scaffolding. |
+| 2. Local action space review (`<= 5` + payload test) | *changed the outcome* | Blocked adding affiliate-tier/mode choices to `verifier` (already at the `5`-tool bound) and rejected proposed price/style/persona 7th agents in favour of deterministic services and rubrics (`2026-11-27`). |
+| 3. Justified tool/context/authority exposure | *changed the outcome* | Replaced log-denylisting on the Option B public showcase with a closed default-deny 9-field projection schema so raw source excerpts and `likely`/`unresolved` items never leave the server (`2026-11-27`). |
+| 4. Blindspot and preflight trap checks | *changed the outcome* | Cross-checking NotebookLM watch claims against official Meta/affiliate docs caught the non-existent Threads DM API myth and promoted two new B0 gates (`BS-60` indirect `#NNN` offset-`0` disclosure, `BS-61` showcase leak block, `2026-11-27`). |
+| 5. Independent evaluation (`maos-critic` + undefined-term pass) | *changed the outcome* | Zero-rationale `maos-critic` review (`2026-11-27`) failed v1 of the commercial blueprint on 5 blocking findings (including `CLAUDE.md` §5's unconditional comment ban vs self-replies and 12 undefined terms), directly changing the approved design to single-post + `#NNN` showcase. |
+| 6. Project state/canon as source of truth | *changed the outcome* | Reconciling `IMPLEMENTATION_STATUS.md` against git commits (`484956e`, `4ae6afb`, `c857843`) exposed 4 stale pre-PR-#17 lines (`168, 172, 179–180`) that contradicted merged `main` (`2026-11-27`). |
+| 7. Plan-drift / deviation records | *changed the outcome* | Recorded two AT-14 deviations (`USER_SUPPRESSION_ACCEPTANCE.md`, `2026-08-29`) and the `2026-11-27` commercial architecture shift from Threads-only Coupang baseline to Option B Public Verified Showcase + Dual Affiliate (`DECISION_LOG.md`). |
+| 8. Behaviour-bearing completion proof | *changed the outcome* | Real 360×740 hit-tested browser verification on AT-14 (`2026-08-29`) caught English server error leakage (later fixed in PR #23 `4ae6afb`) and a 39px below-fold empty state that `145/145` passing unit tests missed. |
+
+### Per-round review change records (`rules/anti-patterns.md` entry 9)
+
+- **Round 1 (`2026-11-27`, pre-decision blueprint review by `maos-critic` `cea9c520`):** Verdict `FAIL` (`B1..B5` + 12 undefined terms). Removed programmatic continuation self-replies (preserving `CLAUDE.md` §5 single-post rule), flagged Option B `MASTER_SPEC.md` amendments, separated `os-intake` (skill) from `maos-critic` (`1` tool in Antigravity `declared, not enforced`; `3` tools in Claude Code), enforced `{measured, reported, claimed, UNVERIFIED}` tags, and defined the closed 9-field showcase allowlist.
+- **Round 2 (`2026-11-27`, Phase 1 repo-spec review by `maos-critic` `6688198b`):** Verdict `FAIL` (`BF-1..BF-5`, `NBR-1..4`, `UT-01..11`), then re-review **`PASS_WITH_RISKS` (`0` blockers, commit `1c47055`)**. Added the deterministic `(product_state, AffiliateMapping.state) -> matchBadge` table and nullable `'none'` schema (`BF-1`/`UT-04`), unified `stale` full-card withdrawal with a 7d rolling showcase TTL (`BF-2`/`UT-06`), added the post-publication `'none'` monetization lock and unified commercial solicitation surface rules (`BF-3`/`UT-01..03`), propagated `SCRUB_ENV` + nonce-fenced `user_evidence` across `NFR-13`/`AT-48`/`F28` and added `declared, not enforced` labels to `CLAUDE.md` §§3, 5, 11 (`BF-4`/`UT-11`/`NBR-4`), specified pre-count `AT-10`/`AT-23` disclaimer stripping, incentivized-bait criteria, and owner-`reject`-only `lifecycle_epoch` increments (`BF-5`/`UT-05,07..10`), and reconciled `DESIGN_FREEZE.md`, `PUBLISHING_SPEC.md`, `RUN_BUDGETS.md`, and `docs/watch/SOURCES.md` (`NBR-1..3`).
+- **Round 3 (`2026-11-27`, Phase 2 Option B implementation review by `maos-critic` `6688198b`):** Initial implementation verdict `FAIL` (`BL-1..3`, `MJ-1..4`, `MN-1`, `UT-IMPL-01..05`) despite `153/153` passing tests — catching unwired `activeMonetizedShowcaseCount` & bare-`N번` pointers in `runGuardian` (`BL-1`), `exactMatchStatus === 'exact'` blocking `substitute`/`alternative` end-to-end (`BL-2`), opt-in-only fencing/budgeting (`BL-3`), a 200-event freeze in SQLite `audit_events` (`MJ-1`), `updatedAt` vs `now` TTL skew in `showcaseProjected` (`MJ-2`), hidden `#reset-demo` at `360px` & `/showcase/:cardNumber` detail fetch (`MJ-3`), and JSON fallback parity (`MJ-4`). Closed all 8 findings (`154/154` tests + `360×740` & `1440×900` browser verification); Round 3 re-review returned **`PASS_WITH_RISKS` (`0` blockers)**, with `R2-RISK-2..3` verb-lookahead and statutory-prefix polishes also applied.

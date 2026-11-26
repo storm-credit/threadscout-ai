@@ -5,72 +5,256 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="근거·위험·승인 상태를 분리해 보는 ThreadScout AI Opportunity Inbox" />
     <title>ThreadScout AI · Opportunity Inbox</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <link rel="stylesheet" href="/apps/web/styles.css" />
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="#top" aria-label="ThreadScout AI 오늘 화면">
         <span class="brand-mark" aria-hidden="true">TS</span>
-        <span><strong>ThreadScout</strong><small>Opportunity Inbox</small></span>
+        <span>
+          <strong>ThreadScout</strong>
+          <small>Opportunity Inbox · Editorial Desk</small>
+        </span>
       </a>
       <div class="topbar-actions">
-        <span class="capability-chip"><span class="status-dot" aria-hidden="true"></span>외부 게시 OFF</span>
+        <a class="showcase-link" href="/showcase" target="_blank" rel="noopener">공개 쇼케이스 <span id="showcase-count-badge">0</span> ↗</a>
+        <span class="capability-chip"><span class="status-dot" aria-hidden="true"></span>외부 자동 게시 꺼짐</span>
         <button id="reset-demo" class="ghost-button compact" type="button">예시 초기화</button>
       </div>
     </header>
 
     <main id="top" class="shell">
-      <section class="hero" aria-labelledby="hero-title">
-        <div>
-          <p class="eyebrow">오늘 · 서버 기준 상태</p>
-          <h1 id="hero-title">점수보다 근거를 먼저 보고<br />다음 행동 하나만 고르세요.</h1>
-          <p class="hero-copy">제품 후보의 관심도, 근거 준비도, 위험, 제품 일치 상태를 따로 봅니다. 브라우저가 승인 상태를 만들지 않고 서버가 버전 충돌을 검사합니다.</p>
-        </div>
-        <div class="hero-actions">
-          <button id="open-add-candidate" class="primary-button" type="button">제품 직접 추가</button>
-          <p>실연동 없이 사용자 제공 근거 또는 예시 데이터만 사용합니다.</p>
-        </div>
-      </section>
-
-      <section class="safety-card" aria-label="현재 실행 경계">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div>
-          <strong>예시/사용자 제공 근거 · 외부 자동 게시 꺼짐</strong>
-          <small>Threads·쿠팡·외부 미디어 호출은 하지 않습니다. 현재 슬라이스는 제품 입력부터 사람 승인까지의 로컬 흐름만 검증합니다.</small>
-        </div>
-      </section>
-
-      <section class="metrics" aria-label="오늘 운영 요약">
-        <article><span>관찰 후보</span><strong id="metric-total">0</strong></article>
-        <article><span>추천 가능</span><strong id="metric-ready">0</strong></article>
-        <article><span>근거 확인</span><strong id="metric-verification">0</strong></article>
-        <article><span>사람 승인</span><strong id="metric-approved">0</strong></article>
-      </section>
-
-      <section id="inbox-view" class="view-panel" aria-labelledby="inbox-title">
-        <div class="toolbar">
-          <div>
-            <p class="section-kicker" id="view-kicker">Today</p>
-            <h2 id="inbox-title">오늘의 Opportunity Inbox</h2>
-            <p id="view-description" class="muted">최대 5개 후보만 보여주고, 점수와 근거 준비도를 따로 표시합니다.</p>
+      <section class="desk-bar" aria-labelledby="hero-title">
+        <div class="desk-bar-main">
+          <div class="desk-headline">
+            <p class="eyebrow">오늘 · 서버 권위(SQLite WAL) 상태</p>
+            <h1 id="hero-title">점수보다 근거를 먼저 보고 다음 행동 하나만 고르세요.</h1>
           </div>
-          <label class="filter-label"><span>세부 상태</span>
-            <select id="state-filter">
-              <option value="all">전체</option>
-              <option value="verification">근거 필요</option>
-              <option value="content">전략·초안</option>
-              <option value="review">Guardian·승인</option>
-            </select>
-          </label>
+          <div class="desk-cta">
+            <button id="open-add-candidate" class="primary-button" type="button">+ 제품 직접 추가</button>
+          </div>
         </div>
-        <div id="candidate-list" class="candidate-list" aria-live="polite"></div>
-        <section id="excluded-block" class="excluded-block" hidden>
-          <h3 class="section-heading">첫 화면에 올리지 않은 후보</h3>
-          <div id="excluded-list" class="candidate-list"></div>
-        </section>
+
+        <div class="desk-strip">
+          <div class="metrics" aria-label="오늘 운영 요약">
+            <article><span>관찰</span><strong id="metric-total">0</strong></article>
+            <article><span>추천</span><strong id="metric-ready">0</strong></article>
+            <article><span>근거 확인</span><strong id="metric-verification">0</strong></article>
+            <article><span>사람 승인</span><strong id="metric-approved">0</strong></article>
+          </div>
+          <details class="boundary-disclosure">
+            <summary>
+              <span class="status-dot" aria-hidden="true"></span>
+              <span>실연동 없이 사용자 제공 근거 또는 예시 데이터만 사용 · 외부 자동 게시 꺼짐</span>
+            </summary>
+            <p>Threads·쿠팡·네이버 외부 자동 호출이나 자동 댓글 발송을 하지 않습니다. 서버가 리비전 충돌(CAS)과 법정 대가성 서두 고지(오프셋 0)를 검증합니다.</p>
+          </details>
+        </div>
       </section>
 
-      <section id="capability-view" class="capability-view" hidden aria-live="polite"></section>
+      <div class="studio-grid">
+        <div class="studio-left">
+          <section id="inbox-view" class="view-panel" aria-labelledby="inbox-title">
+            <div class="toolbar">
+              <div>
+                <p class="section-kicker" id="view-kicker">Today</p>
+                <h2 id="inbox-title">오늘의 Opportunity Inbox</h2>
+                <p id="view-description" class="muted">최대 5개 후보만 보여주고, 기회 점수와 근거·위험 상태를 분리해 표시합니다.</p>
+              </div>
+              <label class="filter-label"><span>세부 단계</span>
+                <select id="state-filter">
+                  <option value="all">전체 보기</option>
+                  <option value="verification">1. 근거 필요</option>
+                  <option value="content">2. 전략·초안</option>
+                  <option value="review">3. 검수·승인</option>
+                </select>
+              </label>
+            </div>
+            <div id="candidate-list" class="candidate-list" aria-live="polite"></div>
+            <section id="excluded-block" class="excluded-block" hidden>
+              <h3 class="section-heading">첫 화면에서 내린 억제 후보</h3>
+              <div id="excluded-list" class="candidate-list"></div>
+            </section>
+          </section>
+
+          <section id="capability-view" class="capability-view" hidden aria-live="polite"></section>
+        </div>
+
+        <aside class="studio-right" aria-label="검토 스튜디오">
+          <div id="studio-placeholder" class="studio-placeholder">
+            <p class="section-kicker">Split Studio</p>
+            <h3>왼쪽 후보 카드를 고르면<br />3단계 검토 스튜디오가 열립니다</h3>
+            <p>1단계 근거·제휴 확인 → 2단계 4관점 초안 비교 → 3단계 Guardian 검수·승인 및 #쇼케이스 카드 미리보기를 한 자리에서 처리합니다.</p>
+          </div>
+
+          <dialog id="workspace-dialog" class="workspace-dialog">
+            <div class="dialog-shell">
+              <header class="dialog-header">
+                <div class="dialog-title-wrap">
+                  <p class="section-kicker">Decision Studio</p>
+                  <h2 id="dialog-title">제품 검토</h2>
+                  <p id="dialog-subtitle" class="muted"></p>
+                </div>
+                <button class="icon-button" type="button" data-close-dialog="workspace-dialog" aria-label="닫기">×</button>
+              </header>
+
+              <div id="workspace-alert" class="workspace-alert" hidden role="alert"></div>
+              <div id="workspace-status" class="status-grid" aria-label="현재 상태"></div>
+
+              <div class="step-tabs" role="tablist" aria-label="검토 3단계">
+                <button type="button" class="step-tab active" data-step="1" role="tab" aria-selected="true">
+                  <span class="step-num">1</span>근거·신원
+                </button>
+                <button type="button" class="step-tab" data-step="2" role="tab" aria-selected="false">
+                  <span class="step-num">2</span>전략·초안 4종
+                </button>
+                <button type="button" class="step-tab" data-step="3" role="tab" aria-selected="false">
+                  <span class="step-num">3</span>검수·승인
+                </button>
+              </div>
+
+              <div id="step-panel-1" class="step-panel">
+                <section id="duplicate-review-section" class="workspace-section" aria-labelledby="duplicate-review-title" hidden>
+                  <div class="section-heading">
+                    <div><p class="section-kicker">Portfolio guardrail</p><h3 id="duplicate-review-title">유사 후보 확인</h3></div>
+                    <span class="status-pill warn">사람 판단 필요</span>
+                  </div>
+                  <div id="duplicate-summary" class="binding-summary"></div>
+                  <div class="approval-actions">
+                    <button id="duplicate-distinct" class="secondary-button" type="button">서로 다른 제품</button>
+                    <button id="duplicate-suppress" class="ghost-button danger-text" type="button">중복으로 억제</button>
+                  </div>
+                </section>
+
+                <section class="workspace-section" aria-labelledby="evidence-title">
+                  <div class="section-heading">
+                    <div><p class="section-kicker">Evidence Verifier</p><h3 id="evidence-title">사용자 제공 근거 및 제휴 설정</h3></div>
+                    <span id="evidence-basis" class="status-pill"></span>
+                  </div>
+                  <form id="evidence-form" class="form-stack compact-stack">
+                    <div class="field-grid">
+                      <label>브랜드<input id="evidence-brand" name="brand" maxlength="120" placeholder="예: 무아스, 3M" /></label>
+                      <label>모델명<input id="evidence-model" name="model" maxlength="120" placeholder="예: SG-01" /></label>
+                    </div>
+                    <label>옵션/규격 변형<input id="evidence-variant" name="variant" maxlength="160" placeholder="예: 화이트 45cm / 2개입" /></label>
+                    <div class="field-grid">
+                      <label>1차 근거 참조 (URL·식별자)<input id="evidence-source" name="sourceRef" maxlength="1200" placeholder="제조사 스펙 또는 상세페이지 URL" /></label>
+                      <label>1차 출처 구분<input id="evidence-source-origin" name="sourceOrigin" maxlength="120" placeholder="예: 제조사 공식몰" /></label>
+                    </div>
+                    <div class="field-grid">
+                      <label>2차 교차 근거 참조<input id="evidence-corroboration" name="corroborationRef" maxlength="1200" placeholder="독립 오픈마켓·안전인증 등" /></label>
+                      <label>2차 출처 구분<input id="evidence-corroboration-origin" name="corroborationOrigin" maxlength="120" placeholder="예: 네이버 스마트스토어" /></label>
+                    </div>
+                    <p class="field-hint">독립된 두 출처가 확인되어야 <strong>동일 제품 확인</strong> 등급과 정식 쇼케이스 매핑이 열립니다.</p>
+                    <label class="checkbox-row"><input id="evidence-substitute" name="ownerDeclaredSubstitute" type="checkbox" /><span>동일 모델이 아닌 검증 대체품 후보입니다</span></label>
+                    <div class="field-grid">
+                      <label>미디어 권리
+                        <select id="media-rights" name="mediaRights">
+                          <option value="not_required">미디어 사용 안 함 (텍스트)</option>
+                          <option value="owned">직접 촬영·소유</option>
+                          <option value="licensed">상업 사용 허가 확인</option>
+                          <option value="unknown">권리 미확인 (승인 차단)</option>
+                        </select>
+                      </label>
+                      <label>직접 사용 기록
+                        <select id="personal-use" name="personalUse">
+                          <option value="not_confirmed">미사용 (조사 기반 서술만)</option>
+                          <option value="confirmed">직접 사용 기록 있음</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label id="publishable-media-row" hidden>게시 허용 이미지 URL (https:// · 직접 촬영/라이선스 확인 시)
+                      <input id="evidence-publishable-media-url" name="publishableMediaUrl" maxlength="1200" placeholder="https://..." />
+                    </label>
+
+                    <div class="affiliate-box">
+                      <label class="checkbox-row"><input id="affiliate" name="affiliate" type="checkbox" /><span>수익화 제휴 링크 연결 (본문 첫 줄 오프셋 0 고지 강제)</span></label>
+                      <div id="affiliate-fields" class="form-stack compact-stack" hidden>
+                        <div class="field-grid">
+                          <label>제휴 프로그램
+                            <select id="evidence-affiliate-network" name="affiliateNetwork">
+                              <option value="">선택 안 함</option>
+                              <option value="naver_shopping_connect">네이버 쇼핑커넥트 (수수료 5~20%+)</option>
+                              <option value="coupang_partners">쿠팡 파트너스 (공식 링크)</option>
+                            </select>
+                          </label>
+                          <label>제휴 매핑 구분
+                            <select id="evidence-affiliate-state" name="affiliateMappingState">
+                              <option value="">자동 (정품/대체품 기준)</option>
+                              <option value="exact">동일 모델 직결 (exact)</option>
+                              <option value="alternative">검증 대체품 연결 (alternative)</option>
+                            </select>
+                          </label>
+                        </div>
+                        <label>검증 도착 URL (https://)
+                          <input id="evidence-destination-url" name="destinationUrl" maxlength="1200" placeholder="https://..." />
+                        </label>
+                        <label>법정 대가성 고지 원문 (오프셋 0 자동 배치)
+                          <textarea id="disclosure" name="disclosure" rows="2" maxlength="500" placeholder="[광고] 프로그램별 필수 대가성 고지 문구"></textarea>
+                        </label>
+                        <label>사기 전 확인할 구체적 한계 (쇼케이스 카드 필수 표기)
+                          <input id="evidence-limitation" name="verifiedLimitation" maxlength="240" placeholder="예: 상판 두께 3.5cm 초과 싱크대에는 고정 클립 장착 불가" />
+                        </label>
+                      </div>
+                    </div>
+
+                    <button id="verify-evidence" class="primary-button" type="submit">근거 저장 및 검증 실행 →</button>
+                  </form>
+                </section>
+              </div>
+
+              <div id="step-panel-2" class="step-panel" hidden>
+                <section class="workspace-section" aria-labelledby="strategy-title">
+                  <div class="section-heading">
+                    <div><p class="section-kicker">Content Strategist</p><h3 id="strategy-title">4가지 콘텐츠 전략</h3></div>
+                    <button id="create-strategies" class="secondary-button" type="button">전략 4개 만들기</button>
+                  </div>
+                  <div id="strategy-list" class="strategy-list"></div>
+                </section>
+
+                <section class="workspace-section" aria-labelledby="draft-title">
+                  <div class="section-heading">
+                    <div><p class="section-kicker">Threads Writer</p><h3 id="draft-title">4관점 한국어 초안 비교·편집</h3></div>
+                    <button id="create-drafts" class="primary-button" type="button">초안 4개 만들기</button>
+                  </div>
+                  <div id="draft-list" class="draft-list"></div>
+                  <div class="draft-footer-bar">
+                    <button id="save-draft" class="secondary-button" type="button">선택 초안 수정 저장</button>
+                    <button id="jump-to-guardian" class="ghost-button" type="button">3단계 검수로 이동 →</button>
+                  </div>
+                </section>
+              </div>
+
+              <div id="step-panel-3" class="step-panel" hidden>
+                <section class="workspace-section guardian-section" aria-labelledby="guardian-title">
+                  <div class="section-heading">
+                    <div><p class="section-kicker">Integrity Guardian</p><h3 id="guardian-title">8대 원칙 및 한국어 탈AI 문체 검수</h3></div>
+                    <button id="run-guardian" class="secondary-button" type="button">Guardian 검수</button>
+                  </div>
+                  <div id="guardian-result" class="review-result"></div>
+                </section>
+
+                <section class="workspace-section approval-section" aria-labelledby="approval-title">
+                  <div class="section-heading">
+                    <div><p class="section-kicker">Human approval</p><h3 id="approval-title">사람 최종 승인 &amp; 공개 쇼케이스</h3></div>
+                    <span id="revision-label" class="status-pill"></span>
+                  </div>
+                  <div id="approval-binding" class="binding-summary"></div>
+                  <div id="showcase-preview-box" class="showcase-preview-box" hidden></div>
+                  <div class="approval-actions">
+                    <button id="hold-candidate" class="ghost-button" type="button">보류</button>
+                    <button id="reject-candidate" class="ghost-button danger-text" type="button">거절</button>
+                    <button id="reopen-candidate" class="ghost-button" type="button" hidden>거절 후보 재오픈(새 예산)</button>
+                    <button id="lock-non-commercial" class="ghost-button" type="button" hidden>무고지 게시 잠금(BS-60)</button>
+                    <button id="approve-draft" class="primary-button" type="button">승인</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </dialog>
+        </aside>
+      </div>
     </main>
 
     <nav class="bottom-nav" aria-label="주요 화면">
@@ -84,30 +268,67 @@
     <dialog id="candidate-dialog" class="sheet-dialog">
       <form id="candidate-form" class="dialog-shell">
         <header class="dialog-header">
-          <div><p class="section-kicker">Manual input</p><h2>제품 직접 추가</h2></div>
+          <div><p class="section-kicker">Quick capture</p><h2>제품 직접 추가 (15초 빠른 등록)</h2></div>
           <button class="icon-button" type="button" data-close-dialog="candidate-dialog" aria-label="닫기">×</button>
         </header>
         <div class="form-stack">
-          <p class="form-note">이 입력은 제품 후보와 사용자 제공 근거를 등록합니다. 입력했다고 자동으로 검증 완료가 되지는 않습니다.</p>
-          <label>제품명<input name="name" maxlength="160" required /></label>
-          <div class="field-grid">
-            <label>브랜드<input name="brand" maxlength="120" /></label>
-            <label>모델<input name="model" maxlength="120" /></label>
+          <p class="form-note">핵심 2가지만 적어도 바로 등록됩니다. 세부 모델·교차 출처·제휴 설정은 아래 펼침 메뉴나 검토 화면에서 채울 수 있습니다.</p>
+          <label>제품명 (필수)<input name="name" maxlength="160" required placeholder="예: 접이식 실리콘 싱크대 물튐 가드" /></label>
+          <label>주요 근거 링크 또는 메모<input name="sourceRef" maxlength="1200" placeholder="상품 URL, 스레드 본문 메모, 스펙 시트 식별자" /></label>
+
+          <div class="preset-group" aria-label="빠른 입력 프리셋">
+            <span class="preset-label">독자 가치 빠른 선택:</span>
+            <div class="preset-chips">
+              <button type="button" class="preset-chip" data-why="전후 사용 장면이 3초 안에 이해되어 저장·질문 반응이 높은 생활 문제 해결템" data-value="유사 저가형과 실제 정품 모델·규격 차이를 구매 전에 바로 구분할 수 있음">생활 문제 해결템</button>
+              <button type="button" class="preset-chip" data-why="책상·주방 공간 낭비를 줄이는 구조라 실측 호환 조건 질문이 많은 아이템" data-value="설치 가능한 두께·크기 한계를 미리 확인해 반품 실수를 줄여줌">공간·데스크 정리</button>
+              <button type="button" class="preset-chip" data-why="바이럴 영상 대비 실제 내구성·세척 편의성 검증 수요가 높은 후보" data-value="광고 문구 대신 확인된 재질 스펙과 단점 한 줄을 명확히 비교할 수 있음">바이럴 팩트체크</button>
+            </div>
           </div>
-          <label>옵션/변형<input name="variant" maxlength="160" /></label>
-          <label>주요 근거 참조<input name="sourceRef" maxlength="1200" placeholder="URL, 메모, 영수증/사진 식별자 등" /></label>
-          <label>주요 근거 출처 이름<input name="sourceOrigin" maxlength="120" placeholder="예: 제조사페이지" /></label>
-          <label>교차 확인 근거 참조<input name="corroborationRef" maxlength="1200" placeholder="다른 곳에서 확인한 근거" /></label>
-          <label>교차 확인 출처 이름<input name="corroborationOrigin" maxlength="120" placeholder="예: 판매페이지" /></label>
-          <p class="field-hint">같은 출처에서 나온 근거 두 개는 하나로 셉니다. 동일 제품으로 확정하려면 서로 다른 출처가 두 곳 필요합니다.</p>
-          <label>왜 지금 볼 만한가<textarea name="whyNow" rows="3" maxlength="300" required></textarea></label>
-          <label>독자에게 어떤 가치가 있는가<textarea name="readerValue" rows="3" maxlength="300" required></textarea></label>
-          <div class="field-grid">
-            <label>미디어 권리<select name="mediaRights"><option value="not_required">미디어 사용 안 함</option><option value="owned">직접 소유/촬영</option><option value="licensed">사용 허가 확인</option><option value="unknown">미확인</option></select></label>
-            <label>직접 사용<select name="personalUse"><option value="not_confirmed">직접 사용 확인 안 됨</option><option value="confirmed">직접 사용 기록 있음</option></select></label>
-          </div>
-          <label class="checkbox-row"><input name="affiliate" type="checkbox" /> 제휴 링크를 넣을 예정</label>
-          <label>제휴 고지 문구<textarea name="disclosure" rows="3" maxlength="500" placeholder="제휴를 쓸 때만 입력"></textarea></label>
+
+          <label>왜 지금 볼 만한가<textarea id="quick-why-now" name="whyNow" rows="2" maxlength="300" required>전후 사용 장면이 직관적이라 실제 모델·규격 확인 수요가 높은 후보</textarea></label>
+          <label>독자에게 어떤 가치가 있는가<textarea id="quick-reader-value" name="readerValue" rows="2" maxlength="300" required>비슷한 외형의 제품 중 정확한 브랜드·모델·설치 한계를 한눈에 구분할 수 있음</textarea></label>
+
+          <details class="detail-accordion">
+            <summary>세부 모델·교차 출처·제휴 옵션 미리 입력 (선택)</summary>
+            <div class="form-stack accordion-inner">
+              <div class="field-grid">
+                <label>브랜드<input name="brand" maxlength="120" placeholder="예: FixtureLab" /></label>
+                <label>모델<input name="model" maxlength="120" placeholder="예: SG-01" /></label>
+              </div>
+              <div class="field-grid">
+                <label>옵션/변형<input name="variant" maxlength="160" placeholder="예: 투명 45cm" /></label>
+                <label>카테고리 레인
+                  <select name="lane">
+                    <option value="practical-novel">실용 신박템</option>
+                    <option value="desk">데스크·수납</option>
+                    <option value="family">가족·생활</option>
+                    <option value="curiosity-only">호기심 탐색</option>
+                  </select>
+                </label>
+              </div>
+              <div class="field-grid">
+                <label>1차 출처 이름<input name="sourceOrigin" maxlength="120" placeholder="예: 제조사페이지" /></label>
+                <label>2차 교차 근거 참조<input name="corroborationRef" maxlength="1200" placeholder="다른 곳에서 확인한 근거" /></label>
+              </div>
+              <label>2차 교차 출처 이름<input name="corroborationOrigin" maxlength="120" placeholder="예: 판매페이지" /></label>
+              <div class="field-grid">
+                <label>미디어 권리<select name="mediaRights"><option value="not_required">미디어 사용 안 함</option><option value="owned">직접 소유/촬영</option><option value="licensed">사용 허가 확인</option><option value="unknown">미확인</option></select></label>
+                <label>직접 사용<select name="personalUse"><option value="not_confirmed">직접 사용 확인 안 됨</option><option value="confirmed">직접 사용 기록 있음</option></select></label>
+              </div>
+              <label class="checkbox-row"><input name="affiliate" type="checkbox" /><span>제휴 링크를 넣을 예정</span></label>
+              <div class="field-grid">
+                <label>제휴 프로그램
+                  <select name="affiliateNetwork">
+                    <option value="">선택 안 함</option>
+                    <option value="naver_shopping_connect">네이버 쇼핑커넥트</option>
+                    <option value="coupang_partners">쿠팡 파트너스</option>
+                  </select>
+                </label>
+                <label>검증 도착 URL<input name="destinationUrl" maxlength="1200" placeholder="https://..." /></label>
+              </div>
+              <label>제휴 고지 문구<textarea name="disclosure" rows="2" maxlength="500" placeholder="미입력 시 프로그램별 표준 공정위 문구가 자동 입력됩니다"></textarea></label>
+            </div>
+          </details>
         </div>
         <footer class="dialog-actions"><button class="ghost-button" type="button" data-close-dialog="candidate-dialog">취소</button><button class="primary-button" type="submit">후보 추가</button></footer>
       </form>
@@ -120,7 +341,7 @@
           <button class="icon-button" type="button" data-close-dialog="suppress-dialog" aria-label="닫기">×</button>
         </header>
         <div class="form-stack">
-          <p class="form-note">억제는 중복 제거와 다른 기능입니다. 후보를 지우지 않고 첫 화면에서만 내리며, 언제든 <strong>복원</strong>할 수 있습니다.</p>
+          <p class="form-note">억제는 중복 제거와 다른 기능입니다. 후보를 삭제가 아니라 첫 화면에서만 내리며, 언제든 되돌릴 수 있습니다(<strong>복원</strong>).</p>
           <p id="suppress-target" class="field-hint"></p>
           <label>무엇을 기준으로 억제할까요
             <select id="suppress-axis" name="axis">
@@ -134,76 +355,6 @@
         </div>
         <footer class="dialog-actions"><button class="ghost-button" type="button" data-close-dialog="suppress-dialog">취소</button><button class="primary-button" type="submit">억제하기</button></footer>
       </form>
-    </dialog>
-
-    <dialog id="workspace-dialog" class="workspace-dialog">
-      <div class="dialog-shell">
-        <header class="dialog-header">
-          <div><p class="section-kicker">Decision workspace</p><h2 id="dialog-title">제품 검토</h2><p id="dialog-subtitle" class="muted"></p></div>
-          <button class="icon-button" type="button" data-close-dialog="workspace-dialog" aria-label="닫기">×</button>
-        </header>
-
-        <div id="workspace-alert" class="workspace-alert" hidden role="alert"></div>
-        <div id="workspace-status" class="status-grid" aria-label="현재 상태"></div>
-
-        <section id="duplicate-review-section" class="workspace-section" aria-labelledby="duplicate-review-title" hidden>
-          <div class="section-heading"><div><p class="section-kicker">Portfolio guardrail</p><h3 id="duplicate-review-title">유사 후보 확인</h3></div><span class="status-pill warn">사람 판단 필요</span></div>
-          <div id="duplicate-summary" class="binding-summary"></div>
-          <div class="approval-actions">
-            <button id="duplicate-distinct" class="secondary-button" type="button">서로 다른 제품</button>
-            <button id="duplicate-suppress" class="ghost-button danger-text" type="button">중복으로 억제</button>
-          </div>
-        </section>
-
-        <section class="workspace-section" aria-labelledby="evidence-title">
-          <div class="section-heading"><div><p class="section-kicker">Evidence Verifier</p><h3 id="evidence-title">사용자 제공 근거 확인</h3></div><span id="evidence-basis" class="status-pill"></span></div>
-          <form id="evidence-form" class="form-stack compact-stack">
-            <div class="field-grid">
-              <label>브랜드<input id="evidence-brand" name="brand" maxlength="120" /></label>
-              <label>모델<input id="evidence-model" name="model" maxlength="120" /></label>
-            </div>
-            <label>옵션/변형<input id="evidence-variant" name="variant" maxlength="160" /></label>
-            <label>주요 근거 참조<input id="evidence-source" name="sourceRef" maxlength="1200" /></label>
-            <label>주요 근거 출처 이름<input id="evidence-source-origin" name="sourceOrigin" maxlength="120" placeholder="예: 제조사페이지" /></label>
-            <label>교차 확인 근거 참조<input id="evidence-corroboration" name="corroborationRef" maxlength="1200" /></label>
-            <label>교차 확인 출처 이름<input id="evidence-corroboration-origin" name="corroborationOrigin" maxlength="120" placeholder="예: 판매페이지" /></label>
-            <label class="checkbox-row"><input id="evidence-substitute" name="ownerDeclaredSubstitute" type="checkbox" /><span>이 제품은 대체품입니다</span></label>
-            <div class="field-grid">
-              <label>미디어 권리<select id="media-rights" name="mediaRights"><option value="not_required">미디어 사용 안 함</option><option value="owned">직접 소유/촬영</option><option value="licensed">사용 허가 확인</option><option value="unknown">미확인</option></select></label>
-              <label>직접 사용<select id="personal-use" name="personalUse"><option value="not_confirmed">확인 안 됨</option><option value="confirmed">사용 기록 있음</option></select></label>
-            </div>
-            <label class="checkbox-row"><input id="affiliate" name="affiliate" type="checkbox" /> 제휴 링크를 넣을 예정</label>
-            <label>제휴 고지<textarea id="disclosure" name="disclosure" rows="2" maxlength="500"></textarea></label>
-            <button id="verify-evidence" class="secondary-button" type="submit">근거 확인</button>
-          </form>
-        </section>
-
-        <section class="workspace-section" aria-labelledby="strategy-title">
-          <div class="section-heading"><div><p class="section-kicker">Content Strategist</p><h3 id="strategy-title">전략 4개</h3></div><button id="create-strategies" class="secondary-button" type="button">전략 4개 만들기</button></div>
-          <div id="strategy-list" class="strategy-list"></div>
-        </section>
-
-        <section class="workspace-section" aria-labelledby="draft-title">
-          <div class="section-heading"><div><p class="section-kicker">Threads Writer</p><h3 id="draft-title">초안 4개</h3></div><button id="create-drafts" class="secondary-button" type="button">초안 4개 만들기</button></div>
-          <div id="draft-list" class="draft-list"></div>
-          <button id="save-draft" class="ghost-button" type="button">선택 초안 수정 저장</button>
-        </section>
-
-        <section class="workspace-section guardian-section" aria-labelledby="guardian-title">
-          <div class="section-heading"><div><p class="section-kicker">Integrity Guardian</p><h3 id="guardian-title">최종 검수</h3></div><button id="run-guardian" class="secondary-button" type="button">Guardian 검수</button></div>
-          <div id="guardian-result" class="review-result"></div>
-        </section>
-
-        <section class="workspace-section approval-section" aria-labelledby="approval-title">
-          <div class="section-heading"><div><p class="section-kicker">Human approval</p><h3 id="approval-title">사람 승인</h3></div><span id="revision-label" class="status-pill"></span></div>
-          <div id="approval-binding" class="binding-summary"></div>
-          <div class="approval-actions">
-            <button id="hold-candidate" class="ghost-button" type="button">보류</button>
-            <button id="reject-candidate" class="ghost-button danger-text" type="button">거절</button>
-            <button id="approve-draft" class="primary-button" type="button">승인</button>
-          </div>
-        </section>
-      </div>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
