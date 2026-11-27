@@ -71,7 +71,15 @@ const els = {
   suppressForm: document.querySelector('#suppress-form'),
   suppressAxis: document.querySelector('#suppress-axis'),
   suppressReason: document.querySelector('#suppress-reason'),
-  suppressTarget: document.querySelector('#suppress-target')
+  suppressTarget: document.querySelector('#suppress-target'),
+  operatorAuthDialog: document.querySelector('#operator-auth-dialog'),
+  operatorAuthForm: document.querySelector('#operator-auth-form'),
+  operatorAuthError: document.querySelector('#operator-auth-error'),
+  operatorAuthNote: document.querySelector('#operator-auth-note'),
+  operatorTokenLabel: document.querySelector('#operator-token-label'),
+  operatorTokenInput: document.querySelector('#operator-token-input'),
+  operatorLoginSubmit: document.querySelector('#operator-login-submit'),
+  operatorLogoutBtn: document.querySelector('#operator-logout-btn')
 };
 
 let today = null;
@@ -390,6 +398,10 @@ function confidenceTierLabel(tier) {
 async function loadPreflightIntoView() {
   try {
     const res = await fetch('/api/preflight', { headers: { accept: 'application/json' }, cache: 'no-store' });
+    if (res.status === 401) {
+      openOperatorAuthGate({ misconfigured: false });
+      return;
+    }
     if (!res.ok) return;
     const data = await res.json();
     const p = data.preflight;
@@ -650,10 +662,69 @@ function render() {
   syncStudioVisibility();
 }
 
+function setOperatorAuthError(message = '') {
+  if (!els.operatorAuthError) return;
+  const text = String(message ?? '').trim();
+  els.operatorAuthError.textContent = text;
+  els.operatorAuthError.hidden = !text;
+}
+
+function openOperatorAuthGate({ misconfigured = false, errorMessage = '' } = {}) {
+  today = null;
+  if (els.list) els.list.innerHTML = '';
+  if (els.operatorLogoutBtn) els.operatorLogoutBtn.hidden = true;
+  if (!els.operatorAuthDialog) return;
+
+  setOperatorAuthError(errorMessage);
+  if (misconfigured) {
+    if (els.operatorAuthNote) {
+      els.operatorAuthNote.textContent = '네트워크/운영 모드에서 서버 운영자 토큰(16자 이상)이 설정되지 않아 안전을 위해 운영자 스튜디오가 잠겼습니다. 서버 환경변수를 설정한 뒤 다시 시도해 주세요.';
+    }
+    if (els.operatorTokenLabel) els.operatorTokenLabel.hidden = true;
+    if (els.operatorLoginSubmit) els.operatorLoginSubmit.hidden = true;
+  } else {
+    if (els.operatorAuthNote) {
+      els.operatorAuthNote.innerHTML = '외부 공개 환경에서는 운영자 액세스 토큰이 확인되어야 후보 관리·승인 스튜디오가 열립니다. 소비자용 <a href="/showcase" target="_blank" rel="noopener">공개 쇼케이스(/showcase)</a>는 로그인 없이 열람됩니다.';
+    }
+    if (els.operatorTokenLabel) els.operatorTokenLabel.hidden = false;
+    if (els.operatorLoginSubmit) els.operatorLoginSubmit.hidden = false;
+  }
+
+  if (!els.operatorAuthDialog.open) {
+    els.operatorAuthDialog.showModal();
+  }
+  if (!misconfigured) {
+    setTimeout(() => els.operatorTokenInput?.focus(), 30);
+  }
+}
+
+function closeOperatorAuthGate() {
+  setOperatorAuthError('');
+  if (els.operatorAuthDialog?.open) {
+    els.operatorAuthDialog.close();
+  }
+  if (els.operatorTokenInput) els.operatorTokenInput.value = '';
+}
+
 async function loadToday() {
   const response = await fetch('/api/today', { headers: { accept: 'application/json' }, cache: 'no-store' });
+  if (response.status === 401) {
+    openOperatorAuthGate({ misconfigured: false });
+    return;
+  }
+  if (response.status === 503) {
+    const errBody = await response.json().catch(() => ({}));
+    if (errBody.error === 'operator_auth_not_configured' || errBody.error === 'invalid_surface_mode') {
+      openOperatorAuthGate({ misconfigured: true });
+      return;
+    }
+  }
   if (!response.ok) throw new Error('서버 상태를 불러오지 못했습니다.');
+  closeOperatorAuthGate();
   today = await response.json();
+  if (els.operatorLogoutBtn) {
+    els.operatorLogoutBtn.hidden = !today?.authRequired;
+  }
   render();
   if (isDesktopSplitMode() && !activeCandidateId && today?.candidates?.length > 0) {
     openWorkspace(today.candidates[0].id, { autoStep: true });
@@ -738,6 +809,15 @@ const ERROR_MESSAGES = {
   publication_or_approval_required_for_outcome: () => '승인되었거나 게시 완료된 후보에만 성과 스냅샷을 기록할 수 있습니다.',
   kill_switch_active: () => '긴급 중단 스위치(Kill Switch)가 켜져 있어 예약·게시 작업이 일시 정지되었습니다.',
   global_kill_switch_active: () => '긴급 중단 스위치(Kill Switch)가 켜져 있어 변경 명령이 일시 정지되었습니다.',
+  operator_auth_required: () => '운영자 세션이 만료되었거나 인증이 필요합니다. 토큰을 다시 입력해 주세요.',
+  operator_auth_invalid: () => '운영자 액세스 토큰이 일치하지 않습니다.',
+  operator_auth_not_configured: () => '서버에 16자 이상의 운영자 액세스 토큰이 설정되지 않아 스튜디오가 잠겨 있습니다.',
+  auth_rate_limited: () => '로그인 실패 횟수가 많아 15분 동안 잠금 해제가 제한됩니다.',
+  csrf_origin_mismatch: () => '요청 출처(Origin)가 일치하지 않아 차단되었습니다.',
+  csrf_cross_site_blocked: () => '외부 사이트에서의 교차 요청이 차단되었습니다.',
+  csrf_header_missing: () => '보안 검증 헤더가 누락되어 요청이 차단되었습니다. 새로고침 후 다시 시도해 주세요.',
+  dns_rebinding_blocked: () => '허용되지 않은 호스트 주소 요청이 차단되었습니다.',
+  read_only_surface: () => '공개 쇼케이스 전용 모드에서는 데이터를 수정할 수 없습니다.',
   storage_lock_timeout: () => '다른 저장이 진행 중입니다. 잠시 후 다시 시도해 주세요.',
   payload_too_large: () => '보낸 내용이 너무 큽니다.',
   invalid_json: () => '요청 형식이 올바르지 않습니다.',
@@ -760,12 +840,20 @@ function errorToKorean(result) {
 async function sendCommand(command, { candidateId = null, expectedRevision = null, payload = {}, id = requestId(command) } = {}) {
   const response = await fetch('/api/commands', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'x-threadscout-csrf': '1'
+    },
     body: JSON.stringify({ requestId: id, command, candidateId, expectedRevision, payload })
   });
   const result = await response.json();
   if (result.today) today = result.today;
   if (!response.ok) {
+    if (response.status === 401) {
+      openOperatorAuthGate({ misconfigured: false, errorMessage: errorToKorean(result) });
+      return { ok: false, result };
+    }
     render();
     if (response.status === 409 && result.error === 'version_conflict') {
       showToast('다른 화면에서 상태가 바뀌었습니다. 최신 버전으로 다시 불러왔습니다.');
@@ -1539,6 +1627,50 @@ els.capabilityView?.addEventListener('submit', async (event) => {
 });
 
 document.querySelector('#open-add-candidate').addEventListener('click', () => els.candidateDialog.showModal());
+
+els.operatorAuthDialog?.addEventListener('cancel', (event) => {
+  event.preventDefault();
+});
+
+els.operatorAuthForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const token = String(els.operatorTokenInput?.value ?? '').trim();
+  if (!token) {
+    setOperatorAuthError('운영자 액세스 토큰을 입력해 주세요.');
+    return;
+  }
+  setOperatorAuthError('');
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'x-threadscout-csrf': '1'
+    },
+    body: JSON.stringify({ token })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    setOperatorAuthError(errorToKorean(body));
+    return;
+  }
+  closeOperatorAuthGate();
+  showToast('운영자 스튜디오 잠금이 해제되었습니다.');
+  await loadToday();
+});
+
+els.operatorLogoutBtn?.addEventListener('click', async () => {
+  await fetch('/api/auth/logout', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'x-threadscout-csrf': '1'
+    }
+  });
+  closeWorkspaceDialog();
+  openOperatorAuthGate({ misconfigured: false });
+  showToast('운영자 스튜디오를 잠갔습니다.');
+});
 document.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => {
   if (button.dataset.closeDialog === 'workspace-dialog') {
     closeWorkspaceDialog();

@@ -1,6 +1,13 @@
 const grid = document.querySelector('#showcase-grid');
 const form = document.querySelector('#showcase-search-form');
 const queryInput = document.querySelector('#showcase-query');
+const studioReturnLink = document.querySelector('#studio-return-link');
+
+function syncStudioLink(data) {
+  if (studioReturnLink) {
+    studioReturnLink.hidden = data?.operatorStudioAvailable !== true;
+  }
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -66,6 +73,7 @@ async function loadCardDetail(cardNumber) {
     cache: 'no-store'
   });
   const data = await res.json();
+  syncStudioLink(data);
   if (!res.ok || !data.card) {
     renderedCards = [];
     grid.innerHTML = `
@@ -83,6 +91,7 @@ async function loadShowcase(query = '') {
   const url = `/api/showcase${query ? `?q=${encodeURIComponent(query)}` : ''}`;
   const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
   const data = await res.json();
+  syncStudioLink(data);
   renderedCards = data.cards ?? [];
 
   if (!renderedCards.length) {

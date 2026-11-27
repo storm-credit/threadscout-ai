@@ -14,7 +14,7 @@ export function isNodeSqliteAvailable() {
 }
 
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   APPLICATION_STATE_VERSION,
@@ -204,6 +204,7 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
   constructor({
     dbPath,
     legacyJsonPath = null,
+    readOnlyMode = false,
     clock
   } = {}) {
     if (!dbPath) throw new Error('dbPath is required for SqliteApplicationStore.');
@@ -211,12 +212,34 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
     super({ filePath: legacyJsonPath || `${dbPath}.shadow.json`, clock });
     this.dbPath = dbPath;
     this.legacyJsonPath = legacyJsonPath;
+    this.readOnlyMode = Boolean(readOnlyMode);
     this.clock = clock;
     this.db = null;
     this.readOnlyShowcaseDb = null;
   }
 
+  async #tryAttachReadOnlyHandle() {
+    if (this.readOnlyShowcaseDb) return this.readOnlyShowcaseDb;
+    if (this.dbPath === ':memory:') return null;
+    try {
+      await access(this.dbPath);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    }
+    const ro = new DatabaseSync(this.dbPath, { readOnly: true });
+    ro.exec('PRAGMA query_only = ON;');
+    this.readOnlyShowcaseDb = ro;
+    return ro;
+  }
+
   async withWriteLock(operation) {
+    if (this.readOnlyMode) {
+      throw new ApplicationCommandError('Store is mounted in readOnlyMode for public_showcase.', {
+        code: 'read_only_surface',
+        statusCode: 403
+      });
+    }
     // SQLite WAL + IMMEDIATE transactions serialize writes safely without spin-lock files.
     return operation();
   }
@@ -224,6 +247,10 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
   async initialize() {
     if (!isNodeSqliteAvailable()) {
       throw new Error('Built-in node:sqlite is unavailable on this Node runtime; use storageMode="json".');
+    }
+    if (this.readOnlyMode) {
+      await this.#tryAttachReadOnlyHandle();
+      return { readOnlyMode: true };
     }
     if (this.db) return this.readState();
     if (this.dbPath !== ':memory:') {
@@ -341,6 +368,12 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
   }
 
   async persist(state) {
+    if (this.readOnlyMode) {
+      throw new ApplicationCommandError('Store is mounted in readOnlyMode for public_showcase.', {
+        code: 'read_only_surface',
+        statusCode: 403
+      });
+    }
     if (!this.db) await this.initialize();
     const now = nowIso(this.clock);
     const existingRows = this.db.prepare('SELECT id, card_number, locked_non_commercial, lifecycle_epoch FROM candidates').all();
@@ -557,10 +590,13 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
           continue;
         }
         const c = projected.card;
-        const ttlMs = candidate.issueLinked ? 12 * 3600 * 1000 : 7 * 24 * 3600 * 1000;
-        const expiresAt = c.verifiedDestinationUrl
-          ? new Date(Date.parse(c.verifiedAt) + ttlMs).toISOString()
-          : null;
+        const isIssueLinked = Boolean(
+          candidate.issueLinked
+          || (candidate.issueSourceGrade && candidate.issueSourceGrade !== 'none')
+          || (candidate.productRelationGrade && candidate.productRelationGrade !== 'none')
+        );
+        const ttlMs = isIssueLinked ? 12 * 3600 * 1000 : 7 * 24 * 3600 * 1000;
+        const expiresAt = new Date(Date.parse(c.verifiedAt) + ttlMs).toISOString();
         const searchBlob = toSearchableNfdTrigramText([
           c.cardNumber,
           String(candidate.cardNumber),
@@ -681,6 +717,12 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
   }
 
   async execute(rawRequest) {
+    if (this.readOnlyMode) {
+      throw new ApplicationCommandError('Store is mounted in readOnlyMode for public_showcase.', {
+        code: 'read_only_surface',
+        statusCode: 403
+      });
+    }
     if (!this.db) await this.initialize();
     const reqId = String(rawRequest?.requestId ?? '').trim();
     if (reqId) {
@@ -728,7 +770,19 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
    * inline TTL expiry check (`expires_at IS NULL OR expires_at >= :now`), and NFD Hangul FTS5 search.
    */
   async readShowcase({ query = '', cardNumber = null } = {}) {
-    if (!this.db) await this.initialize();
+    if (this.readOnlyMode) {
+      const roReader = await this.#tryAttachReadOnlyHandle();
+      if (!roReader) {
+        if (cardNumber != null) {
+          const numeric = Number(String(cardNumber).replace(/^#/, ''));
+          if (!Number.isInteger(numeric) || numeric <= 0) return { card: null, status: 'invalid_card_number' };
+          return { card: null, status: 'withdrawn_or_not_found' };
+        }
+        return { cards: [], query: String(query ?? '').trim() };
+      }
+    } else if (!this.db) {
+      await this.initialize();
+    }
     const reader = this.readOnlyShowcaseDb ?? this.db;
     const now = nowIso(this.clock);
 

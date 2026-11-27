@@ -1939,6 +1939,8 @@ export function assertPublicReadModelSafe(readModel) {
     'OPENAI_API_KEY',
     'ANTHROPIC_API_KEY',
     'AI_API_KEY',
+    'THREADSCOUT_OPERATOR_TOKEN',
+    'THREADSCOUT_SESSION_SECRET',
     'THREADSCOUT_GLOBAL_KILL_SWITCH'
   ];
   const leaks = forbidden.filter((needle) => serialized.includes(needle));
