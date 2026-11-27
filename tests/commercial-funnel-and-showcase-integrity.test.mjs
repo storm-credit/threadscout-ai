@@ -315,7 +315,7 @@ for (const mode of storageModes) {
       const draft1 = await cmd('g-draft-1', 'request_drafts', cand1Id, cand1.revision);
       cand1 = draft1.body.today.candidates.find((c) => c.id === cand1Id);
       // Commercial draft automatically includes `#001` BEFORE approval!
-      assert.match(cand1.drafts[0].text, /#001번/);
+      assert.match(cand1.drafts[0].text, /#001\b/);
 
       const guardBlockedRawUrl = await cmd('g-guard-raw', 'run_guardian', cand1Id, cand1.revision);
       cand1 = guardBlockedRawUrl.body.today.candidates.find((c) => c.id === cand1Id);
@@ -344,7 +344,7 @@ for (const mode of storageModes) {
       });
       assert.equal(app1.status, 200);
       cand1 = app1.body.today.candidates.find((c) => c.id === cand1Id);
-      assert.match(cand1.exportBundle.singleRootPostCopyText, /#001번/);
+      assert.match(cand1.exportBundle.singleRootPostCopyText, /#001\b/);
 
       // `/api/showcase/1` serves exact `verifiedPros` (zero `whyNow` leak)
       const card001 = await (await fetch(`${srv.baseUrl}/api/showcase/1`)).json();

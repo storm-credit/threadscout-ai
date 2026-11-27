@@ -26,9 +26,16 @@ import {
   estimateNetYieldKrw
 } from '../../packages/core/src/affiliate-yield-service.mjs';
 import {
+  evaluateShowcaseCardExpiry,
   formatCardNumber,
   projectPublicShowcaseCard
 } from '../../packages/core/src/public-showcase-projector.mjs';
+import {
+  DRAFT_TONES,
+  buildKoreanDraftTexts,
+  buildKoreanStrategyAngles,
+  parseStructuredIdentitySnippet
+} from '../../packages/core/src/korean-copy-engine.mjs';
 import {
   SCHEDULE_STATES,
   computeApprovalHash,
@@ -491,6 +498,7 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     blockers: [...new Set(initialBlockers)],
     evidencePacket: null,
     strategies: null,
+    draftTone: payload.draftTone === DRAFT_TONES.PLAIN ? DRAFT_TONES.PLAIN : DRAFT_TONES.POLITE,
     drafts: null,
     selectedDraftId: null,
     guardian: null,
@@ -615,6 +623,13 @@ function applyEvidenceFields(candidate, payload) {
   }
   if ('verifiedPros' in payload) {
     candidate.verifiedPros = parseVerifiedProsInput(payload.verifiedPros);
+  }
+  if ('structuredSpecSnippet' in payload && String(payload.structuredSpecSnippet ?? '').trim()) {
+    const parsedSpec = parseStructuredIdentitySnippet(payload.structuredSpecSnippet);
+    if (!candidate.brand && parsedSpec.brand) candidate.brand = parsedSpec.brand;
+    if (!candidate.model && parsedSpec.model) candidate.model = parsedSpec.model;
+    if (!candidate.variant && parsedSpec.variant) candidate.variant = parsedSpec.variant;
+    if (!candidate.seller && parsedSpec.seller) candidate.seller = parsedSpec.seller;
   }
   if ('advisoryPriceKrw' in payload) {
     candidate.advisoryPriceKrw = parseAdvisoryPriceKrw(payload.advisoryPriceKrw);
@@ -924,40 +939,7 @@ function createStrategies(candidate, clock) {
     createdAt,
     evidenceObservedAt: candidate.evidencePacket.observedAt,
     evidenceClaimIds: ['claim-identity'],
-    angles: [
-      {
-        id: 'problem-result',
-        title: '문제 → 판단',
-        readerPromise: candidate.readerValue,
-        hook: candidate.whyNow,
-        proof: 'claim-identity',
-        limitation: '실제 효용은 사용자 환경에서 별도 확인이 필요합니다.'
-      },
-      {
-        id: 'mechanism-demo',
-        title: '구조·옵션 확인',
-        readerPromise: '비슷해 보이는 제품을 모델·옵션 기준으로 구분합니다.',
-        hook: `${candidate.name}에서 먼저 볼 것은 제품명보다 모델과 옵션입니다.`,
-        proof: 'claim-identity',
-        limitation: '기능 효과를 근거 없이 단정하지 않습니다.'
-      },
-      {
-        id: 'buying-checklist',
-        title: '구매 체크리스트',
-        readerPromise: '구매 전 확인할 제품 식별 기준을 빠르게 정리합니다.',
-        hook: '링크를 누르기 전에 브랜드·모델·옵션이 같은지 확인합니다.',
-        proof: 'claim-identity',
-        limitation: '가격·재고·판매자 정보는 이 로컬 슬라이스에서 현재 사실로 검증하지 않습니다.'
-      },
-      {
-        id: 'honest-fit',
-        title: '맞는 사람 / 안 맞는 사람',
-        readerPromise: '누구에게나 필수라고 말하지 않고 사용 맥락을 먼저 봅니다.',
-        hook: candidate.readerValue,
-        proof: 'claim-identity',
-        limitation: '직접 사용 기록이 없으면 체험 표현을 쓰지 않습니다.'
-      }
-    ]
+    angles: buildKoreanStrategyAngles(candidate)
   };
   invalidateDownstream(candidate, '전략이 변경되어 이전 승인 검토가 더 이상 유효하지 않습니다.', { keepEvidence: true, keepStrategies: true });
   if (candidate.workflowState !== 'stale') candidate.workflowState = 'strategy_ready';
@@ -971,21 +953,37 @@ function draftDisclosure(candidate) {
   return candidate.disclosure || (candidate.affiliateNetwork ? DEFAULT_DISCLOSURE_BY_NETWORK[candidate.affiliateNetwork] ?? '' : '');
 }
 
-function createDrafts(candidate, clock) {
+function createDrafts(candidate, clock, payload = {}) {
   if (!candidate.strategies?.angles || candidate.strategies.angles.length !== 4) {
     throw new ApplicationCommandError('Four strategies are required before drafts.', { code: 'strategy_not_ready', statusCode: 422 });
   }
+  if ('tone' in (payload ?? {}) && payload.tone !== undefined && payload.tone !== '') {
+    const rawTone = String(payload.tone).trim();
+    if (![DRAFT_TONES.POLITE, DRAFT_TONES.PLAIN].includes(rawTone)) {
+      throw new ApplicationCommandError('tone must be polite or plain.', {
+        code: 'invalid_input',
+        statusCode: 422,
+        details: { field: 'tone', rule: 'oneOf', allowed: [DRAFT_TONES.POLITE, DRAFT_TONES.PLAIN] }
+      });
+    }
+    candidate.draftTone = rawTone;
+  }
+  const activeTone = candidate.draftTone === DRAFT_TONES.PLAIN ? DRAFT_TONES.PLAIN : DRAFT_TONES.POLITE;
+  candidate.draftTone = activeTone;
   chargeEpochBudget(candidate, { chars: 1600 });
-  const identity = `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim();
   const disclosure = draftDisclosure(candidate);
   const offsetZeroPrefix = candidate.affiliate && disclosure ? `${disclosure}\n` : '';
   const reservedCardCode = candidate.cardNumber != null ? formatCardNumber(candidate.cardNumber) : null;
   // Inject `#NNN` / showcase pointer strictly when `candidate.affiliate === true` so non-commercial
   // reach drafts (`affiliate === false`) stay 100% solicitation-free (`AT-45`, `BS-60`).
   const showcasePointer = candidate.affiliate && (candidate.destinationUrl || candidate.affiliateNetwork)
-    ? (reservedCardCode
-        ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스 ${reservedCardCode}번에서 확인하세요.`
-        : ' 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에서 확인하세요.')
+    ? (activeTone === DRAFT_TONES.PLAIN
+        ? (reservedCardCode
+            ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스 ${reservedCardCode} 카드에 묶어 두었다.`
+            : ' 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에 묶어 두었다.')
+        : (reservedCardCode
+            ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스 ${reservedCardCode} 카드에서 확인하세요.`
+            : ' 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에서 확인하세요.'))
     : '';
 
   const issueDecision = evaluateIssueProductDecision({
@@ -998,32 +996,45 @@ function createDrafts(candidate, clock) {
   // A substitute must be labelled as an alternative in the copy itself, not only in
   // the internal state (PRODUCT_MATCHING.md section 5, AT-10, AT-30). The Writer states it;
   // the Guardian independently checks that it is there.
-  const substituteNotice = (
+  const needsSubstituteNotice =
     candidate.exactMatchStatus === 'substitute'
     || candidate.affiliateMappingState === 'alternative'
-    || issueDecision.allowedWordingCeiling === 'alternative_only'
-  )
-    ? ' 이 링크는 같은 제품이 아니라 비슷한 제품입니다.'
+    || issueDecision.allowedWordingCeiling === 'alternative_only';
+  const substituteNotice = needsSubstituteNotice
+    ? (activeTone === DRAFT_TONES.PLAIN
+        ? (candidate.affiliate
+            ? ' 이 링크는 같은 제품이 아니라 비슷한 제품이다.'
+            : ' 원본과 같은 제품이 아니라 비슷한 대체품이다.')
+        : (candidate.affiliate
+            ? ' 이 링크는 같은 제품이 아니라 비슷한 제품입니다.'
+            : ' 원본과 같은 제품이 아니라 비슷한 대체품입니다.'))
     : '';
   const attributedReportNote = issueDecision.allowedWordingCeiling === 'attributed_report_only'
-    ? ' 공개 보도에 소개된 사양 범위만 참고합니다.'
+    ? (activeTone === DRAFT_TONES.PLAIN
+        ? ' 공개 보도에 소개된 사양 범위만 참고한다.'
+        : ' 공개 보도에 소개된 사양 범위만 참고합니다.')
     : '';
   const identityCaveat = candidate.exactMatchStatus === 'likely'
-    ? ' 판매 페이지와 동일 제품인지는 아직 단정하지 않습니다.'
+    ? (activeTone === DRAFT_TONES.PLAIN
+        ? ' 판매 페이지와 동일 제품인지는 아직 단정하지 않는다.'
+        : ' 판매 페이지와 동일 제품인지는 아직 단정하지 않습니다.')
     : '';
 
-  const texts = [
-    `${candidate.readerValue}이 필요한 상황이라면 ${candidate.name}을 후보로 볼 수 있습니다. 사용자 제공 근거 기준 제품 식별은 ${identity}입니다. 실제 효용은 사용 환경에 따라 확인해야 합니다.`,
-    `${candidate.name}을 볼 때는 이름보다 브랜드·모델·옵션을 먼저 맞추는 편이 안전합니다. 현재 사용자 제공 기준은 ${identity}입니다. 비슷한 외형만으로 같은 제품이라고 보지 않습니다.`,
-    `구매 전 체크: ① 브랜드 ② 모델 ③ 옵션/변형. 현재 확인 대상으로 입력된 제품은 ${identity}입니다. 가격·재고·판매자는 이 로컬 검토 단계에서 현재 사실로 단정하지 않습니다.`,
-    `${candidate.name}이 모든 사람에게 필요한 제품이라고 보기는 어렵습니다. ${candidate.readerValue}이 실제 문제인 경우에만 후보로 검토하고, 직접 써본 기록이 없다면 체험담처럼 쓰지 않습니다.`
-  ];
+  const texts = buildKoreanDraftTexts(candidate, {
+    tone: activeTone,
+    offsetZeroPrefix,
+    attributedReportNote,
+    substituteNotice,
+    identityCaveat,
+    showcasePointer
+  });
   const wManifest = buildVersionManifest();
   candidate.drafts = candidate.strategies.angles.map((angle, index) => ({
     id: `draft-${index + 1}`,
     angleId: angle.id,
     title: angle.title,
-    text: `${offsetZeroPrefix}${texts[index]}${attributedReportNote}${substituteNotice}${identityCaveat}${showcasePointer}`,
+    tone: activeTone,
+    text: texts[index],
     claimIds: ['claim-identity'],
     disclosure,
     promptVersion: wManifest.promptHashes?.[AGENT_IDS.WRITER] ?? null,
@@ -1357,6 +1368,284 @@ function lockNonCommercialShowcase(candidate, clock) {
   return candidate;
 }
 
+const REQUIRED_RECONFIRM_KEYS = ['brand', 'model', 'variant', 'seller', 'destinationUrl'];
+
+/**
+ * Bounded operator snapshot re-confirmation (`PLATFORM_DECISION.md`, `U-03`, `AT-44`, `AT-48`):
+ * - Human-routed (`0` specialist model budget invocations charged),
+ * - Requires explicit `{ brand, model, variant, seller, destinationUrl }` byte-equal to the bound snapshot
+ *   (mismatch persists `stale` withdrawal and invalidates active schedules),
+ * - Preserves existing `strategies` and `drafts`,
+ * - Re-runs deterministic `runGuardianChecks`,
+ * - Binds a fresh `approvalHash` to the updated `materialRevision` (keeping already-published post hashes consumed so a second Threads root post cannot be scheduled).
+ */
+function reconfirmShowcaseSnapshot(candidate, payload, clock, state = null) {
+  if (candidate.suppression?.active === true) {
+    throw new ApplicationCommandError('Owner-suppressed candidate cannot be reconfirmed until restored.', {
+      code: 'candidate_suppressed',
+      statusCode: 422
+    });
+  }
+  if (candidate.workflowState === 'duplicate_review') {
+    throw new ApplicationCommandError('Duplicate review must be resolved first.', {
+      code: 'duplicate_review_required',
+      statusCode: 422
+    });
+  }
+  if (
+    candidate.workflowState !== 'approved'
+    || candidate.review?.decision !== 'approved'
+    || candidate.review?.stale === true
+    || candidate.cardNumber == null
+  ) {
+    throw new ApplicationCommandError('Only active approved showcase cards can be reconfirmed.', {
+      code: 'reconfirm_requires_approved_state',
+      statusCode: 422
+    });
+  }
+  if (!candidate.evidencePacket || candidate.strategies?.angles?.length !== 4 || candidate.drafts?.length !== 4) {
+    throw new ApplicationCommandError('Verified evidence, strategies, and drafts are required for snapshot reconfirmation.', {
+      code: 'reconfirm_artifacts_missing',
+      statusCode: 422
+    });
+  }
+
+  const rawPayload = payload && typeof payload === 'object' ? payload : {};
+  for (const key of REQUIRED_RECONFIRM_KEYS) {
+    if (!(key in rawPayload) || typeof rawPayload[key] !== 'string') {
+      throw new ApplicationCommandError(`Snapshot field '${key}' is required as a string.`, {
+        code: 'snapshot_fields_required',
+        statusCode: 422,
+        details: { field: key, rule: 'required' }
+      });
+    }
+  }
+
+  const boundSnap = candidate.affiliateMapping?.canonicalListingSnapshot ?? null;
+  const expectedSnapshot = {
+    brand: String(boundSnap?.brand ?? candidate.brand ?? ''),
+    model: String(boundSnap?.model ?? candidate.model ?? ''),
+    variant: String(boundSnap?.variant ?? candidate.variant ?? ''),
+    seller: String(boundSnap?.seller ?? candidate.seller ?? ''),
+    destinationUrl: String(boundSnap?.destinationUrl ?? candidate.destinationUrl ?? '')
+  };
+
+  const mismatchedFields = REQUIRED_RECONFIRM_KEYS.filter((key) => rawPayload[key] !== expectedSnapshot[key]);
+  const observedAt = nowIso(clock);
+  const expiryCheck = evaluateShowcaseCardExpiry(candidate, { now: observedAt });
+  if (!expiryCheck || expiryCheck.expired) {
+    const expMsg = '쇼케이스 유효기간(7일 / 이슈형 12시간)이 만료되어 무예산 연장 대신 1단계 근거 재검증 및 재승인이 필요합니다.';
+    markApprovedCandidateStaleOnInvalidation(candidate, expMsg);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'showcase_ttl_expired_stale', observedAt);
+    bump(candidate, clock, 'showcase_ttl_expired_stale', { cardNumber: candidate.cardNumber });
+    return {
+      ok: false,
+      expiredStale: true,
+      resultLabel: 'showcase_ttl_expired_stale'
+    };
+  }
+
+  if (mismatchedFields.length > 0) {
+    const driftMsg = '스냅샷 재확인 중 상품·옵션·판매자·도착 URL 변경이 감지되어 승인이 무효화되고 공개 쇼케이스에서 철회되었습니다(AT-44).';
+    markApprovedCandidateStaleOnInvalidation(candidate, driftMsg);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'showcase_snapshot_drift_detected', observedAt);
+    bump(candidate, clock, 'showcase_snapshot_drift_stale', { mismatchedFields });
+    return {
+      ok: false,
+      driftDetected: true,
+      mismatchedFields,
+      resultLabel: 'showcase_snapshot_drift_stale'
+    };
+  }
+
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  const mediaResolution = resolveMediaPublicationFallback({
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.mediaRights,
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
+  });
+
+  // Refresh evidence observation timestamp without charging `epochBudget`
+  candidate.evidencePacket = {
+    ...candidate.evidencePacket,
+    observedAt,
+    sources: (candidate.evidencePacket.sources ?? []).map((s) => ({ ...s, observedAt })),
+    freshness: {
+      ...(candidate.evidencePacket.freshness ?? {}),
+      state: 'fresh',
+      evaluatedAt: observedAt,
+      reasons: []
+    }
+  };
+  candidate.freshnessState = 'fresh';
+
+  let affiliateMappingError = null;
+  let affiliateMappingWarning = null;
+  if (candidate.affiliate) {
+    const desiredState = candidate.affiliateMapping?.state
+      || candidate.affiliateMappingState
+      || ((candidate.exactMatchStatus === 'substitute' || issueDecision.allowedWordingCeiling === 'alternative_only')
+        ? 'alternative'
+        : 'exact');
+    const mappingCheck = buildAffiliateMapping({
+      candidateId: candidate.id,
+      productState: candidate.exactMatchStatus,
+      state: desiredState,
+      affiliateNetwork: candidate.affiliateNetwork,
+      acquisitionMode: 'manual_owner_link',
+      destinationUrl: candidate.destinationUrl,
+      canonicalListingSnapshot: {
+        ...expectedSnapshot,
+        capturedAt: observedAt
+      },
+      sources: candidate.evidencePacket.sources ?? collectSources(candidate),
+      requiredDisclosureText: candidate.disclosure,
+      lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true,
+      verifiedAt: observedAt
+    });
+    if (!mappingCheck.ok) {
+      affiliateMappingError = mappingCheck.message;
+      candidate.affiliateMapping = null;
+    } else {
+      candidate.affiliateMapping = mappingCheck.mapping;
+      affiliateMappingWarning = mappingCheck.warningKo ?? null;
+    }
+  }
+
+  const monetized = computeActiveMonetizedShowcase(state, candidate.id, observedAt);
+  const guardianCheck = runGuardianChecks({
+    drafts: candidate.drafts,
+    matchState: candidate.exactMatchStatus,
+    verifiedClaimIds: (candidate.evidencePacket?.claimEvidence ?? []).map((c) => c.claimId),
+    personalUseConfirmed: candidate.personalUse === 'confirmed',
+    mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights) && mediaResolution.publishable,
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.mediaRights,
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true,
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true,
+    affiliate: candidate.affiliate,
+    affiliateNetwork: candidate.affiliateNetwork,
+    affiliateMappingState: candidate.affiliateMapping?.state || candidate.affiliateMappingState || '',
+    affiliateMappingError,
+    disclosure: candidate.disclosure,
+    publicFigureVerifiedEndorsement: issueDecision.publicFigureVerifiedEndorsement === true,
+    activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
+    monetizedCardNumbers: monetized.monetizedCardNumbers,
+    enforceOffsetZeroDisclosure: Boolean(candidate.affiliate),
+    lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true
+  });
+
+  if (guardianCheck.decision !== 'pass') {
+    const blockMsg = guardianCheck.revisionRequests[0]?.problem
+      || '스냅샷 재확인 시 Guardian 검수 조건을 통과하지 못해 승인이 무효화되었습니다.';
+    markApprovedCandidateStaleOnInvalidation(candidate, blockMsg);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'showcase_reconfirm_guardian_blocked', observedAt);
+    bump(candidate, clock, 'showcase_reconfirm_guardian_blocked', { decision: guardianCheck.decision });
+    return {
+      ok: false,
+      guardianBlocked: true,
+      resultLabel: 'showcase_reconfirm_guardian_blocked'
+    };
+  }
+
+  const nextMaterialRevision = materialRevision(candidate);
+  candidate.guardian = {
+    ...(candidate.guardian ?? { agentId: AGENT_IDS.GUARDIAN }),
+    decision: 'pass',
+    checks: guardianCheck.checks,
+    revisionRequests: [],
+    nonOverridableBlockers: [],
+    blockers: [],
+    warnings: [
+      ...(candidate.synthetic
+        ? ['예시 데이터는 현재 시장 사실이 아닙니다.']
+        : ['현재 검증 근거는 사용자 제공 자료이며 네트워크 재검증을 수행하지 않았습니다.']),
+      ...(affiliateMappingWarning ? [affiliateMappingWarning] : [])
+    ],
+    reviewedAt: observedAt,
+    boundMaterialRevision: nextMaterialRevision
+  };
+
+  const approvedDraftId = candidate.review.approvedDraftId || candidate.selectedDraftId || candidate.drafts[0].id;
+  const approvedDraft = candidate.drafts.find((d) => d.id === approvedDraftId) ?? candidate.drafts[0];
+  const prevApprovalHash = candidate.review.approvalHash ?? null;
+  const nextApprovalHash = computeApprovalHash({
+    candidateId: candidate.id,
+    boundMaterialRevision: nextMaterialRevision,
+    draftId: approvedDraft.id,
+    draftText: approvedDraft.text,
+    boundCandidateRevision: candidate.revision
+  });
+
+  candidate.review = {
+    ...candidate.review,
+    decision: 'approved',
+    approvedDraftId: approvedDraft.id,
+    approvalHash: nextApprovalHash,
+    boundMaterialRevision: nextMaterialRevision,
+    boundCandidateRevision: candidate.revision,
+    reconfirmedAt: observedAt,
+    stale: false
+  };
+  candidate.workflowState = 'approved';
+  candidate.blockers = [];
+
+  if (state) {
+    const hashSet = new Set(Array.isArray(state.consumedApprovalHashes) ? state.consumedApprovalHashes : []);
+    const candidateSchedules = (state.schedules ?? []).filter((s) => s.candidateId === candidate.id);
+    const alreadyDispatchedOrPublished =
+      candidate.lockedNonCommercialAfterPublish === true
+      || candidateSchedules.some((s) =>
+        [SCHEDULE_STATES.PUBLISHED, SCHEDULE_STATES.UNKNOWN_REMOTE_STATE, SCHEDULE_STATES.DISPATCHING].includes(s.status)
+        || s.invalidationReason === 'remote_policy_rejected'
+      );
+    if (alreadyDispatchedOrPublished) {
+      // Prevent a second Threads root post from being scheduled off a TTL-extended showcase card (`CLAUDE.md` §5, `PUBLISHING_SPEC.md` §3)
+      hashSet.add(nextApprovalHash);
+    } else {
+      for (const sched of candidateSchedules) {
+        if (
+          [SCHEDULE_STATES.SCHEDULED, SCHEDULE_STATES.HELD, SCHEDULE_STATES.READY].includes(sched.status)
+          && sched.draftId === approvedDraft.id
+        ) {
+          if (sched.approvalHash) hashSet.delete(sched.approvalHash);
+          sched.boundMaterialRevision = nextMaterialRevision;
+          sched.approvalHash = nextApprovalHash;
+          sched.idempotencyKey = `pub-idem-${nextApprovalHash.slice(0, 24)}`;
+          sched.updatedAt = observedAt;
+          hashSet.add(nextApprovalHash);
+        }
+      }
+      if (prevApprovalHash && !candidateSchedules.some((s) => s.approvalHash === prevApprovalHash)) {
+        hashSet.delete(prevApprovalHash);
+      }
+    }
+    state.consumedApprovalHashes = [...hashSet];
+  }
+
+  bump(candidate, clock, 'showcase_snapshot_reconfirmed', {
+    cardNumber: candidate.cardNumber,
+    approvalHash: nextApprovalHash
+  });
+  return {
+    ok: true,
+    driftDetected: false,
+    approvalHash: nextApprovalHash,
+    resultLabel: 'showcase_snapshot_reconfirmed'
+  };
+}
+
 function nextAction(candidate) {
   if (candidate.workflowState === 'stale') return { label: '다시 확인', action: 'open_workspace', disabled: false, reason: candidate.blockers[0] ?? '승인한 버전과 현재 버전이 다릅니다.' };
   if (candidate.workflowState === 'verification_needed' || candidate.workflowState === 'evidence_partial') return { label: '근거 확인', action: 'open_workspace', disabled: false, reason: candidate.blockers[0] ?? null };
@@ -1482,6 +1771,8 @@ function toCandidateReadModel(candidate, { now, schedules = [], monetized = { ac
     showcaseProjected: candidate.cardNumber != null
       ? projectPublicShowcaseCard(candidate, { now: evalNow }).projected
       : false,
+    showcaseExpiry: evaluateShowcaseCardExpiry(candidate, { now: evalNow }),
+    draftTone: candidate.draftTone === DRAFT_TONES.PLAIN ? DRAFT_TONES.PLAIN : DRAFT_TONES.POLITE,
     exportBundle: buildApprovedExportBundle(candidate, {
       now: evalNow,
       activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
@@ -1531,6 +1822,9 @@ export function toTodayReadModel(state, { now } = {}) {
 
   const showcaseCount = state.candidates.filter(
     (candidate) => candidate.cardNumber != null && projectPublicShowcaseCard(candidate, { now: evalNow }).projected
+  ).length;
+  const expiringShowcaseCount = state.candidates.filter(
+    (candidate) => evaluateShowcaseCardExpiry(candidate, { now: evalNow })?.expiringSoon === true
   ).length;
 
   const candidateById = new Map(state.candidates.map((c) => [c.id, c]));
@@ -1583,6 +1877,7 @@ export function toTodayReadModel(state, { now } = {}) {
     excluded,
     emptyReason: selection.emptyReason,
     showcaseCount,
+    expiringShowcaseCount,
     portfolioMix,
     queue,
     analytics,
@@ -1677,7 +1972,7 @@ function applyCommandToState(state, request, clock) {
     createStrategies(candidate, clock);
     invalidateActiveSchedulesForCandidate(state, candidate.id, 'strategies_regenerated_after_schedule', atNow);
   } else if (command === 'request_drafts') {
-    createDrafts(candidate, clock);
+    createDrafts(candidate, clock, request.payload);
     invalidateActiveSchedulesForCandidate(state, candidate.id, 'drafts_regenerated_after_schedule', atNow);
   } else if (command === 'run_guardian') {
     runGuardian(candidate, clock, state);
@@ -1701,6 +1996,15 @@ function applyCommandToState(state, request, clock) {
   } else if (command === 'lock_non_commercial_showcase') {
     lockNonCommercialShowcase(candidate, clock);
     customResultLabel = 'non_commercial_showcase_locked';
+  } else if (command === 'reconfirm_showcase_snapshot') {
+    const rec = reconfirmShowcaseSnapshot(candidate, request.payload, clock, state);
+    customResultLabel = rec.resultLabel;
+    extraResponseFields = {
+      reconfirmed: rec.ok,
+      driftDetected: rec.driftDetected === true,
+      expiredStale: rec.expiredStale === true,
+      approvalHash: rec.approvalHash ?? null
+    };
   } else if (command === 'schedule_approved_post') {
     const killSwitchActive = isGlobalKillSwitchActive();
     const registry = createThreadsPublisherRegistry({
