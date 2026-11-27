@@ -20,6 +20,85 @@ export const COUPANG_HOURLY_LIMITS = Object.freeze({
 
 const HOUR_MS = 60 * 60 * 1000;
 
+const COUPANG_RAW_STOREFRONT_HOSTS = new Set(['coupang.com', 'www.coupang.com', 'm.coupang.com']);
+const NAVER_RAW_STOREFRONT_HOSTS = new Set([
+  'smartstore.naver.com',
+  'm.smartstore.naver.com',
+  'brand.naver.com',
+  'm.brand.naver.com',
+  'shopping.naver.com',
+  'mshopping.naver.com'
+]);
+const NAVER_TRACKING_PARAM_KEYS = ['nt_source', 'nt_medium', 'affiliate', 'aff', 'connect', 'tracker', 'bc_code'];
+const GENERIC_SHORTENER_HOSTS = new Set(['naver.me', 'bit.ly', 'tinyurl.com', 'han.gl', 'me2.do', 'vo.la', 'buly.kr']);
+
+/**
+ * Pure URL grammar classifier for affiliate destinations (zero HTTP/redirect network fetching per CLAUDE.md §12).
+ * Blocks known uncompensated raw storefront product URLs and flags generic shorteners (`naver.me`, `bit.ly`, etc.) with a confirmation warning.
+ */
+export function classifyAffiliateDestinationUrl(rawUrl, affiliateNetwork = '') {
+  let parsed;
+  try {
+    parsed = new URL(String(rawUrl ?? '').trim());
+  } catch {
+    return { ok: false, code: 'destination_url_invalid', message: '유효한 https:// 도착 URL이 아닙니다.' };
+  }
+  if (parsed.protocol !== 'https:') {
+    return { ok: false, code: 'destination_url_must_be_https', message: '제휴 도착 URL은 https:// 프로토콜이어야 합니다.' };
+  }
+  if (parsed.username || parsed.password) {
+    return { ok: false, code: 'destination_url_credentials_forbidden', message: '제휴 도착 URL에 사용자 인증 정보(user:pass@)를 포함할 수 없습니다.' };
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/\.+$/, '');
+  const isCoupangDomain = host === 'coupa.ng' || host === 'coupang.com' || host.endsWith('.coupang.com');
+  const isNaverDomain = host === 'naver.me' || host === 'naver.com' || host.endsWith('.naver.com');
+
+  if (affiliateNetwork === AFFILIATE_NETWORKS.COUPANG_PARTNERS && isNaverDomain) {
+    return {
+      ok: false,
+      code: 'affiliate_network_domain_mismatch',
+      message: '쿠팡 파트너스가 선택되었으나 네이버 도메인 URL이 입력되었습니다.'
+    };
+  }
+  if (affiliateNetwork === AFFILIATE_NETWORKS.NAVER_SHOPPING_CONNECT && isCoupangDomain) {
+    return {
+      ok: false,
+      code: 'affiliate_network_domain_mismatch',
+      message: '네이버 쇼핑커넥트가 선택되었으나 쿠팡 도메인 URL이 입력되었습니다.'
+    };
+  }
+
+  if (COUPANG_RAW_STOREFRONT_HOSTS.has(host) && !String(parsed.searchParams.get('lptag') ?? '').trim()) {
+    return {
+      ok: false,
+      code: 'raw_storefront_url_not_affiliate',
+      message: '쿠팡 일반 상품 페이지 주소는 수수료가 0원으로 집계됩니다. 쿠팡 파트너스 발급 추적 링크(link.coupang.com 또는 coupa.ng)를 입력하세요.'
+    };
+  }
+
+  if (NAVER_RAW_STOREFRONT_HOSTS.has(host)) {
+    const hasTrackingParam = NAVER_TRACKING_PARAM_KEYS.some((key) => Boolean(String(parsed.searchParams.get(key) ?? '').trim()));
+    if (!hasTrackingParam) {
+      return {
+        ok: false,
+        code: 'raw_storefront_url_not_affiliate',
+        message: '네이버 일반 스마트스토어·브랜드스토어 상품 페이지 주소(유입용 NaPm 포함)는 수수료가 0원으로 집계됩니다. 쇼핑커넥트/브랜드커넥트 콘솔에서 발급한 전용 추적 링크를 입력하세요.'
+      };
+    }
+  }
+
+  if (GENERIC_SHORTENER_HOSTS.has(host)) {
+    return {
+      ok: true,
+      normalizedUrl: parsed.toString(),
+      warningKo: `${host} 공용 단축링크입니다. 일반 스토어 주소 단축이 아닌 파트너스·쇼핑커넥트 콘솔에서 발급한 전용 링크인지 반드시 확인하세요(일반 단축 시 수수료 0원).`
+    };
+  }
+
+  return { ok: true, normalizedUrl: parsed.toString(), warningKo: null };
+}
+
 export function validateCanonicalListingSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') {
     return { ok: false, error: 'canonical_listing_snapshot_missing' };
@@ -62,7 +141,7 @@ export function buildAffiliateMapping({
   if (!candidateId) throw new Error('candidateId is required for AffiliateMapping.');
 
   if (state === 'none') {
-    return Object.freeze({
+    const noneMapping = Object.freeze({
       candidateId,
       state: 'none',
       affiliateNetwork: null,
@@ -70,9 +149,15 @@ export function buildAffiliateMapping({
       destinationUrl: null,
       canonicalListingSnapshot: null,
       verificationTimestamp: verifiedAt,
-      evidenceRefs: [],
+      evidenceRefs: Object.freeze([]),
       disclosurePolicyVersion: null,
       requiredDisclosureText: null
+    });
+    return Object.freeze({
+      ok: true,
+      warningKo: null,
+      mapping: noneMapping,
+      ...noneMapping
     });
   }
 
@@ -103,6 +188,12 @@ export function buildAffiliateMapping({
   if (!snapCheck.ok) {
     return { ok: false, code: snapCheck.error, message: '정식 상품 스냅샷(브랜드·모델·옵션·판매자·URL·시각)이 필요합니다.' };
   }
+  const finalDestUrl = String(destinationUrl || canonicalListingSnapshot.destinationUrl).trim();
+  const urlClassification = classifyAffiliateDestinationUrl(finalDestUrl, affiliateNetwork);
+  if (!urlClassification.ok) {
+    return { ok: false, code: urlClassification.code, message: urlClassification.message };
+  }
+
   if (state === 'exact' && countIndependentOrigins(sources) < 2) {
     return { ok: false, code: 'corroboration_required_for_exact', message: '동일 제품(exact) 제휴 연결에는 독립된 두 출처의 교차 근거가 필요합니다(AT-40).' };
   }
@@ -114,17 +205,19 @@ export function buildAffiliateMapping({
 
   return {
     ok: true,
+    warningKo: urlClassification.warningKo ?? null,
     mapping: Object.freeze({
       candidateId,
       state,
       affiliateNetwork,
       acquisitionMode,
-      destinationUrl: String(destinationUrl || canonicalListingSnapshot.destinationUrl).trim(),
+      destinationUrl: finalDestUrl,
       canonicalListingSnapshot: Object.freeze({ ...canonicalListingSnapshot }),
       verificationTimestamp: verifiedAt,
       evidenceRefs: Object.freeze(sources.map((item) => item.id).filter(Boolean)),
       disclosurePolicyVersion,
-      requiredDisclosureText: disclosure
+      requiredDisclosureText: disclosure,
+      warningKo: urlClassification.warningKo ?? null
     })
   };
 }

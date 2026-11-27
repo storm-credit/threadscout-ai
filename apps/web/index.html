@@ -48,6 +48,7 @@
             <summary>
               <span class="status-dot" aria-hidden="true"></span>
               <span>실연동 없이 사용자 제공 근거 또는 예시 데이터만 사용 · 외부 자동 게시 꺼짐</span>
+              <span id="portfolio-mix-badge" class="status-pill" hidden></span>
             </summary>
             <p>Threads·쿠팡·네이버 외부 자동 호출이나 자동 댓글 발송을 하지 않습니다. 서버가 리비전 충돌(CAS)과 법정 대가성 서두 고지(오프셋 0)를 검증합니다.</p>
           </details>
@@ -216,6 +217,13 @@
                       </div>
                     </details>
 
+                    <label>검증된 핵심 장점 (줄바꿈 구분 최대 3줄 · 공개 쇼케이스 표기)
+                      <textarea id="evidence-verified-pros" name="verifiedPros" rows="2" maxlength="600" placeholder="예: 상판 거치형이라 타일 타공이 필요 없음&#10;접이식 경첩 구조로 미사용 시 접어 보관 가능"></textarea>
+                    </label>
+                    <label>사기 전 확인할 구체적 한계 (공개 쇼케이스 필수 표기)
+                      <input id="evidence-limitation" name="verifiedLimitation" maxlength="240" placeholder="예: 상판 두께 3.5cm 초과 싱크대에는 고정 클립 장착 불가" />
+                    </label>
+
                     <div class="affiliate-box">
                       <label class="checkbox-row"><input id="affiliate" name="affiliate" type="checkbox" /><span>수익화 제휴 링크 연결 (본문 첫 줄 오프셋 0 고지 강제)</span></label>
                       <div id="affiliate-fields" class="form-stack compact-stack" hidden>
@@ -238,14 +246,21 @@
                         <label>판매자 / 공식 스토어명 (제휴 시 필수)
                           <input id="evidence-seller" name="seller" maxlength="160" placeholder="예: 무아스 공식 네이버 브랜드스토어" />
                         </label>
-                        <label>검증 도착 URL (https://)
-                          <input id="evidence-destination-url" name="destinationUrl" maxlength="1200" placeholder="https://..." />
+                        <label>검증 도착 URL (파트너스·쇼핑커넥트 발급 https:// 추적 링크)
+                          <input id="evidence-destination-url" name="destinationUrl" maxlength="1200" placeholder="예: https://link.coupang.com/... 또는 브랜드커넥트 발급 링크" />
                         </label>
+                        <p id="affiliate-url-warning" class="field-hint" hidden></p>
+                        <div class="field-grid">
+                          <label>예상 판매가 (₩ · 순기여 참고용)
+                            <input id="evidence-advisory-price" name="advisoryPriceKrw" type="number" min="0" step="100" placeholder="예: 39000" />
+                          </label>
+                          <label>예상 수수료율 (예: 0.08 = 8%)
+                            <input id="evidence-advisory-rate" name="advisoryCommissionRate" type="number" min="0" max="1" step="0.01" placeholder="자동(네이버 8% / 쿠팡 3%)" />
+                          </label>
+                        </div>
+                        <p id="advisory-yield-pill" class="field-hint" hidden></p>
                         <label>법정 대가성 고지 원문 (오프셋 0 자동 배치)
                           <textarea id="disclosure" name="disclosure" rows="2" maxlength="500" placeholder="[광고] 프로그램별 필수 대가성 고지 문구"></textarea>
-                        </label>
-                        <label>사기 전 확인할 구체적 한계 (쇼케이스 카드 필수 표기)
-                          <input id="evidence-limitation" name="verifiedLimitation" maxlength="240" placeholder="예: 상판 두께 3.5cm 초과 싱크대에는 고정 클립 장착 불가" />
                         </label>
                       </div>
                     </div>

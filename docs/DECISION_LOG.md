@@ -483,3 +483,24 @@ Following owner inspection of the August 2026 prototype (`http://127.0.0.1:4173/
    - Replace the flat-JSON 50-item truncating default with zero-dependency Node 24 built-in `node:sqlite` (`DatabaseSync`, `WAL` + `STRICT` + Hangul NFD Jamo space-padded `FTS5(trigram)` + dedicated `readOnly: true` `/api/showcase` handle + `BS-60` irreversible DB trigger), while preserving `THREADSCOUT_STORAGE_MODE=json` and post-commit JSON mirroring for rollback and audit compatibility.
 3. **Boundary Enforcement (`AT-45..48`, `F25..28`):**
    - Implement `guardian-checks.mjs` offset-`0` commercial surface + Korean anti-AI-slop checks (`stays-quiet` calibrated), `public-showcase-projector.mjs`, `affiliate-yield-service.mjs`, `passive-data-fencer.mjs`, `scrub-env.mjs`, and `createLifecycleBudgetTracker` while keeping all external live APIs and automated publishing disabled (`externalPublishingEnabled: false`).
+
+---
+
+## 2026-11-27 — Approve Post-PR-#30 Two-Slice Commercial Funnel, Showcase Integrity & Novelist Anti-AI Copy Package (`Slice G` + `Slice H`)
+
+### Context
+
+After merging PR #30 (`59012d5`), a 3-notebook NotebookLM cross-sweep (`c1a08bb9`, `2e5c5c7a` 114-source Korean anti-AI/Novelist corpus, `e11217e3` 38-source marketing/affiliate corpus), repository code audit, and independent `maos-critic` (`993bcf22`) review identified 10 concrete commerciality (`C-01..04`), usefulness (`U-01..03`), and engagement (`E-01..03`) blind spots.
+
+### Four options reviewed & owner selections (`ask_question`)
+
+1. **Option 1 (SELECTED):** Two-slice sequential package (`Slice G`: Commercial Funnel & Showcase Integrity -> PR #31; `Slice H`: Novelist Korean Copy Engine, Tone Toggle & Bounded Snapshot Re-Confirmation -> PR #32), preceded by `docs/watch/` + `docs/spec/` alignment.
+2. **Option 2:** Commercial funnel & payout-leak patch only (`Slice G` standalone).
+3. **Option 3:** Copy & engagement patch only (`Slice H-lite` standalone).
+4. **Option 4:** Runtime freeze + documentation/playbook only.
+
+### Owner answers on unresolved preflight questions
+
+- **Execution Track (`A1`):** Option 1 (`Slice G -> Slice H` sequential bounded PRs).
+- **Korean Draft Tone (`A2`):** Polite `존댓말` default (`"~못 붙입니다 / ~확인해 보세요"`) with an editorial `평서체 ~다` toggle.
+- **Unissued Raw Storefront URL Policy (`A3`):** Hard `Guardian` `block` (`INVALID_AFFILIATE_MAPPING`) when `affiliate === true` and `destinationUrl` is a known raw storefront URL (`coupang.com/vp`, `smartstore.naver.com` lacking tracking params), plus an explicit operator confirmation warning on generic shorteners (`naver.me`) without HTTP redirect fetching (`CLAUDE.md` §12).

@@ -77,5 +77,44 @@
 - **Evidence class:** `reported`
 - **What it touches:** `docs/spec/CONTENT_OUTPUT_SPEC.md`, future Slice 1 code in `packages/core/src/guardian-checks.mjs` and `packages/orchestra/src/prompts.mjs`
 - **Why it might matter:** Supplies falsifiable deterministic detectors (with `stays-quiet` thresholds preventing false positives on legitimate negations like `같은 제품이 아니라 대체품입니다`) for Korean Threads drafts without adding a 7th style agent.
-- **Status:** `briefed` (design boundary added to `CONTENT_OUTPUT_SPEC.md`; runtime detector implementation pending Slice 1 code approval)
+- **Status:** `accepted` (promoted into `CONTENT_OUTPUT_SPEC.md` & `guardian-checks.mjs` `2026-11-27`)
+- **Expires:** `2027-02-25`
+
+---
+
+### `WC-20261127-07` — Raw storefront URL 0-KRW commission leak, `naver.me` generic shortener caveat, and outbound affiliate `rel` / `Referer` rules
+- **Source:** NotebookLM `e11217e3-f43b-4e9e-b7b1-0125c2dd9441` (`8f324164`, `b275860a`) cross-checked against `AFFILIATE_SPEC.md` (`2026-11-27`).
+- **Date seen:** `2026-11-27`
+- **Track:** `affiliate-policy`
+- **Claim:** Pasting raw storefront product URLs (`www.coupang.com/vp/...`, `smartstore.naver.com/...`) instead of partner-issued tracking links yields `0 KRW` settled commission, `naver.me` is a generic shortener (not proof of Brand Connect issuance), and outbound affiliate anchors use `rel="noopener sponsored nofollow"` from registered channels.
+- **Evidence class:** `reported`
+- **What it touches:** `docs/spec/AFFILIATE_SPEC.md`, `docs/spec/PLATFORM_DECISION.md`, `packages/core/src/affiliate-yield-service.mjs`, `apps/web/showcase.js`
+- **Why it might matter:** Prevents silent `0 KRW` commission leakage while keeping `CLAUDE.md` §12 zero-redirect-fetching intact.
+- **Status:** `accepted` (promoted into `AFFILIATE_SPEC.md` v1.3 & `PLATFORM_DECISION.md` `2026-11-27`)
+- **Expires:** `2027-02-25`
+
+---
+
+### `WC-20261127-08` — Novelist / `im-not-ai` / 2-stage anti-AI Korean prose extensions (`A-15`, `A-19`, `A-21`, `D-4`, `D-10`, `E-2`) & `stays-quiet` protections
+- **Source:** NotebookLM `2e5c5c7a-5d89-417a-95ec-ad3a66c7a345` (`db4f0e40`, `54a877a4`, `7220b613`, `ea4d11ac`, `af810c12`) and `e9480cf6-da4d-40f2-96ba-c93f58cce027` (`97d809ab`, `6996c6a6`, `2026-11-27`).
+- **Date seen:** `2026-11-27`
+- **Track:** `korean-style`
+- **Claim:** Corpus measurements report `0` human occurrences out of `60` docs on `단순한 X를 넘어 Y` (`A-21`) and `~로 이어진다 / ~에 직결된다` (`D-9`), elevated LLM density on sentence-final inverted `~이유다` (`D-10`), stacked particles `-에서의/-에로의/-으로의/-에의/-으로부터의/-로부터의/-에 있어서` (`A-19`), abstract-buzzword `제공하-` (`A-15`), and hype adjectives (`혁신적인/획기적인/전례 없는`, `D-4`); conversely, humans use `~에 대해` `3x` more than AI (`4.39` vs `1.46` per 1k eojeol), plain `~의` is native Korean, and capability hedging `~할 수 있다` preserves factual spec bounds.
+- **Evidence class:** `reported`
+- **What it touches:** `docs/spec/CONTENT_OUTPUT_SPEC.md` v1.3, `packages/core/src/guardian-checks.mjs`, `apps/web/application-state.mjs`
+- **Why it might matter:** Upgrades both deterministic `Writer` templates (disqualification hook + middle-sentence cadence `E-2` + plain-verb physical grounding) and `Guardian` `KOREAN_AI_SLOP` checks without false positives on statutory disclosures (`수수료를 제공받습니다`), warranties (`보증을 제공합니다`), or technical specs.
+- **Status:** `accepted` (promoted into `CONTENT_OUTPUT_SPEC.md` v1.3 `2026-11-27`)
+- **Expires:** `2027-02-25`
+
+---
+
+### `WC-20261127-09` — Threads reply-view share (~50%) & 70–80% non-commercial portfolio mix guideline
+- **Source:** NotebookLM `e11217e3-f43b-4e9e-b7b1-0125c2dd9441` (`109b2d09`, `31176057`, `7a4d712e`, `2026-11-27`).
+- **Date seen:** `2026-11-27`
+- **Track:** `platform-api`
+- **Claim:** Meta creator analysis reports nearly half of Threads views come from replies/conversations, and Korean channel health reports recommend `70–80%` informational vs `20–30%` commercial post ratios (`1:3~1:5`).
+- **Evidence class:** `reported`
+- **What it touches:** `docs/spec/CONTENT_OUTPUT_SPEC.md` v1.3, `apps/web/application-state.mjs`
+- **Why it might matter:** Supports non-incentivized usage-context closing questions within `<= 500` chars and an advisory rolling commercial-post ratio indicator (`0/0 -> NOT_MEASURED`, never a daily quota per `BS-57`).
+- **Status:** `accepted` (promoted into `CONTENT_OUTPUT_SPEC.md` v1.3 `2026-11-27`)
 - **Expires:** `2027-02-25`

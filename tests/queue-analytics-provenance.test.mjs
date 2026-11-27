@@ -193,7 +193,7 @@ for (const mode of isNodeSqliteAvailable() ? ['sqlite', 'json'] : ['json']) {
             personalUse: 'not_confirmed',
             affiliate: true,
             affiliateNetwork: 'naver_shopping_connect',
-            destinationUrl: 'https://smartstore.naver.com/kitchenpure/products/310',
+            destinationUrl: 'https://smartstore.naver.com/kitchenpure/products/310?nt_source=shoppingconnect',
             verifiedLimitation: '유리 마감 비자성 냉장고 도어에는 부착되지 않습니다.'
           }
         });

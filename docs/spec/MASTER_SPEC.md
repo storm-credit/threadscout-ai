@@ -165,7 +165,7 @@ Before dispatch, preflight rechecks applicable volatile facts, authorization, pr
 
 A timeout with unknown remote outcome enters `unknown_remote_state`. The system reconciles before any retry. Duplicate publication is never an acceptable retry strategy.
 
-Candidate-lifecycle run budgets cap cumulative specialist invocations, tool calls, and configured KRW/USD token cost across all retries for a single `(candidate_id, lifecycle_epoch)` — where `lifecycle_epoch` increments **exclusively** on an explicit owner `reopen_rejected_candidate` command after an explicit owner `reject` decision or post-retention archival (never on `Guardian` `block`/`revise`, `Verifier` `hold`, or freshness TTL `stale`) — halting with `budget_exhausted` and an audit receipt when reached. Child subprocesses scrub ambient secrets (`SCRUB_ENV`), and all untrusted text (including owner-pasted `user_evidence` as well as network/MCP outputs) enters models only inside per-call cryptographic-nonce passive-data fences.
+Candidate-lifecycle run budgets cap cumulative specialist invocations, tool calls, and configured KRW/USD token cost across all retries for a single `(candidate_id, lifecycle_epoch)` — where `lifecycle_epoch` increments **exclusively** on an explicit owner `reopen_rejected_candidate` command after an explicit owner `reject` decision or post-retention archival (never on `Guardian` `block`/`revise`, `Verifier` `hold`, or freshness TTL `stale`; deterministic non-LLM `reconfirm_showcase_snapshot` re-attestations that preserve unchanged `strategies`/`drafts` do not consume specialist model invocations) — halting with `budget_exhausted` and an audit receipt when reached. Child subprocesses scrub ambient secrets (`SCRUB_ENV`), and all untrusted text (including owner-pasted `user_evidence` as well as network/MCP outputs) enters models only inside per-call cryptographic-nonce passive-data fences.
 
 A global kill switch exists outside AI runtime.
 
@@ -200,7 +200,7 @@ Ranking changes require sufficient sample/confidence and remain reversible. Safe
 ## Approved v1 operating defaults
 
 - 0–3 daily posts, never a quota
-- normally no more than one affiliate-heavy post per day
+- normally no more than one affiliate-heavy post per day (monitored via an advisory rolling 20-published-post `portfolioMix` indicator marking `> 30%` as `ad_heavy_warning` and `0/0` as `NOT_MEASURED`, strictly isolated from candidate ranking per `BS-03`/`BS-57`)
 - maximum five first-screen recommendations
 - initial opportunity review floor 65/100, non-sovereign
 - price/stock TTL 4h when explicitly claimed

@@ -1,4 +1,4 @@
-# Affiliate Mapping & Disclosure Specification v1.2
+# Affiliate Mapping & Disclosure Specification v1.3
 
 ## 1. Purpose
 
@@ -12,6 +12,7 @@ Affiliate monetization is downstream of product verification. A commission oppor
 2. **Naver Shopping Connect / Brand Connect (`naver_shopping_connect`):**
    - Because no official external Open API exists (`reported`), links are always owner-issued from the official partner console and paired with an owner-supplied `CanonicalListingSnapshot` (`{ brand, model, variant, seller, destinationUrl, capturedAt }`) corroborated by an independent second origin (`AT-40`) for `'exact'`.
 3. **Zero-scraping invariant (`CLAUDE.md` §12):** Unauthenticated or session-cookie scraping — whether browser CUA/Playwright/Selenium or plain HTTP `fetch`/`curl` HTML/redirect parsing — is strictly prohibited across all commerce and affiliate domains. Where no official API is enabled, preflight destination revalidation (`<= 24h` pre-dispatch and `7d` rolling on `/showcase`) requires bounded owner snapshot re-confirmation rather than automated HTML fetching.
+4. **Raw-storefront URL block & generic-shortener warning (zero network fetch):** When `state` is `'exact'` or `'alternative'`, URL hostnames are trailing-dot-normalized (`hostname.toLowerCase().replace(/\.+$/, '')`) and embedded credentials (`username`/`password`) are rejected (`destination_url_credentials_forbidden`). Known uncompensated raw storefront product URLs (`www.coupang.com`, `m.coupang.com`, `coupang.com` lacking non-empty `lptag` tracking, and `smartstore.naver.com`, `m.smartstore.naver.com`, `brand.naver.com`, `m.brand.naver.com`, `shopping.naver.com`, `mshopping.naver.com` lacking an explicit non-empty partner tracking query parameter in `['nt_source', 'nt_medium', 'affiliate', 'aff', 'connect', 'tracker', 'bc_code']` — excluding organic search click parameters such as `NaPm`) are rejected fail-closed (`raw_storefront_url_not_affiliate` -> `Guardian` `INVALID_AFFILIATE_MAPPING` `block`) so `[광고]` posts never ship with `0 KRW` unissued product URLs. Generic shortener domains (`naver.me`, `bit.ly`, `tinyurl.com`, `han.gl`, `me2.do`, `vo.la`, `buly.kr`) are permitted (`ok: true`) with an explicit passive operator warning surfaced in Step 1 (`#affiliate-url-warning`) and `guardian.warnings` (without gating `review_decision(approved)` behind a separate flag) because redirect targets are never fetched (`CLAUDE.md` §12).
 
 ## 3. Mapping states & compatibility with `product_state`
 

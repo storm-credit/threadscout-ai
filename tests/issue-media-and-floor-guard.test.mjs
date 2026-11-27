@@ -530,7 +530,7 @@ for (const mode of storageModes) {
           affiliateNetwork: 'naver_shopping_connect',
           affiliateMappingState: '',
           seller: '키친랩 공식 브랜드스토어',
-          destinationUrl: 'https://smartstore.naver.com/kitchenlab/products/202',
+          destinationUrl: 'https://smartstore.naver.com/kitchenlab/products/202?nt_source=shoppingconnect',
           verifiedLimitation: '식기세척기 열풍 건조 시 모서리 미세 휨 가능성 있음'
         }
       });

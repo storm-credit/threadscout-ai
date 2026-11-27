@@ -285,7 +285,10 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
 
   #nextCardNumber() {
     const row = this.db.prepare('SELECT COALESCE(MAX(card_number), 0) AS maxNum FROM candidates').get();
-    return Number(row?.maxNum ?? 0) + 1;
+    const metaRow = this.db.prepare(`SELECT value FROM store_meta WHERE key = 'nextCardNumber'`).get();
+    const next = Math.max(Number(row?.maxNum ?? 0), Number(metaRow?.value ?? 0)) + 1;
+    this.db.prepare(`INSERT OR REPLACE INTO store_meta(key, value) VALUES ('nextCardNumber', ?)`).run(String(next));
+    return next;
   }
 
   async readState() {
@@ -349,11 +352,15 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
     const consumedApprovalHashes = this.db.prepare('SELECT approval_hash FROM consumed_approval_hashes').all().map((row) => row.approval_hash);
     const outcomeSnapshots = this.db.prepare('SELECT snapshot_json FROM outcome_snapshots ORDER BY recorded_at DESC').all().map((row) => JSON.parse(row.snapshot_json));
 
+    const maxCandidateCard = candidates.reduce((acc, c) => Math.max(acc, Number(c.cardNumber ?? 0)), 0);
+    const nextCardNumber = Math.max(Number(meta.nextCardNumber ?? 0), maxCandidateCard);
+
     const state = {
       version: APPLICATION_STATE_VERSION,
       updatedAt: meta.updatedAt || nowIso(this.clock),
       fixedAgentCount: 6,
       externalPublishingEnabled: false,
+      nextCardNumber,
       candidates,
       schedules,
       consumedApprovalHashes,
@@ -378,10 +385,28 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
     const now = nowIso(this.clock);
     const existingRows = this.db.prepare('SELECT id, card_number, locked_non_commercial, lifecycle_epoch FROM candidates').all();
     const existingById = new Map(existingRows.map((r) => [r.id, r]));
+    const isDemoReset =
+      state.commandOrder?.length === 1
+      && state.commandHistory?.[state.commandOrder[0]]?.command === 'reset_demo';
 
     this.db.exec('BEGIN IMMEDIATE');
     try {
       this.db.prepare(`INSERT OR REPLACE INTO store_meta(key, value) VALUES ('updatedAt', ?)`).run(state.updatedAt || now);
+      if (isDemoReset) {
+        this.db.prepare('DELETE FROM public_showcase_cards').run();
+        this.db.prepare('DELETE FROM candidates').run();
+        this.db.prepare('DELETE FROM suppression_rules').run();
+        this.db.prepare('DELETE FROM schedules').run();
+        this.db.prepare('DELETE FROM consumed_approval_hashes').run();
+        this.db.prepare('DELETE FROM outcome_snapshots').run();
+        this.db.prepare('DELETE FROM lifecycle_budgets').run();
+        this.db.prepare(`INSERT OR REPLACE INTO store_meta(key, value) VALUES ('nextCardNumber', '0')`).run();
+        existingById.clear();
+      } else if (Number.isInteger(state.nextCardNumber) && state.nextCardNumber > 0) {
+        const curMeta = this.db.prepare(`SELECT value FROM store_meta WHERE key = 'nextCardNumber'`).get();
+        const monotonic = Math.max(Number(curMeta?.value ?? 0), state.nextCardNumber);
+        this.db.prepare(`INSERT OR REPLACE INTO store_meta(key, value) VALUES ('nextCardNumber', ?)`).run(String(monotonic));
+      }
 
       // Preserve every historical candidate beyond any in-memory 50-item slice so `#NNN` showcase URLs
       // and BS-60 locks are never truncated away!
@@ -681,10 +706,15 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
     }
     const audit = this.db.prepare('SELECT payload_json FROM audit_events ORDER BY seq DESC LIMIT 200').all().reverse().map((r) => JSON.parse(r.payload_json));
     const updatedRow = this.db.prepare(`SELECT value FROM store_meta WHERE key = 'updatedAt'`).get();
+    const nextCardRow = this.db.prepare(`SELECT value FROM store_meta WHERE key = 'nextCardNumber'`).get();
     const mirror = {
       version: APPLICATION_STATE_VERSION,
       externalPublishingEnabled: false,
       fixedAgentCount: 6,
+      nextCardNumber: Math.max(
+        Number(nextCardRow?.value ?? 0),
+        ...candidates.map((c) => Number(c.cardNumber ?? 0))
+      ),
       candidates,
       schedules,
       consumedApprovalHashes,
