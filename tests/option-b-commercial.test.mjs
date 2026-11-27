@@ -173,6 +173,7 @@ test('AT-46 / F26: closed 9-field showcase projection, matchBadge table, TTL wit
     review: { decision: 'approved', stale: false },
     guardian: { decision: 'pass' },
     exactMatchStatus: 'exact',
+    mediaRights: 'not_required',
     brand: 'FixtureLab',
     model: 'SG-01',
     variant: '투명 45cm 실리콘 물튐 방지 가드',

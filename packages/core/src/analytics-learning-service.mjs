@@ -6,6 +6,10 @@
 
 import { randomUUID } from 'node:crypto';
 import { estimateNetYieldKrw } from './affiliate-yield-service.mjs';
+import {
+  evaluateIssueProductDecision,
+  resolveMediaPublicationFallback
+} from './issue-media-governance.mjs';
 
 export const ATTRIBUTION_TIERS = Object.freeze({
   UNKNOWN: 'unknown',
@@ -82,14 +86,38 @@ export function isSafetyQuarantined(snapshot = {}, candidate = null) {
     if (candidate.guardian?.decision === 'block' || candidate.workflowState === 'blocked') {
       reasons.push('guardian_or_workflow_blocked');
     }
-    if (candidate.mediaRights === 'unknown') {
-      reasons.push('unverified_media_rights');
-    }
     if (['likely', 'unresolved'].includes(candidate.exactMatchStatus)) {
       reasons.push('unresolved_or_unconfirmed_product_identity');
     }
     if (candidate.suppression?.active === true) {
       reasons.push('owner_suppressed_candidate');
+    }
+    const issueDecision = evaluateIssueProductDecision({
+      issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+      productRelationGrade: candidate.productRelationGrade ?? 'none',
+      matchState: candidate.exactMatchStatus ?? 'unresolved',
+      personIdentifiedFromImageOnly: Boolean(candidate.personIdentifiedFromImageOnly)
+    });
+    if (issueDecision.issueLinked && ['block', 'verify_more'].includes(issueDecision.routeOutcome)) {
+      reasons.push(
+        issueDecision.routeOutcome === 'block'
+          ? 'rumor_or_blocked_public_figure_relation'
+          : 'unverified_issue_or_relation_grade'
+      );
+    }
+    const mediaResolution = resolveMediaPublicationFallback({
+      discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+      publicationMediaRights: candidate.mediaRights ?? 'unknown',
+      publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+      aiGeneratedDepictsRealPerson: Boolean(candidate.aiGeneratedDepictsRealPerson),
+      syntheticDeceptiveBeforeAfter: Boolean(candidate.syntheticDeceptiveBeforeAfter)
+    });
+    if (mediaResolution.selectedTreatment === 'blocked') {
+      reasons.push('synthetic_celebrity_or_deceptive_media');
+    } else if (!mediaResolution.publishable) {
+      reasons.push('unverified_media_rights');
+    } else if (String(candidate.publishableMediaUrl ?? '').trim() && !mediaResolution.reuploadAllowed) {
+      reasons.push('unpermitted_media_reupload');
     }
   }
 
@@ -165,13 +193,27 @@ export function createOutcomeSnapshot({
     hiddenDisclosure: Boolean(payload.hiddenDisclosure)
   });
 
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus ?? 'unresolved',
+    personIdentifiedFromImageOnly: Boolean(candidate.personIdentifiedFromImageOnly)
+  });
+  const effectiveAffiliateState =
+    candidate.affiliateMapping?.state
+    || candidate.affiliateMappingState
+    || ((candidate.exactMatchStatus === 'substitute' || issueDecision.allowedWordingCeiling === 'alternative_only')
+      ? 'alternative'
+      : 'exact');
+
   const matchBadge = !isAffiliate
     ? 'none'
-    : (candidate.exactMatchStatus === 'substitute' || candidate.affiliateMappingState === 'alternative')
+    : effectiveAffiliateState === 'alternative'
       ? 'alternative'
       : 'exact';
 
-  const mediaType = ['owned', 'licensed'].includes(candidate.mediaRights) && candidate.publishableMediaUrl
+  const mediaType = ['owned', 'user_owned', 'licensed', 'explicitly_licensed'].includes(candidate.mediaRights)
+    && candidate.publishableMediaUrl
     ? 'image'
     : 'text_only';
 

@@ -3,6 +3,14 @@
 // conjugated-stem checks with mandatory AT-10 / AT-23 disclaimer pre-stripping).
 
 import { wordingRuleFor } from './product-matching.mjs';
+import {
+  detectConfirmedPublicUseWording,
+  detectSponsorshipOrEndorsementWording,
+  evaluateIssueProductDecision,
+  hasAttributedReportFraming,
+  resolveMediaPublicationFallback,
+  stripNegatedEndorsementDisclaimers
+} from './issue-media-governance.mjs';
 
 export const GUARDIAN_CHECK_KEYS = Object.freeze([
   'productMatchCheck',
@@ -30,7 +38,11 @@ export const RULE_IDS = Object.freeze({
   EXACT_CLAIM_WITHOUT_EXACT_MATCH: 'EXACT_CLAIM_WITHOUT_EXACT_MATCH',
   SUBSTITUTE_NOT_LABELLED: 'SUBSTITUTE_NOT_LABELLED',
   PUBLIC_FIGURE_ENDORSEMENT_IMPLICATION: 'PUBLIC_FIGURE_ENDORSEMENT_IMPLICATION',
+  ISSUE_SOURCE_OR_RELATION_BLOCKED: 'ISSUE_SOURCE_OR_RELATION_BLOCKED',
+  PUBLIC_FIGURE_WORDING_EXCEEDS_GRADE: 'PUBLIC_FIGURE_WORDING_EXCEEDS_GRADE',
   MEDIA_RIGHTS_UNRESOLVED: 'MEDIA_RIGHTS_UNRESOLVED',
+  SYNTHETIC_CELEBRITY_OR_DECEPTIVE_MEDIA: 'SYNTHETIC_CELEBRITY_OR_DECEPTIVE_MEDIA',
+  UNPERMITTED_MEDIA_REUPLOAD: 'UNPERMITTED_MEDIA_REUPLOAD',
   FIRST_HAND_WITHOUT_USAGE_RECORD: 'FIRST_HAND_WITHOUT_USAGE_RECORD',
   UNSUPPORTED_CLAIM_REFERENCE: 'UNSUPPORTED_CLAIM_REFERENCE',
   MISSING_AFFILIATE_DISCLOSURE: 'MISSING_AFFILIATE_DISCLOSURE',
@@ -50,7 +62,11 @@ const NON_OVERRIDABLE = Object.freeze([
   RULE_IDS.EXACT_CLAIM_WITHOUT_EXACT_MATCH,
   RULE_IDS.SUBSTITUTE_NOT_LABELLED,
   RULE_IDS.PUBLIC_FIGURE_ENDORSEMENT_IMPLICATION,
+  RULE_IDS.ISSUE_SOURCE_OR_RELATION_BLOCKED,
+  RULE_IDS.PUBLIC_FIGURE_WORDING_EXCEEDS_GRADE,
   RULE_IDS.MEDIA_RIGHTS_UNRESOLVED,
+  RULE_IDS.SYNTHETIC_CELEBRITY_OR_DECEPTIVE_MEDIA,
+  RULE_IDS.UNPERMITTED_MEDIA_REUPLOAD,
   RULE_IDS.FIRST_HAND_WITHOUT_USAGE_RECORD,
   RULE_IDS.UNSUPPORTED_CLAIM_REFERENCE,
   RULE_IDS.DISCLOSURE_NOT_AT_OFFSET_ZERO,
@@ -65,7 +81,11 @@ const CHECK_FOR_RULE = Object.freeze({
   [RULE_IDS.EXACT_CLAIM_WITHOUT_EXACT_MATCH]: 'productMatchCheck',
   [RULE_IDS.SUBSTITUTE_NOT_LABELLED]: 'productMatchCheck',
   [RULE_IDS.PUBLIC_FIGURE_ENDORSEMENT_IMPLICATION]: 'publicFigureClaimCheck',
+  [RULE_IDS.ISSUE_SOURCE_OR_RELATION_BLOCKED]: 'publicFigureClaimCheck',
+  [RULE_IDS.PUBLIC_FIGURE_WORDING_EXCEEDS_GRADE]: 'publicFigureClaimCheck',
   [RULE_IDS.MEDIA_RIGHTS_UNRESOLVED]: 'rightsCheck',
+  [RULE_IDS.SYNTHETIC_CELEBRITY_OR_DECEPTIVE_MEDIA]: 'rightsCheck',
+  [RULE_IDS.UNPERMITTED_MEDIA_REUPLOAD]: 'rightsCheck',
   [RULE_IDS.FIRST_HAND_WITHOUT_USAGE_RECORD]: 'firstHandCheck',
   [RULE_IDS.UNSUPPORTED_CLAIM_REFERENCE]: 'productMatchCheck',
   [RULE_IDS.MISSING_AFFILIATE_DISCLOSURE]: 'affiliateDisclosureCheck',
@@ -184,7 +204,8 @@ export function detectAlternativeLabel(text = '') {
 }
 
 export function detectEndorsementImplication(text = '') {
-  return ENDORSEMENT_PATTERNS.some((pattern) => pattern.test(text));
+  const cleaned = stripNegatedEndorsementDisclaimers(text);
+  return ENDORSEMENT_PATTERNS.some((pattern) => pattern.test(cleaned));
 }
 
 export function detectExaggeration(text = '') {
@@ -326,8 +347,17 @@ export function runGuardianChecks({
   verifiedClaimIds = [],
   personalUseConfirmed = false,
   mediaRightsResolved = false,
+  discoveryMediaState = 'none',
+  publicationMediaRights = null,
+  publishableMediaUrl = '',
+  aiGeneratedDepictsRealPerson = false,
+  syntheticDeceptiveBeforeAfter = false,
+  issueSourceGrade = 'none',
+  productRelationGrade = 'none',
+  personIdentifiedFromImageOnly = false,
   affiliate = false,
   affiliateNetwork = '',
+  affiliateMappingState = '',
   affiliateMappingError = null,
   disclosure = '',
   publicFigureVerifiedEndorsement = false,
@@ -341,7 +371,59 @@ export function runGuardianChecks({
   const rule = wordingRuleFor(matchState);
   const normalizedDisclosure = String(disclosure ?? '').trim();
 
-  if (!mediaRightsResolved) {
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade,
+    productRelationGrade,
+    matchState,
+    personIdentifiedFromImageOnly
+  });
+  const effectiveEndorsementVerified =
+    publicFigureVerifiedEndorsement === true || issueDecision.publicFigureVerifiedEndorsement === true;
+
+  if (issueDecision.issueLinked && ['block', 'verify_more'].includes(issueDecision.routeOutcome)) {
+    findings.push(finding(
+      RULE_IDS.ISSUE_SOURCE_OR_RELATION_BLOCKED,
+      issueDecision.blockers[0] || '이슈·공인 출처 또는 제품 연관 등급이 게시 기준을 충족하지 못했습니다.',
+      'G0~G2 출처 및 R0/R1/R3/R4 제품 연관 근거를 확보하거나 이슈 연계를 해제하세요.'
+    ));
+  }
+
+  if (issueDecision.issueLinked && affiliate && !issueDecision.exactAffiliateAllowed && !issueDecision.alternativeAffiliateAllowed) {
+    findings.push(finding(
+      RULE_IDS.INVALID_AFFILIATE_MAPPING,
+      '현재 이슈·관계 등급(' + issueDecision.issueSourceGrade + '+' + issueDecision.productRelationGrade + ')에서는 제휴 수익화 링크 연결이 허용되지 않습니다.',
+      '정보성 비수익 포스트(affiliate 해제)로 전환하거나 정품/대체품 교차 근거를 먼저 확보하세요.'
+    ));
+  }
+
+  if (publicationMediaRights !== null || aiGeneratedDepictsRealPerson || syntheticDeceptiveBeforeAfter) {
+    const mediaResolution = resolveMediaPublicationFallback({
+      discoveryMediaState,
+      publicationMediaRights: publicationMediaRights ?? (mediaRightsResolved ? 'not_required' : 'unknown'),
+      publishableMediaUrl,
+      aiGeneratedDepictsRealPerson,
+      syntheticDeceptiveBeforeAfter
+    });
+    if (mediaResolution.selectedTreatment === 'blocked') {
+      findings.push(finding(
+        RULE_IDS.SYNTHETIC_CELEBRITY_OR_DECEPTIVE_MEDIA,
+        mediaResolution.blockerKo,
+        '실존 인물 합성·조작 전후 비교 이미지를 제거하고 직접 촬영 또는 텍스트 단독으로 전환하세요.'
+      ));
+    } else if (!mediaResolution.publishable) {
+      findings.push(finding(
+        RULE_IDS.MEDIA_RIGHTS_UNRESOLVED,
+        mediaResolution.blockerKo || '게시에 사용할 미디어의 권리가 확인되지 않았습니다.',
+        '본인 보유 · 허가 확인 미디어로 바꾸거나 텍스트만 사용하세요.'
+      ));
+    } else if (String(publishableMediaUrl ?? '').trim() && !mediaResolution.reuploadAllowed) {
+      findings.push(finding(
+        RULE_IDS.UNPERMITTED_MEDIA_REUPLOAD,
+        '재업로드 권한이 없는 미디어 상태(' + mediaResolution.publicationMediaRights + ')인데 업로드용 이미지 URL이 지정되었습니다(AT-05, AT-26).',
+        '업로드 이미지 URL을 비우고 텍스트 단독 또는 플랫폼 허용 임베드만 사용하세요.'
+      ));
+    }
+  } else if (!mediaRightsResolved) {
     findings.push(finding(
       RULE_IDS.MEDIA_RIGHTS_UNRESOLVED,
       '게시에 사용할 미디어의 권리가 확인되지 않았습니다.',
@@ -365,6 +447,15 @@ export function runGuardianChecks({
     ));
   }
 
+  const sameProductForbidden =
+    !rule.sameProductClaimAllowed
+    || ['alternative_only', 'discovery_hypothesis_only'].includes(issueDecision.allowedWordingCeiling)
+    || affiliateMappingState === 'alternative';
+  const mustLabelAlternativeInBody =
+    rule.mustLabelAlternative
+    || issueDecision.allowedWordingCeiling === 'alternative_only'
+    || affiliateMappingState === 'alternative';
+
   for (const draft of drafts) {
     const rawDraftText = String(draft.text ?? '');
     const text = [draft.title, rawDraftText, draft.disclosure].filter(Boolean).join('\n');
@@ -378,19 +469,19 @@ export function runGuardianChecks({
       ));
     }
 
-    if (!rule.sameProductClaimAllowed && detectSameProductClaim(text)) {
+    if (sameProductForbidden && detectSameProductClaim(text)) {
       findings.push(finding(
         RULE_IDS.EXACT_CLAIM_WITHOUT_EXACT_MATCH,
-        '동일 제품 확정 근거가 없는데 같은 제품이라고 서술했습니다.',
+        '동일 제품 확정 근거가 없거나 대체품·가설 단계인데 같은 제품이라고 서술했습니다(AT-10, AT-30).',
         '동일 제품 표현을 빼고 확인된 범위까지만 서술하세요.',
         draft.id
       ));
     }
-    if (rule.mustLabelAlternative && !detectAlternativeLabel(text)) {
+    if (mustLabelAlternativeInBody && !detectAlternativeLabel(rawDraftText)) {
       findings.push(finding(
         RULE_IDS.SUBSTITUTE_NOT_LABELLED,
-        '대체품인데 대체품이라는 표시가 없습니다.',
-        '비슷한 제품 또는 대체 후보임을 본문에 명시하세요.',
+        '대체품·대체 후보 게시물인데 실제 게시 본문(draft.text)에 대체품 표시가 없습니다(AT-10, AT-30).',
+        '비슷한 제품 또는 대체 후보임을 본문(draft.text)에 명시하세요.',
         draft.id
       ));
     }
@@ -402,13 +493,35 @@ export function runGuardianChecks({
         draft.id
       ));
     }
-    if (!publicFigureVerifiedEndorsement && detectEndorsementImplication(text)) {
+    if (!effectiveEndorsementVerified && (detectEndorsementImplication(text) || detectSponsorshipOrEndorsementWording(text))) {
       findings.push(finding(
         RULE_IDS.PUBLIC_FIGURE_ENDORSEMENT_IMPLICATION,
-        '확인된 관계 등급을 넘어서는 추천 · 협찬 함의가 있습니다.',
-        '공개적으로 확인된 사실만 서술하고 추천 표현을 제거하세요.',
+        '확인된 관계 등급을 넘어서는 추천 · 협찬 · 최애 함의가 있습니다(BS-26).',
+        '공개적으로 확인된 사실만 서술하고 추천·강추·최애·협찬 표현을 제거하세요.',
         draft.id
       ));
+    }
+
+    if (issueDecision.issueLinked) {
+      if (issueDecision.allowedWordingCeiling === 'alternative_only') {
+        if (!detectAlternativeLabel(rawDraftText) || detectConfirmedPublicUseWording(text)) {
+          findings.push(finding(
+            RULE_IDS.PUBLIC_FIGURE_WORDING_EXCEEDS_GRADE,
+            '대체 후보 연계(R4) 게시물인데 본문 대체 후보 명시가 없거나 직접 착용·사용 제품으로 단정했습니다(AT-30).',
+            '이슈 속 원본과 같은 제품이 아니라 비슷한 대체 후보임을 본문에 명시하고 직접 착용 단정을 제거하세요.',
+            draft.id
+          ));
+        }
+      } else if (issueDecision.allowedWordingCeiling === 'attributed_report_only') {
+        if (detectConfirmedPublicUseWording(text) || !hasAttributedReportFraming(rawDraftText)) {
+          findings.push(finding(
+            RULE_IDS.PUBLIC_FIGURE_WORDING_EXCEEDS_GRADE,
+            '언론·공식 언급 보도(R3) 단계인데 본문에 보도·발표 인용 표현이 없거나 직접 착용·사용(R1)을 단정했습니다.',
+            '직접 착용·사용 단정을 빼고 보도·공식 언급 범위를 본문에 명시하세요.',
+            draft.id
+          ));
+        }
+      }
     }
 
     const unsupported = (draft.claimIds ?? []).filter((claimId) => !claimIds.has(claimId));

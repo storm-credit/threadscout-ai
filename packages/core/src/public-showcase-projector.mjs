@@ -1,6 +1,11 @@
 // Closed default-deny 9-field PublicShowcaseCard projector & deterministic markdown exporter
 // (PLATFORM_DECISION.md, AFFILIATE_SPEC.md v1.2, BS-60, BS-61, AT-46).
 
+import {
+  evaluateIssueProductDecision,
+  resolveMediaPublicationFallback
+} from './issue-media-governance.mjs';
+
 export const SHOWCASE_STANDARD_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days rolling
 export const SHOWCASE_ISSUE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours for fast issue-linked cards
 
@@ -91,8 +96,42 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
   }
 
   const productState = candidate.exactMatchStatus ?? candidate.productState ?? 'unresolved';
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: productState,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  if (issueDecision.issueLinked && ['block', 'verify_more'].includes(issueDecision.routeOutcome)) {
+    return { projected: false, reason: 'issue_or_relation_blocked' };
+  }
+
+  const mediaResolution = resolveMediaPublicationFallback({
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.publicationMediaState ?? candidate.mediaRights ?? 'unknown',
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: Boolean(candidate.aiGeneratedDepictsRealPerson),
+    syntheticDeceptiveBeforeAfter: Boolean(candidate.syntheticDeceptiveBeforeAfter)
+  });
+  if (!mediaResolution.publishable) {
+    return { projected: false, reason: 'media_rights_not_publishable' };
+  }
+  if (String(candidate.publishableMediaUrl ?? '').trim() && !mediaResolution.reuploadAllowed) {
+    return { projected: false, reason: 'unpermitted_media_reupload' };
+  }
   const affiliateState = candidate.affiliateMapping?.state
-    ?? (candidate.affiliate ? (productState === 'substitute' ? 'alternative' : 'exact') : 'none');
+    ?? (candidate.affiliate
+      ? ((productState === 'substitute' || issueDecision.allowedWordingCeiling === 'alternative_only') ? 'alternative' : 'exact')
+      : 'none');
+
+  if (issueDecision.issueLinked) {
+    if (affiliateState !== 'none' && !issueDecision.exactAffiliateAllowed && !issueDecision.alternativeAffiliateAllowed) {
+      return { projected: false, reason: 'issue_affiliate_forbidden' };
+    }
+    if (affiliateState === 'exact' && !issueDecision.exactAffiliateAllowed) {
+      return { projected: false, reason: 'issue_exact_affiliate_forbidden' };
+    }
+  }
 
   if (candidate.lockedNonCommercialAfterPublish && affiliateState !== 'none') {
     return { projected: false, reason: 'post_publish_monetization_locked' };
@@ -102,6 +141,9 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
   if (!badgeResolution.projectable) {
     return { projected: false, reason: badgeResolution.reason };
   }
+  const effectiveMatchBadge = issueDecision.allowedWordingCeiling === 'alternative_only'
+    ? 'alternative'
+    : badgeResolution.matchBadge;
 
   const verifiedAt = candidate.evidencePacket?.observedAt ?? candidate.verifiedAt ?? candidate.updatedAt;
   const verifiedMs = Date.parse(verifiedAt ?? '');
@@ -110,8 +152,9 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
     return { projected: false, reason: 'invalid_verification_timestamp' };
   }
 
-  const ttlMs = candidate.issueLinked ? SHOWCASE_ISSUE_TTL_MS : SHOWCASE_STANDARD_TTL_MS;
-  if (affiliateState !== 'none' && nowMs - verifiedMs > ttlMs) {
+  const isIssueLinked = Boolean(candidate.issueLinked || issueDecision.issueLinked);
+  const ttlMs = isIssueLinked ? SHOWCASE_ISSUE_TTL_MS : SHOWCASE_STANDARD_TTL_MS;
+  if (nowMs - verifiedMs > ttlMs) {
     return { projected: false, reason: 'withdrawn_ttl_expired' };
   }
 
@@ -165,20 +208,14 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
   }
 
   let publishableMediaUrl = null;
-  const mediaRights = candidate.publicationMediaState ?? candidate.mediaRights;
-  if ((mediaRights === 'owned' || mediaRights === 'user_owned' || mediaRights === 'licensed' || mediaRights === 'licensed_commercial') && candidate.publishableMediaUrl) {
-    try {
-      const parsedMedia = new URL(candidate.publishableMediaUrl);
-      if (parsedMedia.protocol === 'https:') publishableMediaUrl = parsedMedia.toString();
-    } catch {
-      publishableMediaUrl = null;
-    }
+  if (mediaResolution.reuploadAllowed && mediaResolution.effectiveUploadUrl) {
+    publishableMediaUrl = mediaResolution.effectiveUploadUrl;
   }
 
   const card = Object.freeze({
     cardNumber,
     canonicalProductName,
-    matchBadge: badgeResolution.matchBadge,
+    matchBadge: effectiveMatchBadge,
     verifiedPros: Object.freeze(prosInput.map((item) => String(item).trim())),
     verifiedLimitation: limitationInput,
     disclosureText,

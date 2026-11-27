@@ -12,6 +12,14 @@ import {
 } from '../../packages/core/src/product-matching.mjs';
 import { GUARDIAN_CHECK_KEYS, runGuardianChecks } from '../../packages/core/src/guardian-checks.mjs';
 import {
+  DISCOVERY_MEDIA_STATES,
+  ISSUE_SOURCE_GRADES,
+  PRODUCT_RELATION_GRADES,
+  PUBLICATION_MEDIA_RIGHTS,
+  evaluateIssueProductDecision,
+  resolveMediaPublicationFallback
+} from '../../packages/core/src/issue-media-governance.mjs';
+import {
   AFFILIATE_NETWORKS,
   DEFAULT_DISCLOSURE_BY_NETWORK,
   buildAffiliateMapping
@@ -45,8 +53,20 @@ import {
 export const APPLICATION_STATE_VERSION = 1;
 export const EXTERNAL_PUBLISHING_ENABLED = false;
 
-const SAFE_MEDIA_RIGHTS = new Set(['owned', 'licensed', 'not_required']);
-const MEDIA_RIGHTS = new Set([...SAFE_MEDIA_RIGHTS, 'unknown']);
+const SAFE_MEDIA_RIGHTS = new Set([
+  'owned',
+  'user_owned',
+  'licensed',
+  'explicitly_licensed',
+  'platform_embed_only',
+  'link_only',
+  'analysis_only',
+  'not_required'
+]);
+const MEDIA_RIGHTS = new Set(PUBLICATION_MEDIA_RIGHTS);
+const ISSUE_SOURCE_SET = new Set(ISSUE_SOURCE_GRADES);
+const PRODUCT_RELATION_SET = new Set(PRODUCT_RELATION_GRADES);
+const DISCOVERY_MEDIA_SET = new Set(DISCOVERY_MEDIA_STATES);
 const PERSONAL_USE = new Set(['confirmed', 'not_confirmed']);
 const REVIEW_DECISIONS = new Set(['approved', 'held', 'rejected']);
 const FIRST_HAND_PATTERN = /(직접\s*)?(써보니|사용해보니|써\s*봤|사용해\s*봤|제가\s*써|내가\s*써)/;
@@ -109,6 +129,36 @@ function safePersonalUse(value) {
   return normalized;
 }
 
+function safeIssueSourceGrade(value) {
+  const normalized = cleanString(value || 'none', { max: 16 });
+  if (!ISSUE_SOURCE_SET.has(normalized)) {
+    throw new ApplicationCommandError('issueSourceGrade is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'issueSourceGrade', rule: 'invalid' }
+    });
+  }
+  return normalized;
+}
+
+function safeProductRelationGrade(value) {
+  const normalized = cleanString(value || 'none', { max: 16 });
+  if (!PRODUCT_RELATION_SET.has(normalized)) {
+    throw new ApplicationCommandError('productRelationGrade is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'productRelationGrade', rule: 'invalid' }
+    });
+  }
+  return normalized;
+}
+
+function safeDiscoveryMediaState(value) {
+  const normalized = cleanString(value || 'none', { max: 40 });
+  if (!DISCOVERY_MEDIA_SET.has(normalized)) {
+    throw new ApplicationCommandError('discoveryMediaState is invalid.', {
+      code: 'invalid_input', statusCode: 422, details: { field: 'discoveryMediaState', rule: 'invalid' }
+    });
+  }
+  return normalized;
+}
+
 /**
  * Collect the owner's references as sources with declared origins.
  *
@@ -148,6 +198,12 @@ function materialRevision(candidate) {
     drafts: candidate.drafts,
     selectedDraftId: candidate.selectedDraftId,
     mediaRights: candidate.mediaRights,
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    aiGeneratedDepictsRealPerson: Boolean(candidate.aiGeneratedDepictsRealPerson),
+    syntheticDeceptiveBeforeAfter: Boolean(candidate.syntheticDeceptiveBeforeAfter),
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    personIdentifiedFromImageOnly: Boolean(candidate.personIdentifiedFromImageOnly),
     affiliate: candidate.affiliate,
     affiliateNetwork: candidate.affiliateNetwork ?? '',
     affiliateMappingState: candidate.affiliateMappingState ?? '',
@@ -246,7 +302,7 @@ function invalidateDownstream(candidate, reason, { keepEvidence = true, keepStra
   if (hadApprovedReview) {
     candidate.review = { ...candidate.review, stale: true, staleReason: reason };
     candidate.workflowState = 'stale';
-    candidate.blockers = [reason];
+    candidate.blockers = [reason, ...(candidate.blockers ?? []).filter((b) => b !== reason)];
   } else {
     candidate.review = null;
   }
@@ -273,6 +329,12 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
   const whyNow = cleanString(payload.whyNow, { required: true, max: 300, label: 'whyNow' });
   const readerValue = cleanString(payload.readerValue, { required: true, max: 300, label: 'readerValue' });
   const mediaRights = safeMediaRights(payload.mediaRights);
+  const discoveryMediaState = safeDiscoveryMediaState(payload.discoveryMediaState);
+  const aiGeneratedDepictsRealPerson = Boolean(payload.aiGeneratedDepictsRealPerson);
+  const syntheticDeceptiveBeforeAfter = Boolean(payload.syntheticDeceptiveBeforeAfter);
+  const issueSourceGrade = safeIssueSourceGrade(payload.issueSourceGrade);
+  const productRelationGrade = safeProductRelationGrade(payload.productRelationGrade);
+  const personIdentifiedFromImageOnly = Boolean(payload.personIdentifiedFromImageOnly);
   const personalUse = safePersonalUse(payload.personalUse);
   const affiliate = Boolean(payload.affiliate);
   const affiliateNetwork = cleanString(payload.affiliateNetwork, { max: 64 });
@@ -298,6 +360,31 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
   const disclosure = rawDisclosure || (affiliate && affiliateNetwork ? DEFAULT_DISCLOSURE_BY_NETWORK[affiliateNetwork] : '');
   const createdAt = nowIso(clock);
 
+  const initialIssueDecision = evaluateIssueProductDecision({
+    issueSourceGrade,
+    productRelationGrade,
+    matchState: 'unresolved',
+    personIdentifiedFromImageOnly
+  });
+  const initialMediaResolution = resolveMediaPublicationFallback({
+    discoveryMediaState,
+    publicationMediaRights: mediaRights,
+    publishableMediaUrl,
+    aiGeneratedDepictsRealPerson,
+    syntheticDeceptiveBeforeAfter
+  });
+  const hardIntakeBlocked =
+    initialIssueDecision.routeOutcome === 'block'
+    || initialMediaResolution.selectedTreatment === 'blocked';
+  const initialBlockers = hardIntakeBlocked
+    ? [
+        ...initialIssueDecision.blockers,
+        ...(initialMediaResolution.blockerKo ? [initialMediaResolution.blockerKo] : [])
+      ]
+    : initialIssueDecision.blockers.length > 0
+      ? [...initialIssueDecision.blockers]
+      : ['사용자 제공 제품 근거를 확인해야 합니다.'];
+
   const candidate = {
     id,
     sourceMode: synthetic ? 'synthetic_fixture' : 'owner_supplied',
@@ -315,6 +402,13 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     readerValue,
     lane: cleanString(payload.lane || 'practical-novel', { max: 80 }),
     mediaRights,
+    discoveryMediaState,
+    aiGeneratedDepictsRealPerson,
+    syntheticDeceptiveBeforeAfter,
+    issueSourceGrade,
+    productRelationGrade,
+    personIdentifiedFromImageOnly,
+    issueLinked: initialIssueDecision.issueLinked,
     personalUse,
     affiliate,
     affiliateNetwork,
@@ -342,13 +436,13 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
           hasSourceRef: Boolean(sourceRef),
           laneIsCuriosityOnly: (payload.lane ?? '') === 'curiosity-only'
         }).score,
-    evidenceReadiness: 'weak',
-    riskLevel: 'review',
+    evidenceReadiness: hardIntakeBlocked ? 'blocked' : 'weak',
+    riskLevel: hardIntakeBlocked ? 'blocked' : 'review',
     exactMatchStatus: 'unresolved',
-    verifierDecision: null,
+    verifierDecision: hardIntakeBlocked ? 'reject' : null,
     freshnessState: 'stale',
-    workflowState: 'verification_needed',
-    blockers: ['사용자 제공 제품 근거를 확인해야 합니다.'],
+    workflowState: hardIntakeBlocked ? 'blocked' : 'verification_needed',
+    blockers: [...new Set(initialBlockers)],
     evidencePacket: null,
     strategies: null,
     drafts: null,
@@ -364,6 +458,9 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
       sourceMode: synthetic ? 'synthetic_fixture' : 'owner_supplied',
       initialSourceRef: sourceRef,
       initialCorroborationRef: corroborationRef,
+      initialIssueSourceGrade: issueSourceGrade,
+      initialProductRelationGrade: productRelationGrade,
+      initialDiscoveryMediaState: discoveryMediaState,
       createdAt
     },
     createdAt,
@@ -475,6 +572,12 @@ function applyEvidenceFields(candidate, payload) {
   }
   if ('ownerDeclaredSubstitute' in payload) candidate.ownerDeclaredSubstitute = Boolean(payload.ownerDeclaredSubstitute);
   if ('mediaRights' in payload) candidate.mediaRights = safeMediaRights(payload.mediaRights);
+  if ('discoveryMediaState' in payload) candidate.discoveryMediaState = safeDiscoveryMediaState(payload.discoveryMediaState);
+  if ('aiGeneratedDepictsRealPerson' in payload) candidate.aiGeneratedDepictsRealPerson = Boolean(payload.aiGeneratedDepictsRealPerson);
+  if ('syntheticDeceptiveBeforeAfter' in payload) candidate.syntheticDeceptiveBeforeAfter = Boolean(payload.syntheticDeceptiveBeforeAfter);
+  if ('issueSourceGrade' in payload) candidate.issueSourceGrade = safeIssueSourceGrade(payload.issueSourceGrade);
+  if ('productRelationGrade' in payload) candidate.productRelationGrade = safeProductRelationGrade(payload.productRelationGrade);
+  if ('personIdentifiedFromImageOnly' in payload) candidate.personIdentifiedFromImageOnly = Boolean(payload.personIdentifiedFromImageOnly);
   if ('personalUse' in payload) candidate.personalUse = safePersonalUse(payload.personalUse);
   if ('affiliate' in payload) {
     const nextAffiliate = Boolean(payload.affiliate);
@@ -515,7 +618,17 @@ function verifyCandidate(candidate, payload, clock) {
     .join('\n');
   const fencedEvidence = fenceUntrustedPayload(untrustedBlob, { source: 'owner_user_evidence' });
   const sources = collectSources(candidate).map((source) => ({ ...source, observedAt }));
-  const rightsReady = SAFE_MEDIA_RIGHTS.has(candidate.mediaRights);
+  const mediaResolution = resolveMediaPublicationFallback({
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.mediaRights,
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
+  });
+  const unpermittedReupload = Boolean(
+    String(candidate.publishableMediaUrl ?? '').trim() && !mediaResolution.reuploadAllowed
+  );
+  const rightsReady = SAFE_MEDIA_RIGHTS.has(candidate.mediaRights) && mediaResolution.publishable && !unpermittedReupload;
 
   const match = decideMatchState({
     identity: { brand: candidate.brand, model: candidate.model, variant: candidate.variant },
@@ -524,25 +637,69 @@ function verifyCandidate(candidate, payload, clock) {
     conflicts: []
   });
 
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: match.matchState,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  candidate.issueLinked = issueDecision.issueLinked;
+
   // Claims the copy may not make, whatever the drafts say. These are constraints the
   // Writer and Guardian both read, rather than something rediscovered per draft.
   const prohibitedClaims = [];
-  if (!wordingRuleFor(match.matchState).sameProductClaimAllowed) {
-    prohibitedClaims.push({ text: '링크한 상품이 같은 제품이라는 표현', reason: '동일 제품 확정 근거가 없습니다.' });
+  if (!wordingRuleFor(match.matchState).sameProductClaimAllowed || issueDecision.allowedWordingCeiling === 'alternative_only') {
+    prohibitedClaims.push({ text: '링크한 상품이 같은 제품이라는 표현', reason: '동일 제품 확정 근거가 없거나 대체 후보(R4) 단계입니다.' });
   }
   if (candidate.personalUse !== 'confirmed') {
     prohibitedClaims.push({ text: '직접 사용해봤다는 표현', reason: '사용 기록이 없습니다.' });
   }
+  if (issueDecision.issueLinked && !issueDecision.publicFigureVerifiedEndorsement) {
+    prohibitedClaims.push({ text: '공인 추천·협찬·최애 표현', reason: '검증된 공식 캠페인(G0/G1+R0)이 아니므로 추천·협찬 함의가 금지됩니다(BS-26).' });
+  }
+  if (!mediaResolution.reuploadAllowed) {
+    prohibitedClaims.push({ text: '외부 공개 이미지·클립 재업로드', reason: '열람·발견 가능성은 재게시 권리가 아닙니다(AT-05, AT-26).' });
+  }
   prohibitedClaims.push({ text: '현재 가격 · 재고를 단정하는 표현', reason: '시점이 찍힌 가격 근거가 없습니다.' });
 
-  const unresolvedQuestions = [...match.reasons];
-  const decision = decideVerifierDecision({
+  const unresolvedQuestions = [
+    ...match.reasons,
+    ...(issueDecision.routeOutcome === 'verify_more' ? issueDecision.blockers : [])
+  ];
+  const publicFigureBlocked =
+    issueDecision.routeOutcome === 'block'
+    || mediaResolution.selectedTreatment === 'blocked';
+  const publicFigureRelation = issueDecision.issueLinked
+    ? {
+        classification: issueDecision.routeOutcome === 'block' ? 'blocked_rumor_private' : issueDecision.routeOutcome,
+        issueSourceGrade: issueDecision.issueSourceGrade,
+        productRelationGrade: issueDecision.productRelationGrade,
+        allowedWordingCeiling: issueDecision.allowedWordingCeiling,
+        publicFigureVerifiedEndorsement: issueDecision.publicFigureVerifiedEndorsement,
+        exactAffiliateAllowed: issueDecision.exactAffiliateAllowed,
+        alternativeAffiliateAllowed: issueDecision.alternativeAffiliateAllowed,
+        candidateCardLabelKo: issueDecision.candidateCardLabelKo
+      }
+    : null;
+
+  const baseDecision = decideVerifierDecision({
     matchState: match.matchState,
     mediaRightsResolved: rightsReady,
-    publicFigureBlocked: false,
+    publicFigureBlocked,
     conflicts: [],
     unresolvedQuestions
   });
+  const decision = publicFigureBlocked
+    ? {
+        verifierDecision: 'reject',
+        reason: issueDecision.blockers[0] || mediaResolution.blockerKo || baseDecision.reason
+      }
+    : issueDecision.routeOutcome === 'verify_more'
+      ? {
+          verifierDecision: 'hold',
+          reason: issueDecision.blockers[0] || '이슈 출처 및 제품 연관 등급 추가 검증이 필요합니다.'
+        }
+      : baseDecision;
 
   const readiness = evaluateEvidenceReadiness({
     verifierDecision: decision.verifierDecision,
@@ -554,13 +711,26 @@ function verifyCandidate(candidate, payload, clock) {
   const risk = evaluateRisk({
     matchState: match.matchState,
     mediaRightsResolved: rightsReady,
-    publicFigureRelation: null,
+    publicFigureRelation: publicFigureBlocked
+      ? { classification: 'blocked_rumor_private' }
+      : publicFigureRelation,
     conflicts: []
   });
-  const freshness = evaluateFreshness({ observedAt, now: observedAt });
+  const freshness = evaluateFreshness({
+    observedAt,
+    now: observedAt,
+    ttlHours: candidate.issueLinked ? 12 : 24
+  });
 
   const blockers = [];
-  if (!rightsReady) blockers.push('최종 콘텐츠의 미디어 권리가 확인되지 않았습니다.');
+  if (mediaResolution.blockerKo) {
+    blockers.push(mediaResolution.blockerKo);
+  } else if (unpermittedReupload) {
+    blockers.push('재업로드 권한이 없는 미디어 상태(' + candidate.mediaRights + ')에는 업로드 이미지 URL을 지정할 수 없습니다(AT-05, AT-26).');
+  } else if (!rightsReady) {
+    blockers.push('최종 콘텐츠의 미디어 권리가 확인되지 않았습니다.');
+  }
+  blockers.push(...issueDecision.blockers);
   blockers.push(...unresolvedQuestions);
   if (decision.reason) blockers.push(decision.reason);
 
@@ -592,6 +762,12 @@ function verifyCandidate(candidate, payload, clock) {
     verifierDecision: decision.verifierDecision,
     sources,
     mediaRights: candidate.mediaRights,
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    mediaResolution: {
+      selectedTreatment: mediaResolution.selectedTreatment,
+      publishable: mediaResolution.publishable,
+      reuploadAllowed: mediaResolution.reuploadAllowed
+    },
     personalUse: candidate.personalUse,
     // An identity claim exists only when there is an identity to claim.
     claimEvidence: identityText && sources.length > 0 ? [{
@@ -602,7 +778,7 @@ function verifyCandidate(candidate, payload, clock) {
     }] : [],
     prohibitedClaims,
     unresolvedQuestions,
-    publicFigureRelation: null,
+    publicFigureRelation,
     freshness: { state: freshness.state, evaluatedAt: observedAt, reasons: freshness.reasons },
     passiveDataFence: { nonce: fencedEvidence.nonce, openTag: fencedEvidence.openTag, closeTag: fencedEvidence.closeTag },
     conflicts: [],
@@ -611,10 +787,22 @@ function verifyCandidate(candidate, payload, clock) {
 
   invalidateDownstream(candidate, '승인 후 제품 근거가 변경되어 다시 검토해야 합니다.', { keepEvidence: true });
   if (!wasApproved) {
-    const strategyEligible = ['verified', 'limited'].includes(candidate.verifierDecision) && candidate.evidencePacket.claimEvidence.length > 0;
-    candidate.workflowState = (candidate.evidenceReadiness === 'ready' || (candidate.exactMatchStatus === 'substitute' && strategyEligible))
-      ? 'evidence_ready'
-      : 'evidence_partial';
+    if (publicFigureBlocked) {
+      candidate.workflowState = 'blocked';
+    } else if (issueDecision.routeOutcome === 'verify_more') {
+      candidate.workflowState = 'evidence_partial';
+    } else {
+      const strategyEligible =
+        ['verified', 'limited'].includes(candidate.verifierDecision)
+        && candidate.evidencePacket.claimEvidence.length > 0;
+      const issueAlternativeReady =
+        issueDecision.routeOutcome === 'alternative_product_content'
+        && ['exact', 'substitute'].includes(candidate.exactMatchStatus)
+        && strategyEligible;
+      candidate.workflowState = (candidate.evidenceReadiness === 'ready' || (candidate.exactMatchStatus === 'substitute' && strategyEligible) || issueAlternativeReady)
+        ? 'evidence_ready'
+        : 'evidence_partial';
+    }
     candidate.review = null;
   }
   bump(candidate, clock, 'verification_completed', { exactMatchStatus: candidate.exactMatchStatus, evidenceReadiness: candidate.evidenceReadiness });
@@ -630,13 +818,23 @@ function verifyCandidate(candidate, payload, clock) {
  * while an unidentified product cannot.
  */
 function assertEvidenceReady(candidate) {
-  if (!['verified', 'limited'].includes(candidate.verifierDecision)) {
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  if (
+    !['verified', 'limited'].includes(candidate.verifierDecision)
+    || ['block', 'verify_more'].includes(issueDecision.routeOutcome)
+  ) {
     throw new ApplicationCommandError('Evidence is not ready for content strategy.', {
       code: 'evidence_not_ready',
       statusCode: 422,
       details: {
         verifierDecision: candidate.verifierDecision,
         exactMatchStatus: candidate.exactMatchStatus,
+        issueRouteOutcome: issueDecision.routeOutcome,
         blockers: candidate.blockers
       }
     });
@@ -716,11 +914,25 @@ function createDrafts(candidate, clock) {
     ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에서 확인하세요.`
     : '';
 
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+
   // A substitute must be labelled as an alternative in the copy itself, not only in
-  // the internal state (PRODUCT_MATCHING.md section 5, AT-10). The Writer states it;
+  // the internal state (PRODUCT_MATCHING.md section 5, AT-10, AT-30). The Writer states it;
   // the Guardian independently checks that it is there.
-  const substituteNotice = (candidate.exactMatchStatus === 'substitute' || candidate.affiliateMappingState === 'alternative')
+  const substituteNotice = (
+    candidate.exactMatchStatus === 'substitute'
+    || candidate.affiliateMappingState === 'alternative'
+    || issueDecision.allowedWordingCeiling === 'alternative_only'
+  )
     ? ' 이 링크는 같은 제품이 아니라 비슷한 제품입니다.'
+    : '';
+  const attributedReportNote = issueDecision.allowedWordingCeiling === 'attributed_report_only'
+    ? ' 공개 보도에 소개된 사양 범위만 참고합니다.'
     : '';
   const identityCaveat = candidate.exactMatchStatus === 'likely'
     ? ' 판매 페이지와 동일 제품인지는 아직 단정하지 않습니다.'
@@ -737,7 +949,7 @@ function createDrafts(candidate, clock) {
     id: `draft-${index + 1}`,
     angleId: angle.id,
     title: angle.title,
-    text: `${offsetZeroPrefix}${texts[index]}${substituteNotice}${identityCaveat}${showcasePointer}`,
+    text: `${offsetZeroPrefix}${texts[index]}${attributedReportNote}${substituteNotice}${identityCaveat}${showcasePointer}`,
     claimIds: ['claim-identity'],
     disclosure,
     promptVersion: wManifest.promptHashes?.[AGENT_IDS.WRITER] ?? null,
@@ -824,11 +1036,29 @@ function runGuardian(candidate, clock, state = null) {
   chargeEpochBudget(candidate, { chars: JSON.stringify(candidate.drafts).length });
   const now = nowIso(clock);
 
-  if (!['exact', 'substitute'].includes(candidate.exactMatchStatus) || !['verified', 'limited'].includes(candidate.verifierDecision) || !SAFE_MEDIA_RIGHTS.has(candidate.mediaRights)) {
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  const mediaResolution = resolveMediaPublicationFallback({
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.mediaRights,
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
+  });
+
+  const canProceedToDraftGuardian =
+    ['exact', 'substitute'].includes(candidate.exactMatchStatus)
+    || (issueDecision.routeOutcome === 'information_only' && ['exact', 'likely'].includes(candidate.exactMatchStatus));
+
+  if (!canProceedToDraftGuardian || !['verified', 'limited'].includes(candidate.verifierDecision)) {
     candidate.guardian = {
       agentId: AGENT_IDS.GUARDIAN,
       decision: 'block',
-      blockers: ['제품 동일성(정품/검증 대체품) 또는 미디어 권리 근거가 충분하지 않습니다.'],
+      blockers: ['제품 동일성(정품/검증 대체품) 또는 검증 결정 기준이 충분하지 않습니다.'],
       warnings: [],
       reviewedAt: now,
       boundMaterialRevision: candidate.materialRevision
@@ -842,32 +1072,42 @@ function runGuardian(candidate, clock, state = null) {
   let affiliateMappingError = null;
   if (candidate.affiliate) {
     const desiredState = candidate.affiliateMappingState
-      || (candidate.exactMatchStatus === 'substitute' ? 'alternative' : 'exact');
-    const mappingCheck = buildAffiliateMapping({
-      candidateId: candidate.id,
-      productState: candidate.exactMatchStatus,
-      state: desiredState,
-      affiliateNetwork: candidate.affiliateNetwork,
-      acquisitionMode: 'manual_owner_link',
-      destinationUrl: candidate.destinationUrl,
-      canonicalListingSnapshot: {
-        brand: candidate.brand,
-        model: candidate.model,
-        variant: candidate.variant,
-        seller: candidate.seller,
-        destinationUrl: candidate.destinationUrl,
-        capturedAt: candidate.evidencePacket?.observedAt || now
-      },
-      sources: collectSources(candidate),
-      requiredDisclosureText: candidate.disclosure,
-      lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true,
-      verifiedAt: candidate.evidencePacket?.observedAt || now
-    });
-    if (!mappingCheck.ok) {
-      affiliateMappingError = mappingCheck.message;
+      || ((candidate.exactMatchStatus === 'substitute' || issueDecision.allowedWordingCeiling === 'alternative_only')
+        ? 'alternative'
+        : 'exact');
+    if (issueDecision.issueLinked && !issueDecision.exactAffiliateAllowed && !issueDecision.alternativeAffiliateAllowed) {
+      affiliateMappingError = `현재 이슈·관계 등급(${issueDecision.issueSourceGrade}+${issueDecision.productRelationGrade})에서는 제휴 링크 연결이 허용되지 않습니다.`;
+      candidate.affiliateMapping = null;
+    } else if (desiredState === 'exact' && issueDecision.issueLinked && !issueDecision.exactAffiliateAllowed) {
+      affiliateMappingError = `대체 후보 연계(${issueDecision.issueSourceGrade}+${issueDecision.productRelationGrade})에서는 동일 모델(exact) 제휴 연결이 금지되며 alternative 매핑만 허용됩니다(AT-30).`;
       candidate.affiliateMapping = null;
     } else {
-      candidate.affiliateMapping = mappingCheck.mapping;
+      const mappingCheck = buildAffiliateMapping({
+        candidateId: candidate.id,
+        productState: candidate.exactMatchStatus,
+        state: desiredState,
+        affiliateNetwork: candidate.affiliateNetwork,
+        acquisitionMode: 'manual_owner_link',
+        destinationUrl: candidate.destinationUrl,
+        canonicalListingSnapshot: {
+          brand: candidate.brand,
+          model: candidate.model,
+          variant: candidate.variant,
+          seller: candidate.seller,
+          destinationUrl: candidate.destinationUrl,
+          capturedAt: candidate.evidencePacket?.observedAt || now
+        },
+        sources: collectSources(candidate),
+        requiredDisclosureText: candidate.disclosure,
+        lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true,
+        verifiedAt: candidate.evidencePacket?.observedAt || now
+      });
+      if (!mappingCheck.ok) {
+        affiliateMappingError = mappingCheck.message;
+        candidate.affiliateMapping = null;
+      } else {
+        candidate.affiliateMapping = mappingCheck.mapping;
+      }
     }
   } else {
     candidate.affiliateMapping = null;
@@ -888,12 +1128,21 @@ function runGuardian(candidate, clock, state = null) {
     matchState: candidate.exactMatchStatus,
     verifiedClaimIds: (candidate.evidencePacket?.claimEvidence ?? []).map((claim) => claim.claimId),
     personalUseConfirmed: candidate.personalUse === 'confirmed',
-    mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights),
+    mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights) && mediaResolution.publishable,
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.mediaRights,
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true,
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true,
     affiliate: candidate.affiliate,
     affiliateNetwork: candidate.affiliateNetwork,
+    affiliateMappingState: candidate.affiliateMapping?.state || candidate.affiliateMappingState || '',
     affiliateMappingError,
     disclosure: candidate.disclosure,
-    publicFigureVerifiedEndorsement: false,
+    publicFigureVerifiedEndorsement: issueDecision.publicFigureVerifiedEndorsement === true,
     activeMonetizedShowcaseCount: monetizedShowcaseCards.length,
     monetizedCardNumbers,
     enforceOffsetZeroDisclosure: Boolean(candidate.affiliate),
@@ -1072,6 +1321,19 @@ function toCandidateReadModel(candidate, { now, schedules = [], monetized = { ac
     .filter((s) => s.candidateId === candidate.id)
     .map((s) => structuredClone(s));
   const freshnessState = liveCandidateFreshness(candidate, evalNow);
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  const mediaResolution = resolveMediaPublicationFallback({
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    publicationMediaRights: candidate.mediaRights ?? 'not_required',
+    publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
+  });
   return {
     id: candidate.id,
     synthetic: candidate.synthetic,
@@ -1103,6 +1365,18 @@ function toCandidateReadModel(candidate, { now, schedules = [], monetized = { ac
     corroborationRef: candidate.corroborationRef ?? '',
     corroborationOrigin: candidate.corroborationOrigin ?? '',
     mediaRights: candidate.mediaRights,
+    discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+    aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+    syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true,
+    mediaSelectedTreatment: mediaResolution.selectedTreatment,
+    mediaReuploadAllowed: mediaResolution.reuploadAllowed,
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true,
+    issueLinked: Boolean(candidate.issueLinked || issueDecision.issueLinked),
+    issueRouteOutcome: issueDecision.routeOutcome,
+    issueAllowedWordingCeiling: issueDecision.allowedWordingCeiling,
+    issueCardLabelKo: issueDecision.candidateCardLabelKo,
     personalUse: candidate.personalUse,
     affiliate: candidate.affiliate,
     affiliateNetwork: candidate.affiliateNetwork ?? '',

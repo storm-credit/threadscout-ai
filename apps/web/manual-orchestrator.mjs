@@ -94,7 +94,13 @@ function validateSpecialistRoute(command, today, request) {
     });
   }
 
-  if (command === 'request_strategies' && !['verified', 'limited'].includes(candidate.verifierDecision)) {
+  if (
+    command === 'request_strategies'
+    && (
+      !['verified', 'limited'].includes(candidate.verifierDecision)
+      || ['block', 'verify_more'].includes(candidate.issueRouteOutcome)
+    )
+  ) {
     throw new ApplicationCommandError('Evidence is not ready for content strategy.', {
       code: 'evidence_not_ready',
       statusCode: 422,
@@ -102,6 +108,7 @@ function validateSpecialistRoute(command, today, request) {
         evidenceReadiness: candidate.evidenceReadiness,
         verifierDecision: candidate.verifierDecision,
         exactMatchStatus: candidate.exactMatchStatus,
+        issueRouteOutcome: candidate.issueRouteOutcome ?? null,
         blockers: candidate.blockers
       }
     });
