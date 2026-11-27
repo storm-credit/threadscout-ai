@@ -10,6 +10,42 @@ import { classifyAffiliateDestinationUrl } from './affiliate-yield-service.mjs';
 export const SHOWCASE_STANDARD_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days rolling
 export const SHOWCASE_ISSUE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours for fast issue-linked cards
 
+/**
+ * Proportional expiring-soon window (`PLATFORM_DECISION.md`):
+ * `0 < remainingMs <= Math.min(24h, ttlMs * 0.25)` (`<= 24h` for `7d` cards; `<= 3h` for `12h` issue cards).
+ */
+export function evaluateShowcaseCardExpiry(candidate, { now = new Date().toISOString() } = {}) {
+  if (!candidate || candidate.cardNumber == null || candidate.workflowState !== 'approved' || candidate.review?.stale === true) {
+    return null;
+  }
+  const verifiedAt = candidate.evidencePacket?.observedAt ?? candidate.verifiedAt ?? candidate.updatedAt;
+  const verifiedMs = Date.parse(verifiedAt ?? '');
+  const nowMs = Date.parse(now);
+  if (!Number.isFinite(verifiedMs) || !Number.isFinite(nowMs)) return null;
+
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus ?? candidate.productState ?? 'unresolved',
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  const isIssueLinked = Boolean(candidate.issueLinked || issueDecision.issueLinked);
+  const ttlMs = isIssueLinked ? SHOWCASE_ISSUE_TTL_MS : SHOWCASE_STANDARD_TTL_MS;
+  const expiresAtMs = verifiedMs + ttlMs;
+  const remainingMs = expiresAtMs - nowMs;
+  const warningWindowMs = Math.min(24 * 60 * 60 * 1000, Math.floor(ttlMs * 0.25));
+
+  return Object.freeze({
+    verifiedAt: new Date(verifiedMs).toISOString(),
+    expiresAt: new Date(expiresAtMs).toISOString(),
+    ttlMs,
+    warningWindowMs,
+    remainingMs,
+    expired: remainingMs <= 0,
+    expiringSoon: remainingMs > 0 && remainingMs <= warningWindowMs
+  });
+}
+
 export const PUBLIC_SHOWCASE_ALLOWED_KEYS = Object.freeze([
   'cardNumber',
   'canonicalProductName',

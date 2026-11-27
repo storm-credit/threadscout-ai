@@ -152,10 +152,11 @@ const FIRST_HAND_NEGATIONS = [
 ];
 
 const MANDATORY_DISCLAIMER_STRIPPERS = [
-  /이\s*링크는\s*같은\s*제품이\s*아니라\s*비슷한\s*(대체품|제품)\S*/g,
-  /같은\s*제품이\s*아니라\s*비슷한\s*(대체품|제품)\S*/g,
-  /직접\s*(써\s*본|써본|사용한?)\s*기록이\s*없(어|다면|으므로|습니다|기\s*때문에)[^.?!\n]*/g,
-  /체험담처럼\s*쓰지\s*않\S*/g
+  /^\s*\[(?:광고|협찬|유료광고)\][^.?!\n]{0,140}(?:[.?!]\s*|\n|$)/u,
+  /(?:쿠팡\s*파트너스|네이버\s*쇼핑커넥트|제휴)\s*활동의\s*일환으로[^.?!\n]{0,100}수수료를?\s*제공받(?:습니다|는다|아요|음)[.?!]?/gu,
+  /(?:이\s*(?:링크|글|후보)는\s*|원본과\s*)?같은\s*제품이\s*아니라\s*비슷한\s*(?:대체품|제품)(?:입니다|이다|이에요|예요)?[.?!]?/gu,
+  /직접\s*(?:써\s*본|써본|사용한?)\s*기록이\s*없(?:어|어서|다면|으므로|습니다|다|기\s*때문에)\s*(?:공개\s*사양과\s*확인\s*자료만\s*놓고\s*정리했(?:습니다|다|어요)|체험담처럼\s*쓰지\s*않(?:습니다|는다|아요))?[.?!]?/gu,
+  /체험담처럼\s*쓰지\s*않(?:습니다|는다|아요)[.?!]?/gu
 ];
 
 const INCENTIVIZED_BAIT_PATTERNS = [
@@ -186,8 +187,13 @@ export function stripFirstHandNegations(text = '') {
   return FIRST_HAND_NEGATIONS.reduce((value, pattern) => value.replace(pattern, ' '), text);
 }
 
-export function stripMandatoryDisclaimers(text = '') {
-  return MANDATORY_DISCLAIMER_STRIPPERS.reduce((value, pattern) => value.replace(pattern, ' '), String(text ?? ''));
+export function stripMandatoryDisclaimers(text = '', exactDisclosure = '') {
+  let base = String(text ?? '');
+  const disc = String(exactDisclosure ?? '').trim();
+  if (disc && base.startsWith(disc)) {
+    base = base.slice(disc.length).replace(/^\s+/, '');
+  }
+  return MANDATORY_DISCLAIMER_STRIPPERS.reduce((value, pattern) => value.replace(pattern, ' '), base);
 }
 
 export function detectFirstHandLanguage(text = '') {
@@ -223,19 +229,19 @@ export function detectIncentivizedEngagementBait(text = '') {
 /**
  * Korean anti-AI-slop detector over conjugated stems after stripping mandatory AT-10/AT-23 disclaimers.
  */
-export function detectKoreanAiSlop(text = '') {
-  const cleaned = stripMandatoryDisclaimers(text);
+export function detectKoreanAiSlop(text = '', { disclosure = '' } = {}) {
+  const cleaned = stripMandatoryDisclaimers(text, disclosure);
   const reasons = [];
 
-  if (/(되어지|되어져|보여지|보여져|여겨지|여겨져)/.test(cleaned)) {
-    reasons.push('이중 피동(되어지-/보여지-/여겨지-) 표현이 있습니다.');
+  if (/(?:되어|보여|여겨|쓰여|만들어|읽혀)(?:지|진|질|집|져|졌)/.test(cleaned)) {
+    reasons.push('이중 피동(되어지-/보여지-/여겨지-/쓰여지-/만들어지-/읽혀지-) 표현이 있습니다.');
   }
-  const connectiveCommas = cleaned.match(/[가-힣](?:고|며|지만|면서),/g) ?? [];
+  const connectiveCommas = cleaned.match(/[가-힣](?:고|며|지만|면서|아서|어서|해서|워서|봐서|써서|돼서|이어서),/g) ?? [];
   if (connectiveCommas.length >= 3) {
-    reasons.push('연결어미 직후 기계적 쉼표(-고,/-지만,)가 3회 이상 반복됩니다.');
+    reasons.push('연결어미 직후 기계적 쉼표(-고,/-지만,/-해서,/-아서,)가 3회 이상 반복됩니다.');
   }
-  if (/(?:중요한|필요한)\s*(?:것은|건)\s+[^.?!\n]{2,40}(?:이다|예요|입니다)|핵심은\s+[^.?!\n]{2,40}(?:점이다|점입니다|데\s*있다)/.test(cleaned)) {
-    reasons.push('번역투 분열문(중요한 것은 ~이다 / 핵심은 ~점이다)이 있습니다.');
+  if (/(?:^\s*|[.?!]\s+|\n\s*)(?:(?:중요한|필요한)\s*(?:것은|건)|핵심은|문제는|관건은)\s+[^.?!\n]{2,44}(?:이다|예요|이에요|입니다|점이다|점입니다|점이에요|데\s*있(?:다|어요|습니다)|것이다|것입니다)/.test(cleaned)) {
+    reasons.push('번역투 분열문(중요한 것은·핵심은·문제는·관건은 ~이다/입니다)이 있습니다.');
   }
   if (/(?:^|[.?!]\s+)(?:그러나\s*)?(?:한계도\s*분명(?:하다|해요|합니다)|아쉬운\s*점도\s*있(?:다|어요|습니다)|과제도\s*남아\s*있(?:다|어요|습니다))\s*[.?!]/.test(cleaned)) {
     reasons.push('내용 없는 빈 반론 문패 문장 대신 첫 문장에 구체적 한계를 바로 적으세요.');
@@ -243,6 +249,22 @@ export function detectKoreanAiSlop(text = '') {
   const antithesisMatches = cleaned.match(/[가-힣0-9A-Za-z]+\s*(?:이|가)\s*아니라\s+[가-힣0-9A-Za-z]+/g) ?? [];
   if (antithesisMatches.length >= 2) {
     reasons.push('부정 대구(A가 아니라 B)가 한 초안에 2회 이상 연쇄됩니다.');
+  }
+  if (/단순한\s+[^.?!\n]{1,28}[을를]\s*넘어/.test(cleaned)) {
+    reasons.push('AI 상투구(단순한 X를 넘어 Y) 대신 구체적 작동·효용 사실만 적으세요.');
+  }
+  const stackedParticleHits = cleaned.match(/[가-힣0-9A-Za-z](?:에서의|에로의|으로의|에의|으로부터의|로부터의)\s+[가-힣0-9A-Za-z]/g) ?? [];
+  if (/(?:에\s*있어서|에로의|으로의|으로부터의|로부터의)/.test(cleaned) || stackedParticleHits.length >= 2) {
+    reasons.push('번역투 겹조사(-에 있어서/-으로의/-에서의 연쇄)를 자연스러운 한국어 조사로 풀어 쓰세요.');
+  }
+  if (/(?:편의성|효율성|사용자?\s*경험|만족감|솔루션|라이프스타일)[을를]\s*(?:제공|선사)(?:하|한|할|합|해|했)/.test(cleaned)) {
+    reasons.push('추상 명사 번역투(~편의성/경험/솔루션을 제공·선사하다) 대신 구체적인 작동 동사로 고치세요.');
+  }
+  if (/(?:혁신적인|획기적인|전례\s*없는|삶의\s*질\s*수직)/.test(cleaned)) {
+    reasons.push('과장된 AI 홍보 수식어(혁신적인/획기적인/전례 없는/삶의 질 수직)를 덜어내세요.');
+  }
+  if (/(?:[가-힣](?:는|던|할|을|인|한)|(?<!(?:같|다르))[가-힣]은)\s+이유(?:다|입니다|예요)(?=\s*(?:[.?!]|$))|[가-힣]\s*셈(?:이다|입니다|이에요)(?=\s*(?:[.?!]|$))/m.test(cleaned)) {
+    reasons.push('사후 해설투 문말(~하는 이유다 / ~한 셈이다) 대신 담백한 평서문으로 끝맺으세요.');
   }
 
   return { detected: reasons.length > 0, reasons };
@@ -588,7 +610,7 @@ export function runGuardianChecks({
       ));
     }
 
-    const slop = detectKoreanAiSlop(rawDraftText);
+    const slop = detectKoreanAiSlop(rawDraftText, { disclosure: draft.disclosure || normalizedDisclosure });
     if (slop.detected) {
       findings.push(finding(
         RULE_IDS.KOREAN_AI_SLOP,

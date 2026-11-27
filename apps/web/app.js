@@ -16,6 +16,8 @@ const els = {
   duplicateReviewSection: document.querySelector('#duplicate-review-section'),
   duplicateSummary: document.querySelector('#duplicate-summary'),
   evidenceForm: document.querySelector('#evidence-form'),
+  specSnippetInput: document.querySelector('#spec-snippet-input'),
+  applySpecSnippetBtn: document.querySelector('#apply-spec-snippet'),
   evidenceBrand: document.querySelector('#evidence-brand'),
   evidenceModel: document.querySelector('#evidence-model'),
   evidenceVariant: document.querySelector('#evidence-variant'),
@@ -51,10 +53,19 @@ const els = {
   disclosure: document.querySelector('#disclosure'),
   evidenceBasis: document.querySelector('#evidence-basis'),
   strategyList: document.querySelector('#strategy-list'),
+  draftToneSelect: document.querySelector('#draft-tone-select'),
   draftList: document.querySelector('#draft-list'),
   guardianResult: document.querySelector('#guardian-result'),
   approvalBinding: document.querySelector('#approval-binding'),
   showcasePreviewBox: document.querySelector('#showcase-preview-box'),
+  showcaseReconfirmBox: document.querySelector('#showcase-reconfirm-box'),
+  showcaseReconfirmNote: document.querySelector('#showcase-reconfirm-note'),
+  showcaseReconfirmSummary: document.querySelector('#showcase-reconfirm-summary'),
+  reconfirmShowcaseBtn: document.querySelector('#reconfirm-showcase-btn'),
+  showcaseOptionalRecheck: document.querySelector('#showcase-optional-recheck'),
+  showcaseOptionalRecheckSummary: document.querySelector('#showcase-optional-recheck-summary'),
+  showcaseOptionalSnapshotText: document.querySelector('#showcase-optional-snapshot-text'),
+  optionalReconfirmBtn: document.querySelector('#optional-reconfirm-btn'),
   approvedOperatorBox: document.querySelector('#approved-operator-box'),
   copyRootPost: document.querySelector('#copy-root-post'),
   copyShowcaseMd: document.querySelector('#copy-showcase-md'),
@@ -267,6 +278,11 @@ function cardTemplate(candidate) {
   const showcaseBadge = candidate.cardCode && candidate.showcaseProjected
     ? `<span class="status-pill ok">쇼케이스 ${escapeHtml(candidate.cardCode)}</span>`
     : '';
+  const expiryBadge = candidate.showcaseExpiry?.expiringSoon
+    ? '<span class="status-pill warn">쇼케이스 만료 임박</span>'
+    : (candidate.showcaseExpiry?.expired
+        ? '<span class="status-pill danger">쇼케이스 기한 만료</span>'
+        : '');
   const issueBadge = candidate.issueLinked && candidate.issueCardLabelKo
     ? `<span class="status-pill ${candidate.issueRouteOutcome === 'block' ? 'danger' : candidate.issueRouteOutcome === 'verify_more' ? 'warn' : 'info'}">${escapeHtml(candidate.issueCardLabelKo)}</span>`
     : '';
@@ -280,6 +296,7 @@ function cardTemplate(candidate) {
             <span class="card-kicker">${escapeHtml(laneLabel(candidate.lane))} · ${sourceBadge}</span>
             <span class="status-pill ${statusClass(candidate.workflowState)}">${escapeHtml(statusLabel(candidate.workflowState))}</span>
             ${showcaseBadge}
+            ${expiryBadge}
             ${issueBadge}
           </div>
           <h3>${escapeHtml(candidate.name)}</h3>
@@ -797,6 +814,9 @@ const ERROR_MESSAGES = {
   stale_rebuild_required: () => '근거가 바뀌어 이후 결과가 오래되었습니다. 다시 만들어 주세요.',
   post_publish_monetization_locked: () => '무고지로 게시된 카드는 사후에 제휴 수익화를 켤 수 없습니다(BS-60). 새 후보로 등록해 주세요.',
   lock_requires_approved_non_commercial: () => '승인된 무고지 비수익화 후보만 BS-60 게시 잠금을 설정할 수 있습니다.',
+  reconfirm_requires_approved_state: () => '활성 승인 상태인 쇼케이스 카드만 스냅샷 재확인·연장을 실행할 수 있습니다.',
+  reconfirm_artifacts_missing: () => '재확인에 필요한 검증 근거·전략·초안이 없습니다.',
+  snapshot_fields_required: () => '재확인을 위해 브랜드·모델·옵션·판매자·도착 URL 5개 항목이 모두 필요합니다.',
   budget_exhausted: () => '이 후보의 현재 주기(epoch) 누적 호출·비용 예산 상한에 도달했습니다. 거절 후 새 주기로 재오픈해야 합니다.',
   reopen_requires_rejected_state: () => '거절된 후보만 새 예산 주기로 다시 열 수 있습니다.',
   candidate_suppressed: () => '사용자가 억제한 후보는 복원하기 전까지 승인·예약·게시할 수 없습니다.',
@@ -1019,11 +1039,54 @@ function renderApproval(candidate) {
     }
   }
 
+  if (els.showcaseReconfirmBox && els.showcaseReconfirmNote) {
+    const exp = candidate.showcaseExpiry;
+    const activeCard =
+      candidate.workflowState === 'approved'
+      && candidate.review?.stale !== true
+      && Boolean(candidate.cardCode)
+      && Boolean(exp);
+    const snapSummary = activeCard
+      ? `대조 기준: 브랜드="${candidate.brand || '-'}" · 모델="${candidate.model || '-'}" · 옵션="${candidate.variant || '-'}" · 판매자="${candidate.seller || '-'}" · URL="${candidate.destinationUrl || '(비수익)'}"`
+      : '';
+
+    if (activeCard && exp.expired) {
+      els.showcaseReconfirmBox.hidden = false;
+      els.showcaseReconfirmNote.textContent = '⚠ 쇼케이스 유효기간이 만료되어 공개 노출이 중단되었습니다. 무예산 연장은 허용되지 않으므로 1단계에서 근거 재검증 후 다시 승인해 주세요.';
+      if (els.showcaseReconfirmSummary) els.showcaseReconfirmSummary.textContent = snapSummary;
+      if (els.reconfirmShowcaseBtn) els.reconfirmShowcaseBtn.hidden = true;
+      if (els.showcaseOptionalRecheck) els.showcaseOptionalRecheck.hidden = true;
+    } else if (activeCard && exp.expiringSoon) {
+      const remHours = Math.max(1, Math.round(Number(exp.remainingMs ?? 0) / (60 * 60 * 1000)));
+      els.showcaseReconfirmBox.hidden = false;
+      els.showcaseReconfirmNote.textContent = `⏰ 쇼케이스 유효기간 만료 임박 (약 ${remHours}시간 남음) — 아래 5개 항목이 판매처와 일치하면 전문 에이전트 예산 차감 없이 연장할 수 있습니다.`;
+      if (els.showcaseReconfirmSummary) els.showcaseReconfirmSummary.textContent = snapSummary;
+      if (els.reconfirmShowcaseBtn) els.reconfirmShowcaseBtn.hidden = false;
+      if (els.showcaseOptionalRecheck) els.showcaseOptionalRecheck.hidden = true;
+    } else {
+      els.showcaseReconfirmBox.hidden = true;
+      els.showcaseReconfirmNote.textContent = '';
+      if (els.showcaseOptionalRecheck) {
+        els.showcaseOptionalRecheck.hidden = !activeCard;
+        if (activeCard) {
+          const remHours = Math.max(1, Math.round(Number(exp.remainingMs ?? 0) / (60 * 60 * 1000)));
+          if (els.showcaseOptionalRecheckSummary) {
+            els.showcaseOptionalRecheckSummary.textContent = `쇼케이스 바인딩 스냅샷 수시 대조 (잔여 약 ${remHours}시간)`;
+          }
+          if (els.showcaseOptionalSnapshotText) {
+            els.showcaseOptionalSnapshotText.textContent = snapSummary;
+          }
+        }
+      }
+    }
+  }
+
   if (els.approvedOperatorBox) {
     const cleanApproved =
       candidate.workflowState === 'approved'
       && candidate.review?.stale !== true
-      && candidate.suppression?.active !== true;
+      && candidate.suppression?.active !== true
+      && candidate.showcaseExpiry?.expired !== true;
     els.approvedOperatorBox.hidden = !cleanApproved;
     if (els.copyRootPost) els.copyRootPost.disabled = !candidate.exportBundle?.singleRootPostCopyText;
     if (els.copyShowcaseMd) els.copyShowcaseMd.disabled = !candidate.exportBundle?.showcaseMarkdown;
@@ -1157,6 +1220,9 @@ function renderWorkspace() {
   if (els.seller) els.seller.value = candidate.seller ?? '';
   if (els.destinationUrl) els.destinationUrl.value = candidate.destinationUrl ?? '';
   syncAffiliateUrlHint();
+  if (els.draftToneSelect) {
+    els.draftToneSelect.value = candidate.draftTone === 'plain' ? 'plain' : 'polite';
+  }
   if (els.verifiedPros) els.verifiedPros.value = (candidate.verifiedPros ?? []).join('\n');
   if (els.verifiedLimitation) els.verifiedLimitation.value = candidate.verifiedLimitation ?? '';
   if (els.advisoryPrice) els.advisoryPrice.value = candidate.advisoryPriceKrw ? String(candidate.advisoryPriceKrw) : '';
@@ -1420,12 +1486,93 @@ document.querySelector('#create-strategies').addEventListener('click', async () 
   if (result.ok) { showToast('서로 다른 전략 4개를 만들었습니다.'); renderWorkspace(); }
 });
 
+function stripClientIdentityPriceNoise(raw = '') {
+  return String(raw ?? '')
+    .replace(/\(\s*(?:(?:₩|KRW\s*)\d[\d,.]*(?:\s*(?:만\s*원|천\s*원|원))?|\d[\d,.]*\s*(?:만\s*원|천\s*원|원))(?:\s*[^)]*)?\)/giu, ' ')
+    .replace(/(?:₩|KRW\s*)\d[\d,.]*(?:\s*(?:만\s*원|천\s*원|원))?.*$/giu, ' ')
+    .replace(/(?<![A-Za-z0-9-])\d+(?:[.,]\d+)*\s*(?:만\s*원|천\s*원|원)(?![가-힣A-Za-z0-9]).*$/gu, ' ')
+    .replace(/[\s([/|-]+$/u, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+els.applySpecSnippetBtn?.addEventListener('click', () => {
+  const raw = String(els.specSnippetInput?.value ?? '').trim();
+  if (!raw) {
+    showToast('붙여넣을 상품 스펙 표기 텍스트를 먼저 입력해 주세요.');
+    return;
+  }
+  const lines = raw
+    .split(/\r?\n|\s+\/\s+|(?=\s*(?:\[(?:브랜드명?|제조사|메이커|모델명|모델\s*코드|모델\s*번호|모델|품번|형번|옵션(?:\s*\/?\s*규격)?|색상(?:\s*\/?\s*사이즈)?|규격|사이즈|구성|변형|판매자|공식\s*스토어|스토어명?|판매처|입점사)\]\s*|(?:브랜드명?|제조사|메이커|모델명|모델\s*코드|모델\s*번호|모델|품번|형번|옵션(?:\s*\/?\s*규격)?|색상(?:\s*\/?\s*사이즈)?|규격|사이즈|구성|변형|판매자|공식\s*스토어|스토어명?|판매처|입점사)\s*[:：|]))/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const rules = [
+    { el: els.evidenceBrand, rx: /^(?:[-•*]\s*)?(?:\[(?:브랜드명?|제조사|메이커)\]\s*[:：|\t-]?\s*|(?:브랜드명?|제조사|메이커)\s*[:：|\t-]\s*)(.+)$/iu, max: 120 },
+    { el: els.evidenceModel, rx: /^(?:[-•*]\s*)?(?:\[(?:모델명|모델\s*코드|모델\s*번호|모델|품번|형번)\]\s*[:：|\t-]?\s*|(?:모델명|모델\s*코드|모델\s*번호|모델|품번|형번)\s*[:：|\t-]\s*)(.+)$/iu, max: 120 },
+    { el: els.evidenceVariant, rx: /^(?:[-•*]\s*)?(?:\[(?:옵션(?:\s*\/?\s*규격)?|색상(?:\s*\/?\s*사이즈)?|규격|사이즈|구성|변형)\]\s*[:：|\t-]?\s*|(?:옵션(?:\s*\/?\s*규격)?|색상(?:\s*\/?\s*사이즈)?|규격|사이즈|구성|변형)\s*[:：|\t-]\s*)(.+)$/iu, max: 160 },
+    { el: els.seller, rx: /^(?:[-•*]\s*)?(?:\[(?:판매자|공식\s*스토어|스토어명?|판매처|입점사)\]\s*[:：|\t-]?\s*|(?:판매자|공식\s*스토어|스토어명?|판매처|입점사)\s*[:：|\t-]\s*)(.+)$/iu, max: 160 }
+  ];
+  let filled = 0;
+  for (const line of lines) {
+    for (const { el, rx, max } of rules) {
+      if (!el) continue;
+      const m = line.match(rx);
+      if (!m) continue;
+      const val = stripClientIdentityPriceNoise(m[1]).slice(0, max);
+      if (val) {
+        el.value = val;
+        filled += 1;
+      }
+    }
+  }
+  if (els.specSnippetInput) els.specSnippetInput.value = '';
+  showToast(filled > 0
+    ? `식별 항목 ${filled}건을 채웠습니다(가격·홍보 문구는 제외됨).`
+    : '인식된 브랜드·모델·옵션·판매자 라벨이 없습니다.');
+});
+
 document.querySelector('#create-drafts').addEventListener('click', async () => {
   const candidate = candidateById(activeCandidateId);
   if (!candidate) return;
-  const result = await sendCommand('request_drafts', { candidateId: candidate.id, expectedRevision: candidate.revision });
-  if (result.ok) { showToast('전략과 1:1로 연결된 초안 4개를 만들었습니다.'); renderWorkspace(); }
+  const tone = els.draftToneSelect?.value === 'plain' ? 'plain' : 'polite';
+  const result = await sendCommand('request_drafts', {
+    candidateId: candidate.id,
+    expectedRevision: candidate.revision,
+    payload: { tone }
+  });
+  if (result.ok) {
+    showToast(`전략과 1:1로 연결된 초안 4개(${tone === 'plain' ? '평서체' : '존댓말'})를 만들었습니다.`);
+    renderWorkspace();
+  }
 });
+
+async function triggerSnapshotReconfirm() {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate) return;
+  const payload = {
+    brand: String(els.evidenceBrand?.value ?? candidate.brand ?? ''),
+    model: String(els.evidenceModel?.value ?? candidate.model ?? ''),
+    variant: String(els.evidenceVariant?.value ?? candidate.variant ?? ''),
+    seller: String(els.seller?.value ?? candidate.seller ?? ''),
+    destinationUrl: String(els.destinationUrl?.value ?? candidate.destinationUrl ?? '')
+  };
+  const res = await sendCommand('reconfirm_showcase_snapshot', {
+    candidateId: candidate.id,
+    expectedRevision: candidate.revision,
+    payload
+  });
+  if (res.ok) {
+    showToast(res.result.expiredStale
+      ? '유효기간이 만료되어 승인을 무효화했습니다. 1단계에서 근거를 다시 검증해 주세요.'
+      : res.result.driftDetected
+        ? '스냅샷 변경이 감지되어 기존 승인을 무효화하고 쇼케이스 카드를 철회했습니다(AT-44).'
+        : '스냅샷 일치를 재확인하여 쇼케이스 유효기간과 승인 해시를 갱신했습니다.');
+    renderWorkspace();
+  }
+}
+
+els.reconfirmShowcaseBtn?.addEventListener('click', triggerSnapshotReconfirm);
+els.optionalReconfirmBtn?.addEventListener('click', triggerSnapshotReconfirm);
 
 document.querySelector('#save-draft').addEventListener('click', async () => {
   const candidate = candidateById(activeCandidateId);

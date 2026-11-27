@@ -22,6 +22,7 @@ const HUMAN_COMMANDS = new Set([
   'remove_suppression_rule',
   'reopen_rejected_candidate',
   'lock_non_commercial_showcase',
+  'reconfirm_showcase_snapshot',
   'schedule_approved_post',
   'cancel_schedule',
   'record_manual_publication'
@@ -47,7 +48,7 @@ function allowedStates(command) {
   return {
     request_verification: new Set(['verification_needed', 'evidence_partial', 'evidence_ready', 'strategy_ready', 'draft_ready', 'guardian_revise', 'guardian_pass', 'approved', 'stale', 'blocked']),
     request_strategies: new Set(['evidence_ready', 'evidence_partial']),
-    request_drafts: new Set(['strategy_ready']),
+    request_drafts: new Set(['strategy_ready', 'draft_ready', 'guardian_revise', 'guardian_pass']),
     run_guardian: new Set(['draft_ready', 'guardian_revise', 'stale'])
   }[command] ?? null;
 }

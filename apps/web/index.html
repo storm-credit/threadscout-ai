@@ -135,6 +135,13 @@
                     <span id="evidence-basis" class="status-pill"></span>
                   </div>
                   <form id="evidence-form" class="form-stack compact-stack">
+                    <details class="detail-accordion">
+                      <summary>상품 상세 표기에서 브랜드·모델·옵션 빠르게 채우기 (가격·후기 제외)</summary>
+                      <div class="form-stack accordion-inner">
+                        <textarea id="spec-snippet-input" rows="2" maxlength="600" placeholder="예: 브랜드: 무아스 / 모델명: MG-S2 / 옵션: 웜그레이 50cm / 판매자: 무아스 공식몰"></textarea>
+                        <button id="apply-spec-snippet" class="ghost-button compact" type="button">식별 항목만 자동 채우기</button>
+                      </div>
+                    </details>
                     <div class="field-grid">
                       <label>브랜드<input id="evidence-brand" name="brand" maxlength="120" placeholder="예: 무아스, 3M" /></label>
                       <label>모델명<input id="evidence-model" name="model" maxlength="120" placeholder="예: SG-01" /></label>
@@ -282,7 +289,15 @@
                 <section class="workspace-section" aria-labelledby="draft-title">
                   <div class="section-heading">
                     <div><p class="section-kicker">Threads Writer</p><h3 id="draft-title">4관점 한국어 초안 비교·편집</h3></div>
-                    <button id="create-drafts" class="primary-button" type="button">초안 4개 만들기</button>
+                    <div class="draft-controls-inline">
+                      <label class="tone-select-label" for="draft-tone-select">초안 어조
+                        <select id="draft-tone-select" aria-label="초안 어조 선택">
+                          <option value="polite">존댓말 기본 (~습니다/요)</option>
+                          <option value="plain">에디토리얼 평서체 (~다)</option>
+                        </select>
+                      </label>
+                      <button id="create-drafts" class="primary-button" type="button">초안 4개 만들기</button>
+                    </div>
                   </div>
                   <div id="draft-list" class="draft-list"></div>
                   <div class="draft-footer-bar">
@@ -308,6 +323,18 @@
                   </div>
                   <div id="approval-binding" class="binding-summary"></div>
                   <div id="showcase-preview-box" class="showcase-preview-box" hidden></div>
+                  <div id="showcase-reconfirm-box" class="showcase-reconfirm-box" hidden>
+                    <p id="showcase-reconfirm-note" class="reconfirm-note"></p>
+                    <div id="showcase-reconfirm-summary" class="field-hint"></div>
+                    <button id="reconfirm-showcase-btn" class="secondary-button" type="button">스냅샷 일치 재확인 및 유효기간 연장 (예산 미차감)</button>
+                  </div>
+                  <details id="showcase-optional-recheck" class="provenance-details" hidden>
+                    <summary id="showcase-optional-recheck-summary">쇼케이스 바인딩 스냅샷 수시 대조 (유효기간 여유 있음)</summary>
+                    <div class="form-stack accordion-inner">
+                      <div id="showcase-optional-snapshot-text" class="field-hint"></div>
+                      <button id="optional-reconfirm-btn" class="ghost-button compact" type="button">현재 스냅샷 일치 재확인 (예산 미차감)</button>
+                    </div>
+                  </details>
                   <div id="approved-operator-box" class="approved-operator-box" hidden>
                     <div class="copy-actions-row">
                       <button id="copy-root-post" class="secondary-button" type="button">단일 포스트 본문 복사</button>
