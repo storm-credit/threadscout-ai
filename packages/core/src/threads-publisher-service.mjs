@@ -8,6 +8,10 @@ import { randomUUID } from 'node:crypto';
 import { sha256 } from '../../orchestra/src/versioning.mjs';
 import { buildAffiliateMapping } from './affiliate-yield-service.mjs';
 import { runGuardianChecks } from './guardian-checks.mjs';
+import {
+  evaluateIssueProductDecision,
+  resolveMediaPublicationFallback
+} from './issue-media-governance.mjs';
 
 export const SCHEDULE_STATES = Object.freeze({
   SCHEDULED: 'scheduled',
@@ -23,7 +27,16 @@ export const SCHEDULE_STATES = Object.freeze({
   EXPIRED: 'expired'
 });
 
-const SAFE_MEDIA_RIGHTS = new Set(['owned', 'licensed', 'not_required']);
+const SAFE_MEDIA_RIGHTS = new Set([
+  'owned',
+  'user_owned',
+  'licensed',
+  'explicitly_licensed',
+  'platform_embed_only',
+  'link_only',
+  'analysis_only',
+  'not_required'
+]);
 const ALLOWED_PUBLISH_KEYS = new Set(['text', 'imageUrl']);
 const REPLY_OR_CHAIN_KEY_PATTERN = /(?:repl(?:y|ies)|comment|thread_chain|continuation|parent_post|posts|children)/i;
 const CANCELLABLE_PRE_DISPATCH_STATES = new Set([
@@ -170,8 +183,30 @@ function resolveCandidateSources(candidate) {
 
 function evaluateCandidateAffiliateGate(candidate, verifiedAt) {
   if (!candidate?.affiliate) return { ok: true, mapping: null };
+  const issueDecision = evaluateIssueProductDecision({
+    issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+    productRelationGrade: candidate.productRelationGrade ?? 'none',
+    matchState: candidate.exactMatchStatus,
+    personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+  });
+  if (issueDecision.issueLinked && !issueDecision.exactAffiliateAllowed && !issueDecision.alternativeAffiliateAllowed) {
+    return {
+      ok: false,
+      code: 'issue_affiliate_forbidden',
+      message: '현재 이슈·제품 연관 등급에서는 제휴 링크 연결이 허용되지 않습니다.'
+    };
+  }
   const desiredState = candidate.affiliateMappingState
-    || (candidate.exactMatchStatus === 'substitute' ? 'alternative' : 'exact');
+    || ((candidate.exactMatchStatus === 'substitute' || issueDecision.allowedWordingCeiling === 'alternative_only')
+      ? 'alternative'
+      : 'exact');
+  if (desiredState === 'exact' && issueDecision.issueLinked && !issueDecision.exactAffiliateAllowed) {
+    return {
+      ok: false,
+      code: 'issue_exact_affiliate_forbidden',
+      message: '대체 후보 연계 등급에서는 동일 모델(exact) 제휴 연결이 금지되며 alternative 매핑만 허용됩니다(AT-30).'
+    };
+  }
   const explicitSeller = String(
     candidate.canonicalListingSnapshot?.seller
     || candidate.affiliateMapping?.canonicalListingSnapshot?.seller
@@ -272,12 +307,46 @@ export function createThreadsPublisherRegistry({
     ) {
       return { ok: false, code: 'STALE_APPROVAL_HASH', message: 'Guardian or approval materialRevision drifted.' };
     }
-    if (!SAFE_MEDIA_RIGHTS.has(candidate.mediaRights)) {
-      return { ok: false, code: 'MEDIA_RIGHTS_REQUIRED', message: 'Publishable media rights are required before scheduling.' };
+    const mediaResolution = resolveMediaPublicationFallback({
+      discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+      publicationMediaRights: candidate.mediaRights ?? 'unknown',
+      publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+      aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+      syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
+    });
+    if (mediaResolution.reasonCode === 'INVALID_PUBLISHABLE_MEDIA_URL') {
+      return { ok: false, code: 'INVALID_IMAGE_URL', message: mediaResolution.blockerKo };
+    }
+    if (!mediaResolution.publishable || !SAFE_MEDIA_RIGHTS.has(candidate.mediaRights)) {
+      return { ok: false, code: 'MEDIA_RIGHTS_REQUIRED', message: mediaResolution.blockerKo || 'Publishable media rights are required before scheduling.' };
+    }
+    if (String(candidate.publishableMediaUrl ?? '').trim() && !mediaResolution.reuploadAllowed) {
+      return {
+        ok: false,
+        code: 'UNPERMITTED_MEDIA_REUPLOAD',
+        message: 'Re-upload imageUrl is forbidden unless mediaRights is owned/user_owned or licensed/explicitly_licensed.'
+      };
+    }
+
+    const issueDecision = evaluateIssueProductDecision({
+      issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+      productRelationGrade: candidate.productRelationGrade ?? 'none',
+      matchState: candidate.exactMatchStatus,
+      personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+    });
+    if (issueDecision.issueLinked && ['block', 'verify_more'].includes(issueDecision.routeOutcome)) {
+      return {
+        ok: false,
+        code: 'ISSUE_SOURCE_OR_RELATION_BLOCKED',
+        message: issueDecision.blockers[0] || 'Issue or public-figure relation prevents scheduling.'
+      };
     }
 
     const now = nowIso();
-    const ttlCheck = checkEvidenceTtl(candidate, now);
+    const ttlCheck = checkEvidenceTtl({
+      ...candidate,
+      issueLinked: Boolean(candidate.issueLinked || issueDecision.issueLinked)
+    }, now);
     if (!ttlCheck.ok) return ttlCheck;
 
     const boundApprovedDraftId = candidate.review?.approvedDraftId ?? null;
@@ -295,7 +364,8 @@ export function createThreadsPublisherRegistry({
       return { ok: false, code: 'DRAFT_NOT_FOUND', message: 'Selected approved draft does not exist.' };
     }
 
-    const imageUrl = ['owned', 'licensed'].includes(candidate.mediaRights) ? candidate.publishableMediaUrl || undefined : undefined;
+    const rawPublishableUrl = String(candidate.publishableMediaUrl ?? '').trim();
+    const imageUrl = mediaResolution.reuploadAllowed && rawPublishableUrl ? rawPublishableUrl : undefined;
     const singlePostCheck = assertSingleRootPostPayload({
       text: draft.text,
       ...(imageUrl ? { imageUrl } : {}),
@@ -318,9 +388,18 @@ export function createThreadsPublisherRegistry({
       matchState: candidate.exactMatchStatus,
       verifiedClaimIds: (candidate.evidencePacket?.claimEvidence ?? []).map((c) => c.claimId),
       personalUseConfirmed: candidate.personalUse === 'confirmed',
-      mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights),
+      mediaRightsResolved: mediaResolution.publishable,
+      discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+      publicationMediaRights: candidate.mediaRights,
+      publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+      aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+      syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true,
+      issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+      productRelationGrade: candidate.productRelationGrade ?? 'none',
+      personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true,
       affiliate: Boolean(candidate.affiliate),
       affiliateNetwork: candidate.affiliateNetwork ?? '',
+      affiliateMappingState: candidate.affiliateMapping?.state || candidate.affiliateMappingState || '',
       disclosure: candidate.disclosure ?? '',
       activeMonetizedShowcaseCount,
       monetizedCardNumbers,
@@ -484,10 +563,29 @@ export function createThreadsPublisherRegistry({
       return { ok: false, code: 'APPROVAL_INVALIDATED', status: record.status, schedule: structuredClone(record) };
     }
 
-    if (!SAFE_MEDIA_RIGHTS.has(candidate.mediaRights)) {
+    const preflightMedia = resolveMediaPublicationFallback({
+      discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+      publicationMediaRights: candidate.mediaRights ?? 'unknown',
+      publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+      aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+      syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
+    });
+    if (!preflightMedia.publishable || !SAFE_MEDIA_RIGHTS.has(candidate.mediaRights) || (String(candidate.publishableMediaUrl ?? '').trim() && !preflightMedia.reuploadAllowed)) {
       record.status = SCHEDULE_STATES.INVALIDATED;
       record.invalidationReason = 'media_rights_not_publishable';
       return { ok: false, code: 'MEDIA_RIGHTS_INVALIDATED', status: record.status, schedule: structuredClone(record) };
+    }
+
+    const preflightIssue = evaluateIssueProductDecision({
+      issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+      productRelationGrade: candidate.productRelationGrade ?? 'none',
+      matchState: candidate.exactMatchStatus,
+      personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true
+    });
+    if (preflightIssue.issueLinked && ['block', 'verify_more'].includes(preflightIssue.routeOutcome)) {
+      record.status = SCHEDULE_STATES.INVALIDATED;
+      record.invalidationReason = 'issue_or_relation_blocked';
+      return { ok: false, code: 'ISSUE_SOURCE_OR_RELATION_BLOCKED', status: record.status, schedule: structuredClone(record) };
     }
 
     const affiliateGate = evaluateCandidateAffiliateGate(candidate, now);
@@ -539,7 +637,10 @@ export function createThreadsPublisherRegistry({
       return { ok: false, code: 'CONTENT_HASH_MISMATCH', status: record.status, schedule: structuredClone(record) };
     }
 
-    const ttlCheck = checkEvidenceTtl(candidate, now);
+    const ttlCheck = checkEvidenceTtl({
+      ...candidate,
+      issueLinked: Boolean(candidate.issueLinked || preflightIssue.issueLinked)
+    }, now);
     if (!ttlCheck.ok) {
       record.status = SCHEDULE_STATES.EXPIRED;
       record.invalidationReason = 'evidence_freshness_ttl_expired';
@@ -552,9 +653,18 @@ export function createThreadsPublisherRegistry({
       matchState: candidate.exactMatchStatus,
       verifiedClaimIds: (candidate.evidencePacket?.claimEvidence ?? []).map((c) => c.claimId),
       personalUseConfirmed: candidate.personalUse === 'confirmed',
-      mediaRightsResolved: SAFE_MEDIA_RIGHTS.has(candidate.mediaRights),
+      mediaRightsResolved: preflightMedia.publishable,
+      discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+      publicationMediaRights: candidate.mediaRights,
+      publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+      aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
+      syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true,
+      issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+      productRelationGrade: candidate.productRelationGrade ?? 'none',
+      personIdentifiedFromImageOnly: candidate.personIdentifiedFromImageOnly === true,
       affiliate: Boolean(candidate.affiliate),
       affiliateNetwork: candidate.affiliateNetwork ?? '',
+      affiliateMappingState: candidate.affiliateMapping?.state || candidate.affiliateMappingState || '',
       disclosure: candidate.disclosure ?? '',
       activeMonetizedShowcaseCount,
       monetizedCardNumbers,
@@ -581,7 +691,7 @@ export function createThreadsPublisherRegistry({
       schedule: structuredClone(record),
       redactedRequestPreview: buildRedactedThreadsPublishPreview({
         text: draft.text,
-        imageUrl: ['owned', 'licensed'].includes(candidate.mediaRights) ? candidate.publishableMediaUrl || null : null
+        imageUrl: preflightMedia.reuploadAllowed ? preflightMedia.effectiveUploadUrl || null : null
       })
     };
   }

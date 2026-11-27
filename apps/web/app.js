@@ -29,6 +29,11 @@ const els = {
   mediaRights: document.querySelector('#media-rights'),
   publishableMediaRow: document.querySelector('#publishable-media-row'),
   publishableMediaUrl: document.querySelector('#evidence-publishable-media-url'),
+  issueSourceGrade: document.querySelector('#evidence-issue-source'),
+  productRelationGrade: document.querySelector('#evidence-product-relation'),
+  discoveryMediaState: document.querySelector('#evidence-discovery-media'),
+  personIdentifiedFromImageOnly: document.querySelector('#evidence-image-person-id'),
+  aiGeneratedDepictsRealPerson: document.querySelector('#evidence-ai-person'),
   personalUse: document.querySelector('#personal-use'),
   affiliate: document.querySelector('#affiliate'),
   affiliateFields: document.querySelector('#affiliate-fields'),
@@ -145,7 +150,18 @@ function exactLabel(value) {
 }
 
 function mediaLabel(value) {
-  return { owned: '직접 소유', licensed: '사용 허가', not_required: '미디어 없음', unknown: '권리 미확인' }[value] ?? value;
+  return {
+    owned: '직접 소유',
+    user_owned: '직접 소유',
+    licensed: '사용 허가',
+    explicitly_licensed: '사용 허가',
+    platform_embed_only: '공식 임베드만',
+    link_only: '원문 링크만',
+    analysis_only: '분석만·텍스트 폴백',
+    not_required: '미디어 없음',
+    unknown: '권리 미확인',
+    prohibited: '재게시 금지'
+  }[value] ?? value;
 }
 
 function angleLabel(angleId) {
@@ -216,7 +232,7 @@ function statusClass(value, kind = 'status') {
   if (kind === 'exact') return value === 'exact' ? 'ok' : value === 'unresolved' ? 'danger' : 'warn';
   if (kind === 'verifier') return value === 'verified' ? 'ok' : value === 'reject' ? 'danger' : 'warn';
   if (kind === 'freshness') return value === 'fresh' ? 'ok' : 'warn';
-  if (kind === 'media') return value === 'unknown' ? 'warn' : 'ok';
+  if (kind === 'media') return value === 'prohibited' ? 'danger' : value === 'unknown' ? 'warn' : 'ok';
   if (value === 'approved' || value === 'guardian_pass' || value === 'evidence_ready') return 'ok';
   if (value === 'duplicate_review') return 'warn';
   if (value === 'stale' || value === 'blocked' || value === 'rejected' || value === 'guardian_revise') return 'danger';
@@ -237,6 +253,9 @@ function cardTemplate(candidate) {
   const showcaseBadge = candidate.cardCode && candidate.showcaseProjected
     ? `<span class="status-pill ok">쇼케이스 ${escapeHtml(candidate.cardCode)}</span>`
     : '';
+  const issueBadge = candidate.issueLinked && candidate.issueCardLabelKo
+    ? `<span class="status-pill ${candidate.issueRouteOutcome === 'block' ? 'danger' : candidate.issueRouteOutcome === 'verify_more' ? 'warn' : 'info'}">${escapeHtml(candidate.issueCardLabelKo)}</span>`
+    : '';
   const canHoldFromCard = !['approved', 'held', 'rejected', 'duplicate_review'].includes(candidate.workflowState);
   const isSelected = activeCandidateId === candidate.id && els.workspace.open;
   return `
@@ -247,6 +266,7 @@ function cardTemplate(candidate) {
             <span class="card-kicker">${escapeHtml(laneLabel(candidate.lane))} · ${sourceBadge}</span>
             <span class="status-pill ${statusClass(candidate.workflowState)}">${escapeHtml(statusLabel(candidate.workflowState))}</span>
             ${showcaseBadge}
+            ${issueBadge}
           </div>
           <h3>${escapeHtml(candidate.name)}</h3>
           <p><strong>왜 지금:</strong> ${escapeHtml(candidate.whyNow)}</p>
@@ -645,6 +665,7 @@ const FIELD_LABELS = {
   axis: '억제 기준', reason: '이유', decision: '결정', text: '내용',
   draftId: '초안', ruleId: '억제 규칙', requestId: '요청 번호', command: '명령',
   mediaRights: '미디어 권리', personalUse: '실사용 여부', expiresAt: '만료 시각',
+  issueSourceGrade: '이슈 출처 등급', productRelationGrade: '제품 연관 등급', discoveryMediaState: '발견 미디어 상태',
   affiliateNetwork: '제휴 프로그램', seller: '판매자', scheduleId: '예약 번호', desiredLocalDatetime: '예약 시각'
 };
 
@@ -696,6 +717,8 @@ const ERROR_MESSAGES = {
   guardian_pass_required: () => 'Guardian 검수 통과 상태여야 예약할 수 있습니다.',
   stale_approval_hash: () => '승인 이후 자료 해시가 변경되었습니다. 다시 Guardian 검수 및 승인을 진행해 주세요.',
   media_rights_required: () => '게시 허용 미디어 권리가 확인되어야 예약할 수 있습니다.',
+  unpermitted_media_reupload: () => '재업로드 권한이 없는 미디어 상태이므로 업로드 이미지 URL을 비워 주세요(AT-05, AT-26).',
+  issue_source_or_relation_blocked: () => '이슈 출처 또는 제품 연관 등급이 게시 기준을 충족하지 못해 예약·게시할 수 없습니다.',
   invalid_image_url: () => '게시 이미지 URL은 올바른 https:// 주소여야 합니다.',
   post_length_exceeded: () => '단일 루트 포스트 본문이 500자를 초과했습니다.',
   evidence_ttl_expired: () => '근거 확인 시점이 신선도 유효기간을 넘겼습니다. 1단계에서 근거를 다시 검증해 주세요.',
@@ -977,10 +1000,16 @@ function renderWorkspace() {
   els.evidenceCorroborationOrigin.value = candidate.corroborationOrigin ?? '';
   els.evidenceSubstitute.checked = candidate.ownerDeclaredSubstitute === true;
   els.mediaRights.value = candidate.mediaRights;
+  const reuploadEligible = ['owned', 'user_owned', 'licensed', 'explicitly_licensed'].includes(candidate.mediaRights);
   if (els.publishableMediaRow) {
-    els.publishableMediaRow.hidden = !['owned', 'licensed'].includes(candidate.mediaRights);
+    els.publishableMediaRow.hidden = !reuploadEligible;
   }
   if (els.publishableMediaUrl) els.publishableMediaUrl.value = candidate.publishableMediaUrl ?? '';
+  if (els.issueSourceGrade) els.issueSourceGrade.value = candidate.issueSourceGrade ?? 'none';
+  if (els.productRelationGrade) els.productRelationGrade.value = candidate.productRelationGrade ?? 'none';
+  if (els.discoveryMediaState) els.discoveryMediaState.value = candidate.discoveryMediaState ?? 'none';
+  if (els.personIdentifiedFromImageOnly) els.personIdentifiedFromImageOnly.checked = candidate.personIdentifiedFromImageOnly === true;
+  if (els.aiGeneratedDepictsRealPerson) els.aiGeneratedDepictsRealPerson.checked = candidate.aiGeneratedDepictsRealPerson === true;
   els.personalUse.value = candidate.personalUse;
   els.affiliate.checked = candidate.affiliate;
   if (els.affiliateFields) els.affiliateFields.hidden = !candidate.affiliate;
@@ -1000,7 +1029,10 @@ function renderWorkspace() {
 
   const duplicatePending = candidate.workflowState === 'duplicate_review';
   document.querySelector('#verify-evidence').disabled = duplicatePending;
-  document.querySelector('#create-strategies').disabled = duplicatePending || !['verified', 'limited'].includes(candidate.verifierDecision);
+  document.querySelector('#create-strategies').disabled =
+    duplicatePending
+    || !['verified', 'limited'].includes(candidate.verifierDecision)
+    || ['block', 'verify_more'].includes(candidate.issueRouteOutcome);
   document.querySelector('#create-drafts').disabled = duplicatePending || candidate.strategies?.angles?.length !== 4;
   document.querySelector('#save-draft').disabled = duplicatePending || !candidate.drafts?.length;
   document.querySelector('#run-guardian').disabled = duplicatePending || candidate.drafts?.length !== 4;
@@ -1039,8 +1071,12 @@ document.querySelectorAll('.step-tab').forEach((tab) => {
 document.querySelector('#jump-to-guardian')?.addEventListener('click', () => setStudioStep(3));
 
 els.mediaRights?.addEventListener('change', () => {
+  const reuploadEligible = ['owned', 'user_owned', 'licensed', 'explicitly_licensed'].includes(els.mediaRights.value);
   if (els.publishableMediaRow) {
-    els.publishableMediaRow.hidden = !['owned', 'licensed'].includes(els.mediaRights.value);
+    els.publishableMediaRow.hidden = !reuploadEligible;
+  }
+  if (!reuploadEligible && els.publishableMediaUrl) {
+    els.publishableMediaUrl.value = '';
   }
 });
 
@@ -1186,6 +1222,11 @@ els.evidenceForm.addEventListener('submit', async (event) => {
   const payload = Object.fromEntries(formData.entries());
   payload.affiliate = els.affiliate.checked;
   payload.ownerDeclaredSubstitute = els.evidenceSubstitute.checked;
+  payload.personIdentifiedFromImageOnly = Boolean(els.personIdentifiedFromImageOnly?.checked);
+  payload.aiGeneratedDepictsRealPerson = Boolean(els.aiGeneratedDepictsRealPerson?.checked);
+  if (!['owned', 'user_owned', 'licensed', 'explicitly_licensed'].includes(payload.mediaRights)) {
+    payload.publishableMediaUrl = '';
+  }
   const result = await sendCommand('request_verification', { candidateId: candidate.id, expectedRevision: candidate.revision, payload });
   if (!result.ok) return;
 

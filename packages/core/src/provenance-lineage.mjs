@@ -5,6 +5,10 @@
 import { buildVersionManifest, sha256 } from '../../orchestra/src/versioning.mjs';
 import { detectCommercialSolicitationSurface } from './guardian-checks.mjs';
 import {
+  evaluateIssueProductDecision,
+  resolveMediaPublicationFallback
+} from './issue-media-governance.mjs';
+import {
   exportDeterministicMarkdownCard,
   projectPublicShowcaseCard
 } from './public-showcase-projector.mjs';
@@ -130,12 +134,13 @@ export function buildCandidateProvenance(
   if (selectedDraft) {
     writerDigest = sha256(selectedDraft).slice(0, 16);
     const solicitation = detectCommercialSolicitationSurface(selectedDraft.text, {
+      cta: selectedDraft.cta ?? null,
       candidateMonetized: Boolean(candidate.affiliate),
       activeMonetizedShowcaseCount,
       monetizedCardNumbers
     });
     const requiredDisc = String(candidate.disclosure ?? selectedDraft.disclosure ?? '').trim();
-    const offsetZeroDisclosureOk = !solicitation.isCommercialSolicitation
+    const offsetZeroDisclosureOk = !solicitation.commercial
       || (Boolean(requiredDisc) && String(selectedDraft.text ?? '').startsWith(requiredDisc));
 
     writerStage = Object.freeze({
@@ -285,22 +290,38 @@ export function buildApprovedExportBundle(
   let singleRootPostCopyText = null;
   if (selectedDraft?.text) {
     const solicitation = detectCommercialSolicitationSurface(selectedDraft.text, {
+      cta: selectedDraft.cta ?? null,
       candidateMonetized: Boolean(candidate.affiliate),
       activeMonetizedShowcaseCount,
       monetizedCardNumbers
     });
     const requiredDisc = String(candidate.disclosure ?? selectedDraft.disclosure ?? '').trim();
-    const disclosureOk = !solicitation.isCommercialSolicitation
+    const disclosureOk = !solicitation.commercial
       || (Boolean(requiredDisc) && String(selectedDraft.text).startsWith(requiredDisc));
 
-    const imageUrl = ['owned', 'licensed'].includes(candidate.mediaRights) && candidate.publishableMediaUrl
-      ? candidate.publishableMediaUrl
-      : undefined;
+    const issueDecision = evaluateIssueProductDecision({
+      issueSourceGrade: candidate.issueSourceGrade ?? 'none',
+      productRelationGrade: candidate.productRelationGrade ?? 'none',
+      matchState: candidate.exactMatchStatus,
+      personIdentifiedFromImageOnly: Boolean(candidate.personIdentifiedFromImageOnly)
+    });
+    const mediaResolution = resolveMediaPublicationFallback({
+      discoveryMediaState: candidate.discoveryMediaState ?? 'none',
+      publicationMediaRights: candidate.mediaRights ?? 'unknown',
+      publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+      aiGeneratedDepictsRealPerson: Boolean(candidate.aiGeneratedDepictsRealPerson),
+      syntheticDeceptiveBeforeAfter: Boolean(candidate.syntheticDeceptiveBeforeAfter)
+    });
+    const issueOk = !issueDecision.issueLinked || !['block', 'verify_more'].includes(issueDecision.routeOutcome);
+    const mediaOk = mediaResolution.publishable
+      && !(String(candidate.publishableMediaUrl ?? '').trim() && !mediaResolution.reuploadAllowed);
+    const rawPublishableUrl = String(candidate.publishableMediaUrl ?? '').trim();
+    const imageUrl = mediaResolution.reuploadAllowed && rawPublishableUrl ? rawPublishableUrl : undefined;
     const payloadCheck = assertSingleRootPostPayload({
       text: selectedDraft.text,
       ...(imageUrl ? { imageUrl } : {})
     });
-    if (payloadCheck.ok && disclosureOk) {
+    if (payloadCheck.ok && disclosureOk && issueOk && mediaOk) {
       singleRootPostCopyText = String(selectedDraft.text).trim();
     }
   }
