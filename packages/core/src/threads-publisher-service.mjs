@@ -470,6 +470,7 @@ export function createThreadsPublisherRegistry({
       scheduleId,
       candidateId: candidate.id,
       draftId: draft.id,
+      affiliate: Boolean(candidate.affiliate),
       approvalHash,
       boundMaterialRevision: candidate.review.boundMaterialRevision,
       contentHash,
@@ -722,12 +723,23 @@ export function createThreadsPublisherRegistry({
     if (outcome === 'published') {
       record.status = SCHEDULE_STATES.PUBLISHED;
       record.remotePostId = String(remotePostId || '');
-      return { ok: true, status: record.status, schedule: structuredClone(record) };
+      return {
+        ok: true,
+        status: record.status,
+        lockNonCommercialRequired: record.affiliate === false,
+        schedule: structuredClone(record)
+      };
     }
     if (outcome === 'timeout') {
       record.status = SCHEDULE_STATES.UNKNOWN_REMOTE_STATE;
       record.invalidationReason = errorReason || 'submission_timeout_remote_unknown';
-      return { ok: false, code: 'UNKNOWN_REMOTE_STATE', status: record.status, schedule: structuredClone(record) };
+      return {
+        ok: false,
+        code: 'UNKNOWN_REMOTE_STATE',
+        status: record.status,
+        lockNonCommercialRequired: record.affiliate === false,
+        schedule: structuredClone(record)
+      };
     }
 
     record.status = SCHEDULE_STATES.FAILED;
@@ -756,7 +768,13 @@ export function createThreadsPublisherRegistry({
       record.status = SCHEDULE_STATES.PUBLISHED;
       record.remotePostId = String(remotePostId || 'reconciled-remote-post');
       record.invalidationReason = null;
-      return { ok: true, reconciledTo: SCHEDULE_STATES.PUBLISHED, repostAllowed: false, schedule: structuredClone(record) };
+      return {
+        ok: true,
+        reconciledTo: SCHEDULE_STATES.PUBLISHED,
+        repostAllowed: false,
+        lockNonCommercialRequired: record.affiliate === false,
+        schedule: structuredClone(record)
+      };
     }
 
     record.status = SCHEDULE_STATES.FAILED;

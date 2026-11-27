@@ -180,7 +180,7 @@ test('AT-46 / F26: closed 9-field showcase projection, matchBadge table, TTL wit
     affiliate: true,
     affiliateMapping: {
       state: 'alternative',
-      destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100',
+      destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100?nt_source=shoppingconnect',
       requiredDisclosureText: disclosure
     },
     verifiedPros: ['FixtureLab SG-01 투명 45cm 실리콘 물튐 방지 가드 본체 흡착판 분리 세척 가능', '설치 폭 45cm 표준 규격'],
@@ -237,7 +237,7 @@ test('AT-47 / F27: Naver Shopping Connect requires manual_owner_link + 2 origins
     model: 'SG-01',
     variant: '45cm',
     seller: 'FixtureLab 공식몰',
-    destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100',
+    destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100?nt_source=shoppingconnect',
     capturedAt: '2026-11-27T00:00:00.000Z'
   };
   const twoSources = [
@@ -373,7 +373,8 @@ test('SQLite WAL end-to-end: retains >55 candidates without #001 loss, serves 2-
         personalUse: 'not_confirmed',
         affiliate: true,
         affiliateNetwork: 'naver_shopping_connect',
-        destinationUrl: 'https://smartstore.naver.com/kitchenpure/products/450',
+        destinationUrl: 'https://smartstore.naver.com/kitchenpure/products/450?nt_source=shoppingconnect',
+        verifiedPros: ['실리콘 흡착판 분리 세척 및 설거지 물튐 방지 구조'],
         verifiedLimitation: '상판 폭 4.5cm 미만 좁은 싱크대에는 부착할 수 없습니다.'
       }
     });

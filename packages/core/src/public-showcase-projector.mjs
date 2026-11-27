@@ -5,6 +5,7 @@ import {
   evaluateIssueProductDecision,
   resolveMediaPublicationFallback
 } from './issue-media-governance.mjs';
+import { classifyAffiliateDestinationUrl } from './affiliate-yield-service.mjs';
 
 export const SHOWCASE_STANDARD_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days rolling
 export const SHOWCASE_ISSUE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours for fast issue-linked cards
@@ -91,6 +92,20 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
   if (candidate.guardian?.decision !== 'pass') {
     return { projected: false, reason: 'guardian_not_passed' };
   }
+  if (
+    candidate.review?.boundMaterialRevision
+    && candidate.materialRevision
+    && candidate.review.boundMaterialRevision !== candidate.materialRevision
+  ) {
+    return { projected: false, reason: 'material_revision_mismatch' };
+  }
+  if (
+    candidate.guardian?.boundMaterialRevision
+    && candidate.review?.boundMaterialRevision
+    && candidate.guardian.boundMaterialRevision !== candidate.review.boundMaterialRevision
+  ) {
+    return { projected: false, reason: 'guardian_revision_mismatch' };
+  }
   if (candidate.suppression?.active === true) {
     return { projected: false, reason: 'owner_suppressed' };
   }
@@ -169,14 +184,17 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
   }
 
   const rawExcerpts = candidate.rawSourceExcerpts ?? [];
-  const prosInput = Array.isArray(candidate.verifiedPros) && candidate.verifiedPros.length > 0
-    ? candidate.verifiedPros.slice(0, 3)
-    : [candidate.readerValue, candidate.whyNow].filter(Boolean).slice(0, 2);
-  const limitationInput = String(
-    candidate.verifiedLimitation
-    || candidate.strategies?.angles?.[3]?.limitation
-    || '구매 전 본인 설치·사용 환경과 상세 치수를 반드시 확인하세요.'
-  ).trim();
+  const packetHasPros = candidate.evidencePacket && typeof candidate.evidencePacket === 'object' && 'verifiedPros' in candidate.evidencePacket;
+  const packetHasLimitation = candidate.evidencePacket && typeof candidate.evidencePacket === 'object' && 'verifiedLimitation' in candidate.evidencePacket;
+  const sourcePros = packetHasPros ? candidate.evidencePacket.verifiedPros : candidate.verifiedPros;
+  const sourceLimitation = packetHasLimitation ? candidate.evidencePacket.verifiedLimitation : candidate.verifiedLimitation;
+
+  // Strictly project `verifiedPros` and `verifiedLimitation` bound into `evidencePacket`/`materialRevision`
+  // (never falling back to unbound `whyNow`, `readerValue`, or internal Strategist `angles[*].limitation`, `BS-37`/`BS-61`).
+  const prosInput = Array.isArray(sourcePros)
+    ? sourcePros.map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3)
+    : [];
+  const limitationInput = String(sourceLimitation ?? '').trim();
 
   if (prosInput.length === 0 || !limitationInput) {
     return { projected: false, reason: 'missing_pros_or_limitation' };
@@ -194,16 +212,15 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
   if (affiliateState !== 'none') {
     const rawDest = String(candidate.affiliateMapping?.destinationUrl ?? candidate.destinationUrl ?? '').trim();
     const rawDisc = String(candidate.affiliateMapping?.requiredDisclosureText ?? candidate.disclosure ?? '').trim();
+    const rawNet = String(candidate.affiliateMapping?.affiliateNetwork ?? candidate.affiliateNetwork ?? '').trim();
     if (!rawDest || !rawDisc) {
       return { projected: false, reason: 'monetized_card_missing_url_or_disclosure' };
     }
-    try {
-      const parsed = new URL(rawDest);
-      if (parsed.protocol !== 'https:') return { projected: false, reason: 'destination_url_not_https' };
-      verifiedDestinationUrl = parsed.toString();
-    } catch {
-      return { projected: false, reason: 'destination_url_invalid' };
+    const urlCheck = classifyAffiliateDestinationUrl(rawDest, rawNet);
+    if (!urlCheck.ok) {
+      return { projected: false, reason: urlCheck.code };
     }
+    verifiedDestinationUrl = urlCheck.normalizedUrl;
     disclosureText = rawDisc;
   }
 

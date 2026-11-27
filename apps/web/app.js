@@ -41,7 +41,13 @@ const els = {
   affiliateState: document.querySelector('#evidence-affiliate-state'),
   seller: document.querySelector('#evidence-seller'),
   destinationUrl: document.querySelector('#evidence-destination-url'),
+  affiliateUrlWarning: document.querySelector('#affiliate-url-warning'),
+  verifiedPros: document.querySelector('#evidence-verified-pros'),
   verifiedLimitation: document.querySelector('#evidence-limitation'),
+  advisoryPrice: document.querySelector('#evidence-advisory-price'),
+  advisoryRate: document.querySelector('#evidence-advisory-rate'),
+  advisoryYieldPill: document.querySelector('#advisory-yield-pill'),
+  portfolioMixBadge: document.querySelector('#portfolio-mix-badge'),
   disclosure: document.querySelector('#disclosure'),
   evidenceBasis: document.querySelector('#evidence-basis'),
   strategyList: document.querySelector('#strategy-list'),
@@ -358,8 +364,20 @@ function renderMetrics() {
   document.querySelector('#metric-ready').textContent = today.counters.recommended;
   document.querySelector('#metric-verification').textContent = today.counters.verificationNeeded + (today.counters.duplicateReview ?? 0);
   document.querySelector('#metric-approved').textContent = today.counters.approved;
-  if (els.showcaseCountBadge) {
-    els.showcaseCountBadge.textContent = today.showcaseCount ?? today.counters.approved ?? 0;
+  if (els.showcaseCountBadge) els.showcaseCountBadge.textContent = String(today.showcaseCount ?? 0);
+  if (els.portfolioMixBadge) {
+    const mix = today.portfolioMix;
+    if (!mix || mix.status === 'NOT_MEASURED') {
+      els.portfolioMixBadge.hidden = true;
+      els.portfolioMixBadge.textContent = '';
+    } else {
+      const pct = Math.round(Number(mix.commercialRatio ?? 0) * 100);
+      els.portfolioMixBadge.hidden = false;
+      els.portfolioMixBadge.className = `status-pill ${mix.status === 'ad_heavy_warning' ? 'warn' : 'ok'}`;
+      els.portfolioMixBadge.textContent = mix.status === 'ad_heavy_warning'
+        ? `상업 비중 ${pct}% (권장 <=30%)`
+        : `상업 비중 ${pct}% (적정)`;
+    }
   }
 }
 
@@ -994,7 +1012,7 @@ function renderApproval(candidate) {
         <a href="/showcase/${escapeHtml(numOnly)}" target="_blank" rel="noopener">소비자 쇼케이스 카드(${escapeHtml(candidate.cardCode)}) 열기 ↗</a>`;
     } else if (candidate.workflowState === 'approved' && !candidate.showcaseProjected) {
       els.showcasePreviewBox.hidden = false;
-      els.showcasePreviewBox.innerHTML = `<strong>로컬 승인 완료 (쇼케이스 미투영)</strong><br />제휴를 켠 경우 https:// 도착 URL과 대가성 고지 원문이 모두 있어야 공개 쇼케이스에 노출됩니다.`;
+      els.showcasePreviewBox.innerHTML = `<strong>로컬 승인 완료 (쇼케이스 미투영)</strong><br />검증된 장점·한계 바인딩, 유효기간, 또는 제휴 도착 URL·고지문 조건을 확인해 주세요.`;
     } else {
       els.showcasePreviewBox.hidden = true;
       els.showcasePreviewBox.textContent = '';
@@ -1066,6 +1084,39 @@ function renderApproval(candidate) {
   document.querySelector('#reject-candidate').disabled = duplicatePending || candidate.workflowState === 'rejected';
 }
 
+function syncAffiliateUrlHint() {
+  if (!els.affiliateUrlWarning) return;
+  const raw = String(els.destinationUrl?.value ?? '').trim();
+  if (!els.affiliate?.checked || !raw) {
+    els.affiliateUrlWarning.hidden = true;
+    els.affiliateUrlWarning.textContent = '';
+    return;
+  }
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase().replace(/\.+$/, '');
+    const coupangRaw = ['coupang.com', 'www.coupang.com', 'm.coupang.com'].includes(host) && !String(parsed.searchParams.get('lptag') ?? '').trim();
+    const naverKeys = ['nt_source', 'nt_medium', 'affiliate', 'aff', 'connect', 'tracker', 'bc_code'];
+    const naverRaw = ['smartstore.naver.com', 'm.smartstore.naver.com', 'brand.naver.com', 'm.brand.naver.com', 'shopping.naver.com', 'mshopping.naver.com'].includes(host)
+      && !naverKeys.some((k) => Boolean(String(parsed.searchParams.get(k) ?? '').trim()));
+    if (coupangRaw || naverRaw) {
+      els.affiliateUrlWarning.hidden = false;
+      els.affiliateUrlWarning.textContent = '⚠ 일반 스토어 상품 페이지 URL은 수수료 0원이므로 Guardian에서 차단됩니다. 콘솔 발급 전용 추적 링크를 입력하세요.';
+      return;
+    }
+    if (['naver.me', 'bit.ly', 'tinyurl.com', 'han.gl', 'me2.do', 'vo.la', 'buly.kr'].includes(host)) {
+      els.affiliateUrlWarning.hidden = false;
+      els.affiliateUrlWarning.textContent = `⚠ ${host} 공용 단축링크입니다. 일반 주소 단축이 아닌 파트너스·쇼핑커넥트 콘솔 발급 링크인지 확인하세요.`;
+      return;
+    }
+  } catch { /* ignore partial typing */ }
+  els.affiliateUrlWarning.hidden = true;
+  els.affiliateUrlWarning.textContent = '';
+}
+
+els.destinationUrl?.addEventListener('input', syncAffiliateUrlHint);
+els.affiliate?.addEventListener('change', syncAffiliateUrlHint);
+
 function renderWorkspace() {
   const candidate = candidateById(activeCandidateId);
   if (!candidate) {
@@ -1105,7 +1156,21 @@ function renderWorkspace() {
   if (els.affiliateState) els.affiliateState.value = candidate.affiliateMappingState ?? '';
   if (els.seller) els.seller.value = candidate.seller ?? '';
   if (els.destinationUrl) els.destinationUrl.value = candidate.destinationUrl ?? '';
+  syncAffiliateUrlHint();
+  if (els.verifiedPros) els.verifiedPros.value = (candidate.verifiedPros ?? []).join('\n');
   if (els.verifiedLimitation) els.verifiedLimitation.value = candidate.verifiedLimitation ?? '';
+  if (els.advisoryPrice) els.advisoryPrice.value = candidate.advisoryPriceKrw ? String(candidate.advisoryPriceKrw) : '';
+  if (els.advisoryRate) els.advisoryRate.value = candidate.advisoryCommissionRate != null ? String(candidate.advisoryCommissionRate) : '';
+  if (els.advisoryYieldPill) {
+    if (candidate.advisoryYield) {
+      const y = candidate.advisoryYield;
+      els.advisoryYieldPill.hidden = false;
+      els.advisoryYieldPill.textContent = `참고 건당 예상 순기여: ₩${Number(y.netContributionKrw ?? 0).toLocaleString('ko-KR')} (정산 수수료 ₩${Number(y.netSettledCommissionKrw ?? 0).toLocaleString('ko-KR')} − 토큰 ₩${Number(y.runTokenCostKrw ?? 0).toLocaleString('ko-KR')} · 추천 점수 미반영)`;
+    } else {
+      els.advisoryYieldPill.hidden = true;
+      els.advisoryYieldPill.textContent = '';
+    }
+  }
   els.disclosure.value = candidate.disclosure;
   els.evidenceBasis.textContent = candidate.sourceMode === 'synthetic_fixture' ? '예시 근거' : '사용자 제공 · 네트워크 미검증';
   els.evidenceBasis.className = `status-pill ${candidate.evidenceReadiness === 'ready' ? 'ok' : 'warn'}`;
@@ -1133,14 +1198,25 @@ function openWorkspace(candidateId, { autoStep = true } = {}) {
     setStudioStep(recommendedStepFor(candidate));
   }
   if (isDesktopSplitMode()) {
+    if (els.workspace.matches?.(':modal')) els.workspace.close();
     if (!els.workspace.open) els.workspace.setAttribute('open', '');
-  } else if (!els.workspace.open) {
-    els.workspace.showModal();
+  } else {
+    if (els.workspace.open && !els.workspace.matches?.(':modal')) {
+      els.workspace.removeAttribute('open');
+    }
+    if (!els.workspace.open) {
+      els.workspace.showModal();
+    }
   }
   renderWorkspace();
   renderCandidates();
   syncStudioVisibility();
 }
+
+desktopMedia.addEventListener?.('change', () => {
+  if (!els.workspace.open || !activeCandidateId) return;
+  openWorkspace(activeCandidateId, { autoStep: false });
+});
 
 async function runCandidateAction(candidate, action) {
   if (action === 'open_workspace') return openWorkspace(candidate.id, { autoStep: true });

@@ -208,7 +208,7 @@ test('PUBLISHING_SPEC §§3–7 & AT-44: single-use approval, terminal invalidat
     affiliate: true,
     affiliateNetwork: 'naver_shopping_connect',
     seller: 'FixtureLab 공식몰',
-    destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100',
+    destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100?nt_source=shoppingconnect',
     disclosure,
     drafts: [{ id: 'draft-1', title: '문제 → 판단', text: '무고지 본문 #001 안내', claimIds: ['claim-identity'], disclosure }]
   });
@@ -223,7 +223,7 @@ test('PUBLISHING_SPEC §§3–7 & AT-44: single-use approval, terminal invalidat
     affiliate: true,
     affiliateNetwork: 'naver_shopping_connect',
     seller: 'FixtureLab 공식몰',
-    destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100',
+    destinationUrl: 'https://smartstore.naver.com/fixturelab/products/100?nt_source=shoppingconnect',
     disclosure,
     drafts: [{
       id: 'draft-1',

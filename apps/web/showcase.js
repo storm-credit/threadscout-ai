@@ -18,15 +18,36 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function toMarkdown(card) {
-  const lines = [];
-  if (card.disclosureText) lines.push(`> ${card.disclosureText}`, '');
-  lines.push(`### ${card.cardNumber} ${card.canonicalProductName}`);
-  lines.push(`- 검증 구분: ${card.matchBadge === 'exact' ? '동일 모델 확인' : '검증 대체품'} (검증일 ${String(card.verifiedAt ?? '').slice(0, 10)})`);
-  for (const pro of card.verifiedPros ?? []) lines.push(`- 장점: ${pro}`);
-  lines.push(`- 사기 전 확인할 한계: ${card.verifiedLimitation}`);
-  if (card.verifiedDestinationUrl) lines.push(`- 공식 확인 링크: ${card.verifiedDestinationUrl}`);
-  return lines.join('\n');
+function resolveDestinationLabel(rawUrl = '', disclosureText = '') {
+  try {
+    const host = new URL(String(rawUrl)).hostname.toLowerCase();
+    const disc = String(disclosureText ?? '');
+    if ((host === 'coupa.ng' || host === 'coupang.com' || host.endsWith('.coupang.com')) && (!disc || /쿠팡/.test(disc))) {
+      return '쿠팡에서 확인 ↗';
+    }
+    if ((host === 'naver.me' || host === 'naver.com' || host.endsWith('.naver.com')) && (!disc || /네이버/.test(disc))) {
+      return '네이버에서 확인 ↗';
+    }
+  } catch { /* neutral fallback */ }
+  return '공식 판매처에서 확인 ↗';
+}
+
+function resolveDestinationReferrerPolicy() {
+  const host = String(window.location.hostname ?? '').toLowerCase().replace(/\.+$/, '');
+  const isLoopback =
+    host === 'localhost'
+    || host.endsWith('.localhost')
+    || /^127(?:\.\d{1,3}){3}$/.test(host)
+    || host === '::1'
+    || host === '[::1]'
+    || /^\[::ffff:127(?:\.\d{1,3}){3}\]$/.test(host)
+    || /^\[::ffff:7f[0-9a-f]{0,2}:[0-9a-f]{1,4}\]$/.test(host);
+  return window.location.protocol === 'https:' && !isLoopback ? 'origin' : 'no-referrer';
+}
+
+function toCardShareUrl(cardNumber = '') {
+  const slug = String(cardNumber ?? '').trim().replace(/^#/, '');
+  return `${window.location.origin}/showcase/${encodeURIComponent(slug)}`;
 }
 
 function cardHtml(card) {
@@ -35,11 +56,13 @@ function cardHtml(card) {
     ? `<p class="disclosure-banner">${escapeHtml(card.disclosureText)}</p>`
     : '';
   const mediaBlock = card.publishableMediaUrl
-    ? `<img class="card-media" src="${escapeHtml(card.publishableMediaUrl)}" alt="${escapeHtml(card.canonicalProductName)}" loading="lazy" />`
+    ? `<img class="card-media" src="${escapeHtml(card.publishableMediaUrl)}" alt="${escapeHtml(card.canonicalProductName)}" referrerpolicy="no-referrer" loading="lazy" />`
     : '';
   const prosItems = (card.verifiedPros ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  const destLabel = resolveDestinationLabel(card.verifiedDestinationUrl, card.disclosureText);
+  const destRefPolicy = resolveDestinationReferrerPolicy();
   const destinationBtn = card.verifiedDestinationUrl
-    ? `<a class="dest-btn" href="${escapeHtml(card.verifiedDestinationUrl)}" target="_blank" rel="noopener noreferrer sponsored">공식 확인처에서 보기 ↗</a>`
+    ? `<a class="dest-btn" href="${escapeHtml(card.verifiedDestinationUrl)}" target="_blank" rel="noopener sponsored nofollow" referrerpolicy="${escapeHtml(destRefPolicy)}">${escapeHtml(destLabel)}</a>`
     : '';
   return `
     <article class="showcase-card" data-card-number="${escapeHtml(card.cardNumber)}">
@@ -59,7 +82,7 @@ function cardHtml(card) {
         <span class="verified-date">검증 기준일 ${escapeHtml(String(card.verifiedAt ?? '').slice(0, 10))}</span>
         <div class="cta-row">
           ${destinationBtn}
-          <button type="button" class="copy-md-btn" data-copy-card="${escapeHtml(card.cardNumber)}">마크다운 복사</button>
+          <button type="button" class="copy-md-btn" data-copy-link="${escapeHtml(card.cardNumber)}">${escapeHtml(card.cardNumber)} 링크 복사</button>
         </div>
       </div>
     </article>`;
@@ -107,14 +130,24 @@ async function loadShowcase(query = '') {
 }
 
 grid.addEventListener('click', async (event) => {
-  const copyBtn = event.target.closest('[data-copy-card]');
+  const copyBtn = event.target.closest('[data-copy-link]');
   if (!copyBtn) return;
-  const card = renderedCards.find((item) => item.cardNumber === copyBtn.dataset.copyCard);
-  if (!card) return;
+  const cardNum = copyBtn.dataset.copyLink;
+  const shareUrl = toCardShareUrl(cardNum);
+  const resetLabel = `${cardNum} 링크 복사`;
   try {
-    await navigator.clipboard.writeText(toMarkdown(card));
-    copyBtn.textContent = '복사됨 ✔';
-    setTimeout(() => { copyBtn.textContent = '마크다운 복사'; }, 1800);
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+    } else {
+      const temp = document.createElement('textarea');
+      temp.value = shareUrl;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+    }
+    copyBtn.textContent = '링크 복사됨 ✔';
+    setTimeout(() => { copyBtn.textContent = resetLabel; }, 1800);
   } catch {
     copyBtn.textContent = '복사 실패';
   }

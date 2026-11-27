@@ -22,7 +22,8 @@ import {
 import {
   AFFILIATE_NETWORKS,
   DEFAULT_DISCLOSURE_BY_NETWORK,
-  buildAffiliateMapping
+  buildAffiliateMapping,
+  estimateNetYieldKrw
 } from '../../packages/core/src/affiliate-yield-service.mjs';
 import {
   formatCardNumber,
@@ -191,6 +192,47 @@ function configRevision() {
   return buildVersionManifest().manifestHash;
 }
 
+function parseVerifiedProsInput(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((item) => cleanString(item, { max: 200 })).filter(Boolean).slice(0, 3);
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .split(/\r?\n|\|/)
+      .map((line) => cleanString(line.replace(/^[-•·*]\s*/, ''), { max: 200 }))
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+  return [];
+}
+
+function parseAdvisoryPriceKrw(raw) {
+  if (raw === '' || raw === null || raw === undefined) return 0;
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.min(100_000_000, Math.round(num));
+}
+
+function parseAdvisoryCommissionRate(raw) {
+  if (raw === '' || raw === null || raw === undefined) return null;
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num < 0) return null;
+  const normalized = num > 1 && num <= 100 ? num / 100 : num;
+  return Math.min(1, Math.max(0, Number(normalized.toFixed(4))));
+}
+
+function reserveCardNumberIfEligible(candidate, state) {
+  if (!state || candidate.synthetic || candidate.cardNumber != null) return;
+  if (['evidence_ready', 'stale'].includes(candidate.workflowState) && ['exact', 'substitute'].includes(candidate.exactMatchStatus)) {
+    const currentMax = Math.max(
+      Number(state.nextCardNumber ?? 0),
+      ...(state.candidates ?? []).map((item) => Number(item.cardNumber ?? 0))
+    );
+    candidate.cardNumber = currentMax + 1;
+    state.nextCardNumber = candidate.cardNumber;
+  }
+}
+
 function materialRevision(candidate) {
   return sha256({
     evidence: candidate.evidencePacket,
@@ -210,6 +252,8 @@ function materialRevision(candidate) {
     seller: candidate.seller ?? '',
     destinationUrl: candidate.destinationUrl ?? '',
     publishableMediaUrl: candidate.publishableMediaUrl ?? '',
+    verifiedPros: candidate.verifiedPros ?? [],
+    verifiedLimitation: candidate.verifiedLimitation ?? '',
     disclosure: candidate.disclosure,
     configRevision: candidate.configRevision
   });
@@ -352,10 +396,10 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
   const seller = cleanString(payload.seller, { max: 160 });
   const destinationUrl = cleanString(payload.destinationUrl, { max: 1200 });
   const publishableMediaUrl = cleanString(payload.publishableMediaUrl, { max: 1200 });
-  const verifiedPros = Array.isArray(payload.verifiedPros)
-    ? payload.verifiedPros.map((item) => cleanString(item, { max: 200 })).filter(Boolean).slice(0, 3)
-    : [];
+  const verifiedPros = parseVerifiedProsInput(payload.verifiedPros);
   const verifiedLimitation = cleanString(payload.verifiedLimitation, { max: 240 });
+  const advisoryPriceKrw = parseAdvisoryPriceKrw(payload.advisoryPriceKrw);
+  const advisoryCommissionRate = parseAdvisoryCommissionRate(payload.advisoryCommissionRate);
   const rawDisclosure = cleanString(payload.disclosure, { max: 500 });
   const disclosure = rawDisclosure || (affiliate && affiliateNetwork ? DEFAULT_DISCLOSURE_BY_NETWORK[affiliateNetwork] : '');
   const createdAt = nowIso(clock);
@@ -419,6 +463,8 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     publishableMediaUrl,
     verifiedPros,
     verifiedLimitation,
+    advisoryPriceKrw,
+    advisoryCommissionRate,
     disclosure,
     cardNumber: null,
     lifecycleEpoch: 1,
@@ -567,8 +613,14 @@ function applyEvidenceFields(candidate, payload) {
     }
     candidate.affiliateMappingState = mapState;
   }
-  if ('verifiedPros' in payload && Array.isArray(payload.verifiedPros)) {
-    candidate.verifiedPros = payload.verifiedPros.map((item) => cleanString(item, { max: 200 })).filter(Boolean).slice(0, 3);
+  if ('verifiedPros' in payload) {
+    candidate.verifiedPros = parseVerifiedProsInput(payload.verifiedPros);
+  }
+  if ('advisoryPriceKrw' in payload) {
+    candidate.advisoryPriceKrw = parseAdvisoryPriceKrw(payload.advisoryPriceKrw);
+  }
+  if ('advisoryCommissionRate' in payload) {
+    candidate.advisoryCommissionRate = parseAdvisoryCommissionRate(payload.advisoryCommissionRate);
   }
   if ('ownerDeclaredSubstitute' in payload) candidate.ownerDeclaredSubstitute = Boolean(payload.ownerDeclaredSubstitute);
   if ('mediaRights' in payload) candidate.mediaRights = safeMediaRights(payload.mediaRights);
@@ -605,15 +657,29 @@ function applyEvidenceFields(candidate, payload) {
  * makes no network call: a user-supplied reference is stored as string evidence,
  * because fetching it would activate a live source that P0-02 keeps disabled.
  */
-function verifyCandidate(candidate, payload, clock) {
+function verifyCandidate(candidate, payload, clock, state = null) {
   if (!candidate.synthetic || candidate.evidencePacket !== null) {
     chargeEpochBudget(candidate, { chars: JSON.stringify(payload ?? {}).length + 600 });
   }
   const wasApproved = candidate.review?.decision === 'approved' && candidate.review?.stale !== true;
   applyEvidenceFields(candidate, payload);
+  if (!Array.isArray(candidate.verifiedPros) || candidate.verifiedPros.length === 0) {
+    candidate.verifiedPros = [cleanString(candidate.readerValue, { max: 200 })].filter(Boolean).slice(0, 3);
+  }
+  if (!String(candidate.verifiedLimitation ?? '').trim()) {
+    candidate.verifiedLimitation = '구매 전 본인 설치·사용 환경과 상세 규격을 반드시 확인하세요.';
+  }
 
   const observedAt = nowIso(clock);
-  const untrustedBlob = [candidate.name, candidate.sourceRef, candidate.corroborationRef, candidate.whyNow, candidate.readerValue]
+  const untrustedBlob = [
+    candidate.name,
+    candidate.sourceRef,
+    candidate.corroborationRef,
+    candidate.whyNow,
+    candidate.readerValue,
+    ...(candidate.verifiedPros ?? []),
+    candidate.verifiedLimitation
+  ]
     .filter(Boolean)
     .join('\n');
   const fencedEvidence = fenceUntrustedPayload(untrustedBlob, { source: 'owner_user_evidence' });
@@ -769,6 +835,8 @@ function verifyCandidate(candidate, payload, clock) {
       reuploadAllowed: mediaResolution.reuploadAllowed
     },
     personalUse: candidate.personalUse,
+    verifiedPros: [...(candidate.verifiedPros ?? [])],
+    verifiedLimitation: candidate.verifiedLimitation ?? '',
     // An identity claim exists only when there is an identity to claim.
     claimEvidence: identityText && sources.length > 0 ? [{
       claimId: 'claim-identity',
@@ -805,7 +873,8 @@ function verifyCandidate(candidate, payload, clock) {
     }
     candidate.review = null;
   }
-  bump(candidate, clock, 'verification_completed', { exactMatchStatus: candidate.exactMatchStatus, evidenceReadiness: candidate.evidenceReadiness });
+  reserveCardNumberIfEligible(candidate, state);
+  bump(candidate, clock, 'verification_completed', { exactMatchStatus: candidate.exactMatchStatus, evidenceReadiness: candidate.evidenceReadiness, cardNumber: candidate.cardNumber });
   return candidate;
 }
 
@@ -910,8 +979,13 @@ function createDrafts(candidate, clock) {
   const identity = `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim();
   const disclosure = draftDisclosure(candidate);
   const offsetZeroPrefix = candidate.affiliate && disclosure ? `${disclosure}\n` : '';
+  const reservedCardCode = candidate.cardNumber != null ? formatCardNumber(candidate.cardNumber) : null;
+  // Inject `#NNN` / showcase pointer strictly when `candidate.affiliate === true` so non-commercial
+  // reach drafts (`affiliate === false`) stay 100% solicitation-free (`AT-45`, `BS-60`).
   const showcasePointer = candidate.affiliate && (candidate.destinationUrl || candidate.affiliateNetwork)
-    ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에서 확인하세요.`
+    ? (reservedCardCode
+        ? ` 상세 검증 스펙과 한계 정리는 프로필 쇼케이스 ${reservedCardCode}번에서 확인하세요.`
+        : ' 상세 검증 스펙과 한계 정리는 프로필 쇼케이스에서 확인하세요.')
     : '';
 
   const issueDecision = evaluateIssueProductDecision({
@@ -1070,6 +1144,7 @@ function runGuardian(candidate, clock, state = null) {
   }
 
   let affiliateMappingError = null;
+  let affiliateMappingWarning = null;
   if (candidate.affiliate) {
     const desiredState = candidate.affiliateMappingState
       || ((candidate.exactMatchStatus === 'substitute' || issueDecision.allowedWordingCeiling === 'alternative_only')
@@ -1107,6 +1182,7 @@ function runGuardian(candidate, clock, state = null) {
         candidate.affiliateMapping = null;
       } else {
         candidate.affiliateMapping = mappingCheck.mapping;
+        affiliateMappingWarning = mappingCheck.warningKo ?? null;
       }
     }
   } else {
@@ -1161,9 +1237,12 @@ function runGuardian(candidate, clock, state = null) {
     blockers: review.revisionRequests.length
       ? [...new Set(review.revisionRequests.map((item) => item.problem))]
       : [],
-    warnings: candidate.synthetic
-      ? ['예시 데이터는 현재 시장 사실이 아닙니다.']
-      : ['현재 검증 근거는 사용자 제공 자료이며 네트워크 재검증을 수행하지 않았습니다.'],
+    warnings: [
+      ...(candidate.synthetic
+        ? ['예시 데이터는 현재 시장 사실이 아닙니다.']
+        : ['현재 검증 근거는 사용자 제공 자료이며 네트워크 재검증을 수행하지 않았습니다.']),
+      ...(affiliateMappingWarning ? [affiliateMappingWarning] : [])
+    ],
     reviewedAt: nowIso(clock),
     boundMaterialRevision: candidate.materialRevision
   };
@@ -1385,6 +1464,15 @@ function toCandidateReadModel(candidate, { now, schedules = [], monetized = { ac
     publishableMediaUrl: candidate.publishableMediaUrl ?? '',
     verifiedPros: structuredClone(candidate.verifiedPros ?? []),
     verifiedLimitation: candidate.verifiedLimitation ?? '',
+    advisoryPriceKrw: candidate.advisoryPriceKrw ?? 0,
+    advisoryCommissionRate: candidate.advisoryCommissionRate ?? null,
+    advisoryYield: candidate.affiliate && (candidate.advisoryPriceKrw ?? 0) > 0
+      ? estimateNetYieldKrw({
+          priceKrw: candidate.advisoryPriceKrw,
+          commissionRate: candidate.advisoryCommissionRate ?? (candidate.affiliateNetwork === AFFILIATE_NETWORKS.NAVER_SHOPPING_CONNECT ? 0.08 : 0.03),
+          runTokenCostKrw: candidate.epochBudget?.costKrw ?? 0
+        })
+      : null,
     disclosure: candidate.disclosure,
     cardNumber: candidate.cardNumber ?? null,
     cardCode: candidate.cardNumber != null ? formatCardNumber(candidate.cardNumber) : null,
@@ -1456,16 +1544,46 @@ export function toTodayReadModel(state, { now } = {}) {
         cardCode: cand?.cardNumber != null ? formatCardNumber(cand.cardNumber) : null,
         candidateRevision: cand?.revision ?? null,
         evidenceFreshness: cand ? liveCandidateFreshness(cand, evalNow) : 'stale',
-        affiliate: Boolean(cand?.affiliate)
+        affiliate: typeof sched.affiliate === 'boolean'
+          ? sched.affiliate
+          : (sched.destinationSnapshotHash != null || Boolean(cand?.affiliate))
       };
     });
 
   const analytics = buildLearningSummary(state.outcomeSnapshots ?? [], state.candidates ?? []);
 
+  // Advisory rolling commercial-post ratio over the most recent 20 published schedules (`0/0 -> NOT_MEASURED`, never a daily quota per BS-57).
+  const recentPublished = allSchedules
+    .filter((s) => s.status === SCHEDULE_STATES.PUBLISHED)
+    .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))
+    .slice(0, 20);
+  const publishedTotal = recentPublished.length;
+  const commercialCount = recentPublished.filter((s) => {
+    if (typeof s.affiliate === 'boolean') return s.affiliate;
+    if (s.destinationSnapshotHash != null) return true;
+    const c = candidateById.get(s.candidateId);
+    return Boolean(c?.affiliate);
+  }).length;
+  const nonCommercialCount = publishedTotal - commercialCount;
+  const commercialRatio = publishedTotal > 0 ? Number((commercialCount / publishedTotal).toFixed(4)) : null;
+  const portfolioMix = {
+    windowSize: 20,
+    publishedTotal,
+    commercialCount,
+    nonCommercialCount,
+    commercialRatio,
+    status: publishedTotal === 0
+      ? 'NOT_MEASURED'
+      : commercialRatio > 0.3
+        ? 'ad_heavy_warning'
+        : 'balanced'
+  };
+
   return {
     excluded,
     emptyReason: selection.emptyReason,
     showcaseCount,
+    portfolioMix,
     queue,
     analytics,
     version: state.version,
@@ -1553,7 +1671,7 @@ function applyCommandToState(state, request, clock) {
   let customResultLabel = null;
 
   if (command === 'request_verification') {
-    verifyCandidate(candidate, request.payload, clock);
+    verifyCandidate(candidate, request.payload, clock, state);
     invalidateActiveSchedulesForCandidate(state, candidate.id, 'evidence_mutated_after_schedule', atNow);
   } else if (command === 'request_strategies') {
     createStrategies(candidate, clock);
@@ -1762,7 +1880,16 @@ function applyCommandToState(state, request, clock) {
     const exported = registry.exportState();
     state.schedules = exported.schedules;
     state.consumedApprovalHashes = exported.consumedApprovalHashes;
-    bump(candidate, clock, 'schedule_dispatch_timeout_unknown', { scheduleId });
+    const timeoutWasNonCommercial = typeof existing.affiliate === 'boolean'
+      ? existing.affiliate === false
+      : existing.destinationSnapshotHash == null;
+    if (res.schedule.status === SCHEDULE_STATES.UNKNOWN_REMOTE_STATE && timeoutWasNonCommercial) {
+      candidate.lockedNonCommercialAfterPublish = true;
+    }
+    bump(candidate, clock, 'schedule_dispatch_timeout_unknown', {
+      scheduleId,
+      lockedNonCommercial: candidate.lockedNonCommercialAfterPublish === true
+    });
     customResultLabel = 'schedule_unknown_remote_state';
     extraResponseFields = { schedule: res.schedule };
   } else if (command === 'reconcile_unknown_schedule') {
@@ -1789,7 +1916,10 @@ function applyCommandToState(state, request, clock) {
     const exported = registry.exportState();
     state.schedules = exported.schedules;
     state.consumedApprovalHashes = exported.consumedApprovalHashes;
-    if (res.reconciledTo === SCHEDULE_STATES.PUBLISHED && !candidate.affiliate) {
+    const reconciledWasNonCommercial = typeof existing.affiliate === 'boolean'
+      ? existing.affiliate === false
+      : (existing.destinationSnapshotHash == null && !candidate.affiliate);
+    if (res.reconciledTo === SCHEDULE_STATES.PUBLISHED && reconciledWasNonCommercial) {
       candidate.lockedNonCommercialAfterPublish = true;
     } else if (res.reconciledTo === SCHEDULE_STATES.FAILED) {
       // `reconcileUnknownRemoteState(false)` already released `approvalHash` so the existing valid approval can reschedule cleanly.
