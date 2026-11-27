@@ -1,3 +1,5 @@
+import { downloadSlideCardPng } from './card-visuals.js';
+
 const grid = document.querySelector('#showcase-grid');
 const form = document.querySelector('#showcase-search-form');
 const queryInput = document.querySelector('#showcase-query');
@@ -82,6 +84,7 @@ function cardHtml(card) {
         <span class="verified-date">검증 기준일 ${escapeHtml(String(card.verifiedAt ?? '').slice(0, 10))}</span>
         <div class="cta-row">
           ${destinationBtn}
+          <button type="button" class="copy-md-btn" data-download-png="${escapeHtml(card.cardNumber)}">요약 이미지 저장</button>
           <button type="button" class="copy-md-btn" data-copy-link="${escapeHtml(card.cardNumber)}">${escapeHtml(card.cardNumber)} 링크 복사</button>
         </div>
       </div>
@@ -130,6 +133,23 @@ async function loadShowcase(query = '') {
 }
 
 grid.addEventListener('click', async (event) => {
+  const pngBtn = event.target.closest('[data-download-png]');
+  if (pngBtn) {
+    const cardNum = pngBtn.dataset.downloadPng;
+    const targetCard = renderedCards.find((item) => item.cardNumber === cardNum);
+    if (!targetCard) return;
+    const prevText = pngBtn.textContent;
+    try {
+      await downloadSlideCardPng(targetCard);
+      pngBtn.textContent = '이미지 저장됨 ✔';
+      setTimeout(() => { pngBtn.textContent = prevText; }, 1800);
+    } catch {
+      pngBtn.textContent = '저장 실패';
+      setTimeout(() => { pngBtn.textContent = prevText; }, 1800);
+    }
+    return;
+  }
+
   const copyBtn = event.target.closest('[data-copy-link]');
   if (!copyBtn) return;
   const cardNum = copyBtn.dataset.copyLink;
@@ -163,13 +183,37 @@ queryInput.addEventListener('input', () => {
   queryInput.debounce = setTimeout(() => loadShowcase(queryInput.value.trim()), 160);
 });
 
-const pathMatch = window.location.pathname.match(/^\/showcase\/([^/]+)$/);
+const normalizedShowcasePath = window.location.pathname.length > '/showcase/'.length
+  ? window.location.pathname.replace(/\/$/, '')
+  : window.location.pathname;
+const pathMatch = normalizedShowcasePath.match(/^\/showcase\/([^/]+)$/);
 if (pathMatch) {
-  const cardSlug = decodeURIComponent(pathMatch[1]);
-  queryInput.value = cardSlug.startsWith('#') ? cardSlug : `#${cardSlug.padStart(3, '0')}`;
-  loadCardDetail(cardSlug);
-} else {
+  let cardSlug = null;
+  try {
+    cardSlug = decodeURIComponent(pathMatch[1]);
+  } catch {
+    cardSlug = null;
+  }
+  if (!cardSlug || !cardSlug.trim()) {
+    renderedCards = [];
+    grid.innerHTML = `
+      <div class="empty-showcase" data-status="invalid_card_number">
+        <strong>유효하지 않은 쇼케이스 카드 주소입니다.</strong>
+        <p>#카드번호 또는 한글 제품 키워드로 다시 검색해 주세요.</p>
+      </div>`;
+  } else {
+    queryInput.value = cardSlug.startsWith('#') ? cardSlug : `#${cardSlug.padStart(3, '0')}`;
+    loadCardDetail(cardSlug);
+  }
+} else if (normalizedShowcasePath === '/showcase' || normalizedShowcasePath === '/showcase/') {
   const initialQuery = new URLSearchParams(window.location.search).get('q') ?? '';
   if (initialQuery) queryInput.value = initialQuery;
   loadShowcase(initialQuery);
+} else {
+  renderedCards = [];
+  grid.innerHTML = `
+    <div class="empty-showcase" data-status="invalid_card_number">
+      <strong>유효하지 않은 쇼케이스 카드 주소입니다.</strong>
+      <p>#카드번호 또는 한글 제품 키워드로 다시 검색해 주세요.</p>
+    </div>`;
 }

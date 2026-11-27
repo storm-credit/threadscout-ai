@@ -205,7 +205,7 @@ export function projectPublicShowcaseCard(candidate, { now = new Date().toISOStr
 
   const isIssueLinked = Boolean(candidate.issueLinked || issueDecision.issueLinked);
   const ttlMs = isIssueLinked ? SHOWCASE_ISSUE_TTL_MS : SHOWCASE_STANDARD_TTL_MS;
-  if (nowMs - verifiedMs > ttlMs) {
+  if (nowMs - verifiedMs >= ttlMs) {
     return { projected: false, reason: 'withdrawn_ttl_expired' };
   }
 
