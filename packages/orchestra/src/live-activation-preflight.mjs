@@ -125,7 +125,8 @@ export function buildLiveActivationPreflightReport({
       passiveDataCsprngFence: true,
       lifecycleEpochBudgetCapKrw: 150,
       coupangSearchCapPerHour: COUPANG_HOURLY_LIMITS.search,
-      closed9FieldShowcaseAllowlist: true
+      closed9FieldShowcaseAllowlist: true,
+      operatorSurfaceIsolationSupported: true
     }),
     localReadyNow: Object.freeze([
       Object.freeze({
@@ -207,6 +208,8 @@ export function toPublicWebPreflightSummary(report) {
     ['OPENAI_API_KEY', 'OpenAI API 키'],
     ['ANTHROPIC_API_KEY', 'Anthropic API 키'],
     ['AI_API_KEY', 'AI API 키'],
+    ['THREADSCOUT_OPERATOR_TOKEN', '운영자 스튜디오 토큰'],
+    ['THREADSCOUT_SESSION_SECRET', '운영자 세션 서명 키'],
     ['THREADSCOUT_GLOBAL_KILL_SWITCH', '글로벌 킬스위치']
   ];
 

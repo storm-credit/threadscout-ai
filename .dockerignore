@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+.threadscout-data
+.env
+.env.*
+!.env.example
+*.log
+tests
+coverage
+dist
+.DS_Store

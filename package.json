@@ -8,6 +8,7 @@
     "check:governance": "node scripts/check-governance-and-floor.mjs",
     "test": "node --test tests/*.test.mjs",
     "start": "node apps/web/server.mjs",
+    "start:showcase": "node apps/web/server.mjs --surface=public_showcase",
     "orchestra:demo": "node scripts/demo-orchestra.mjs",
     "orchestra:simulate": "node scripts/simulate-sinbak-orchestra.mjs",
     "orchestra:replay": "node scripts/run-replay-runtime.mjs",
