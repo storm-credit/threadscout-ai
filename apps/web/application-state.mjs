@@ -1702,6 +1702,9 @@ function toCandidateReadModel(candidate, { now, schedules = [], monetized = { ac
     aiGeneratedDepictsRealPerson: candidate.aiGeneratedDepictsRealPerson === true,
     syntheticDeceptiveBeforeAfter: candidate.syntheticDeceptiveBeforeAfter === true
   });
+  const showcaseProjection = candidate.cardNumber != null
+    ? projectPublicShowcaseCard(candidate, { now: evalNow })
+    : { projected: false, card: null };
   return {
     id: candidate.id,
     synthetic: candidate.synthetic,
@@ -1768,9 +1771,8 @@ function toCandidateReadModel(candidate, { now, schedules = [], monetized = { ac
     lifecycleEpoch: candidate.lifecycleEpoch ?? 1,
     epochBudget: structuredClone(candidate.epochBudget ?? null),
     lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true,
-    showcaseProjected: candidate.cardNumber != null
-      ? projectPublicShowcaseCard(candidate, { now: evalNow }).projected
-      : false,
+    showcaseProjected: showcaseProjection.projected,
+    showcaseCard: showcaseProjection.card ?? null,
     showcaseExpiry: evaluateShowcaseCardExpiry(candidate, { now: evalNow }),
     draftTone: candidate.draftTone === DRAFT_TONES.PLAIN ? DRAFT_TONES.PLAIN : DRAFT_TONES.POLITE,
     exportBundle: buildApprovedExportBundle(candidate, {

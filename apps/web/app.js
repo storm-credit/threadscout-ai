@@ -1,3 +1,5 @@
+import { downloadSlideCardPng } from './card-visuals.js';
+
 const STANDARD_DISCLOSURES = {
   naver_shopping_connect: '[광고] 이 게시물은 네이버 쇼핑커넥트 활동의 일환으로, 판매 발생 시 수수료를 제공받습니다.',
   coupang_partners: '[광고] 이 게시물은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.'
@@ -68,6 +70,7 @@ const els = {
   optionalReconfirmBtn: document.querySelector('#optional-reconfirm-btn'),
   approvedOperatorBox: document.querySelector('#approved-operator-box'),
   copyRootPost: document.querySelector('#copy-root-post'),
+  downloadSlidePng: document.querySelector('#download-slide-png'),
   copyShowcaseMd: document.querySelector('#copy-showcase-md'),
   scheduleDatetime: document.querySelector('#schedule-datetime'),
   schedulePostBtn: document.querySelector('#schedule-post-btn'),
@@ -1089,6 +1092,7 @@ function renderApproval(candidate) {
       && candidate.showcaseExpiry?.expired !== true;
     els.approvedOperatorBox.hidden = !cleanApproved;
     if (els.copyRootPost) els.copyRootPost.disabled = !candidate.exportBundle?.singleRootPostCopyText;
+    if (els.downloadSlidePng) els.downloadSlidePng.disabled = !(cleanApproved && candidate.showcaseCard);
     if (els.copyShowcaseMd) els.copyShowcaseMd.disabled = !candidate.exportBundle?.showcaseMarkdown;
     if (els.scheduleDatetime && !els.scheduleDatetime.value) {
       const nextHour = new Date(Date.now() + 60 * 60 * 1000);
@@ -1694,6 +1698,20 @@ async function copyTextSafe(text, successMessage) {
 els.copyRootPost?.addEventListener('click', () => {
   const candidate = candidateById(activeCandidateId);
   copyTextSafe(candidate?.exportBundle?.singleRootPostCopyText, '오프셋 0 검증 완료 단일 루트 포스트 본문을 복사했습니다.');
+});
+
+els.downloadSlidePng?.addEventListener('click', async () => {
+  const candidate = candidateById(activeCandidateId);
+  if (!candidate?.showcaseCard) {
+    showToast('쇼케이스에 투영된 승인 카드에서만 2번 슬라이드 요약 이미지를 저장할 수 있습니다.');
+    return;
+  }
+  try {
+    await downloadSlideCardPng(candidate.showcaseCard);
+    showToast('스레드 2번 슬라이드용 규격·한계 요약 이미지(1080×1350 PNG)를 저장했습니다.');
+  } catch (error) {
+    showToast(error?.message || '요약 이미지 생성에 실패했습니다.');
+  }
 });
 
 els.copyShowcaseMd?.addEventListener('click', () => {

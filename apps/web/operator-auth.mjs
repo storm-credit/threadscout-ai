@@ -356,12 +356,20 @@ export function createOperatorAuthController(rawOptions = {}) {
     if (secFetchSite === 'cross-site') {
       const secFetchMode = String(req.headers?.['sec-fetch-mode'] ?? '').trim().toLowerCase();
       const secFetchDest = String(req.headers?.['sec-fetch-dest'] ?? '').trim().toLowerCase();
+      const isReadMethod = normalizedMethod === 'GET' || normalizedMethod === 'HEAD';
       const isSafeTopLevelDocumentNavigation =
-        (normalizedMethod === 'GET' || normalizedMethod === 'HEAD')
+        isReadMethod
         && !normalizedPathname.startsWith('/api/')
         && secFetchMode === 'navigate'
         && secFetchDest === 'document';
-      if (!isSafeTopLevelDocumentNavigation) {
+      const isPublicShowcaseVisualAsset =
+        isReadMethod
+        && (
+          normalizedPathname === '/api/showcase-og.png'
+          || /^\/api\/showcase\/[^/]+\/(?:og\.png|card\.svg)$/.test(normalizedPathname)
+        )
+        && (secFetchDest === 'image' || (secFetchMode === 'navigate' && secFetchDest === 'document'));
+      if (!isSafeTopLevelDocumentNavigation && !isPublicShowcaseVisualAsset) {
         return {
           ok: false,
           statusCode: 403,

@@ -797,7 +797,7 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
 
   /**
    * Read-only consumer `/api/showcase` query using `readOnlyShowcaseDb` WAL handle,
-   * inline TTL expiry check (`expires_at IS NULL OR expires_at >= :now`), and NFD Hangul FTS5 search.
+   * inline TTL expiry check (`expires_at IS NULL OR expires_at > :now`), and NFD Hangul FTS5 search.
    */
   async readShowcase({ query = '', cardNumber = null } = {}) {
     if (this.readOnlyMode) {
@@ -835,7 +835,7 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
         SELECT card_code, canonical_product_name, match_badge, verified_pros_json, verified_limitation,
                disclosure_text, verified_destination_url, publishable_media_url, verified_at, expires_at
         FROM public_showcase_cards
-        WHERE card_number = ? AND (expires_at IS NULL OR expires_at >= ?)
+        WHERE card_number = ? AND (expires_at IS NULL OR expires_at > ?)
       `).get(numeric, now);
       return row ? { card: toClosedCard(row), status: 'ok' } : { card: null, status: 'withdrawn_or_not_found' };
     }
@@ -846,7 +846,7 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
         SELECT card_code, canonical_product_name, match_badge, verified_pros_json, verified_limitation,
                disclosure_text, verified_destination_url, publishable_media_url, verified_at
         FROM public_showcase_cards
-        WHERE expires_at IS NULL OR expires_at >= ?
+        WHERE expires_at IS NULL OR expires_at > ?
         ORDER BY card_number DESC
         LIMIT 50
       `).all(now);
@@ -861,7 +861,7 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
         SELECT card_code, canonical_product_name, match_badge, verified_pros_json, verified_limitation,
                disclosure_text, verified_destination_url, publishable_media_url, verified_at
         FROM public_showcase_cards
-        WHERE card_number = ? AND (expires_at IS NULL OR expires_at >= ?)
+        WHERE card_number = ? AND (expires_at IS NULL OR expires_at > ?)
       `).get(numeric, now);
       return { cards: row ? [toClosedCard(row)] : [], query: trimmed };
     }
@@ -875,7 +875,7 @@ export class SqliteApplicationStore extends SuppressionApplicationStore {
       FROM public_showcase_cards_fts AS f
       CROSS JOIN public_showcase_cards AS p ON p.card_number = f.rowid
       WHERE public_showcase_cards_fts MATCH ?
-        AND (p.expires_at IS NULL OR p.expires_at >= ?)
+        AND (p.expires_at IS NULL OR p.expires_at > ?)
       ORDER BY f.rank ASC
       LIMIT 30
     `).all(escapedFts, now);

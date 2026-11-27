@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { ApplicationCommandError, assertPublicReadModelSafe } from './application-state.mjs';
 import { SuppressionApplicationStore } from './candidate-suppression-store.mjs';
 import { ManualProductOrchestratorService } from './manual-orchestrator.mjs';
-import { SURFACE_MODES, createOperatorAuthController } from './operator-auth.mjs';
+import { SURFACE_MODES, createOperatorAuthController, normalizeHostname } from './operator-auth.mjs';
 import { SqliteApplicationStore, isNodeSqliteAvailable } from '../../packages/database/src/sqlite-store.mjs';
 import {
   buildLiveActivationPreflightReport,
@@ -15,6 +15,12 @@ import {
   exportDeterministicMarkdownCard,
   projectPublicShowcaseCard
 } from '../../packages/core/src/public-showcase-projector.mjs';
+import {
+  buildShowcaseOpenGraphModel,
+  injectShowcaseOpenGraphHtml,
+  renderShowcaseCardSvg,
+  renderShowcaseOgPngBuffer
+} from '../../packages/core/src/showcase-og-renderer.mjs';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = path.resolve(currentDir, '../..');
@@ -24,13 +30,15 @@ const contentTypes = {
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml; charset=utf-8',
+  '.png': 'image/png'
 };
 const MAX_JSON_BODY = 64 * 1024;
 
 const PUBLIC_SHOWCASE_STATIC_ALLOWLIST = new Set([
   '/apps/web/showcase.html',
-  '/apps/web/showcase.js'
+  '/apps/web/showcase.js',
+  '/apps/web/card-visuals.js'
 ]);
 
 const OPERATOR_STATIC_ALLOWLIST = new Set([
@@ -183,6 +191,55 @@ function parseBoolEnv(raw) {
   return norm === '1' || norm === 'true' || norm === 'on';
 }
 
+function safeDecodeUriSegment(rawSegment = '') {
+  try {
+    return decodeURIComponent(String(rawSegment ?? ''));
+  } catch {
+    return null;
+  }
+}
+
+function resolveRequestOrigin(req, { trustProxy = false, publicOrigin = '' } = {}) {
+  const explicitOrigin = String(publicOrigin ?? '').trim();
+  if (explicitOrigin) {
+    try {
+      const parsedExplicit = new URL(explicitOrigin);
+      if (
+        (parsedExplicit.protocol === 'http:' || parsedExplicit.protocol === 'https:')
+        && parsedExplicit.username === ''
+        && parsedExplicit.password === ''
+        && Boolean(normalizeHostname(parsedExplicit.host))
+      ) {
+        return parsedExplicit.origin;
+      }
+    } catch { /* fall through to validated request header */ }
+  }
+
+  const forwardedProto = trustProxy
+    ? String(req.headers?.['x-forwarded-proto'] ?? '').split(',')[0].trim().toLowerCase()
+    : '';
+  const proto = req.socket?.encrypted || forwardedProto === 'https' ? 'https:' : 'http:';
+  const rawHost = trustProxy && String(req.headers?.['x-forwarded-host'] ?? '').trim()
+    ? String(req.headers['x-forwarded-host']).split(',')[0].trim()
+    : String(req.headers?.host ?? '').trim();
+
+  if (rawHost && normalizeHostname(rawHost)) {
+    try {
+      const parsed = new URL(`${proto}//${rawHost}`);
+      if (
+        parsed.username === ''
+        && parsed.password === ''
+        && parsed.pathname === '/'
+        && parsed.search === ''
+        && parsed.hash === ''
+      ) {
+        return parsed.origin;
+      }
+    } catch { /* fallback below */ }
+  }
+  return 'http://127.0.0.1:4173';
+}
+
 export function parseCliArgs(argv = []) {
   const parsed = {};
   for (const arg of argv) {
@@ -253,6 +310,25 @@ export function createThreadScoutServer({
     if (!store) return Promise.resolve();
     initialized ??= store.initialize();
     return initialized;
+  };
+
+  const lookupShowcaseCard = async (rawCardNumber) => {
+    const decoded = safeDecodeUriSegment(rawCardNumber);
+    if (decoded === null || !decoded.trim()) {
+      return { card: null, status: 'invalid_card_number' };
+    }
+    const now = (clock?.() ?? new Date()).toISOString();
+    const result = typeof store?.readShowcase === 'function'
+      ? await store.readShowcase({ cardNumber: decoded })
+      : queryShowcaseFallback(
+          store ? (await store.readState()).candidates : await readCandidatesReadOnlyJson(legacyJsonPath),
+          { cardNumber: decoded, now }
+        );
+    if (result?.card) {
+      const safe = assertPublicReadModelSafe(result.card);
+      if (!safe.ok) throw new Error(`Unsafe showcase card: ${safe.leaks.join(', ')}`);
+    }
+    return result;
   };
 
   const server = http.createServer(async (req, res) => {
@@ -368,6 +444,47 @@ export function createThreadScoutServer({
         }, {}, method);
       }
 
+      if (isRead && requestUrl.pathname === '/api/showcase-og.png') {
+        if (isGlobalKillSwitchActive()) {
+          return json(res, 503, { ok: false, status: 'kill_switch_active' }, {}, method);
+        }
+        const pngBuf = renderShowcaseOgPngBuffer(null);
+        res.writeHead(200, securityHeaders({
+          'content-type': 'image/png',
+          'content-length': pngBuf.length
+        }));
+        return res.end(method === 'HEAD' ? undefined : pngBuf);
+      }
+
+      const showcaseVisualMatch = isRead
+        ? requestUrl.pathname.match(/^\/api\/showcase\/([^/]+)\/(og\.png|card\.svg)$/)
+        : null;
+      if (showcaseVisualMatch) {
+        if (isGlobalKillSwitchActive()) {
+          return json(res, 503, { ok: false, status: 'kill_switch_active', card: null }, {}, method);
+        }
+        const [, rawSegment, assetKind] = showcaseVisualMatch;
+        const result = await lookupShowcaseCard(rawSegment);
+        if (!result.card) {
+          return json(res, 404, { ok: false, status: result.status, card: null }, {}, method);
+        }
+        if (assetKind === 'og.png') {
+          const pngBuf = renderShowcaseOgPngBuffer(result.card);
+          res.writeHead(200, securityHeaders({
+            'content-type': 'image/png',
+            'content-length': pngBuf.length
+          }));
+          return res.end(method === 'HEAD' ? undefined : pngBuf);
+        }
+        const svgBody = Buffer.from(renderShowcaseCardSvg(result.card), 'utf8');
+        res.writeHead(200, securityHeaders({
+          'content-type': 'image/svg+xml; charset=utf-8',
+          'content-length': svgBody.length,
+          'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"
+        }));
+        return res.end(method === 'HEAD' ? undefined : svgBody);
+      }
+
       if (isRead && requestUrl.pathname.startsWith('/api/showcase/')) {
         const showOperatorLink = auth.isOperatorViewer(req);
         if (isGlobalKillSwitchActive()) {
@@ -378,14 +495,11 @@ export function createThreadScoutServer({
             operatorStudioAvailable: showOperatorLink
           }, {}, method);
         }
-        const rawNumber = decodeURIComponent(requestUrl.pathname.slice('/api/showcase/'.length));
-        const now = (clock?.() ?? new Date()).toISOString();
-        const result = typeof store?.readShowcase === 'function'
-          ? await store.readShowcase({ cardNumber: rawNumber })
-          : queryShowcaseFallback(
-              store ? (await store.readState()).candidates : await readCandidatesReadOnlyJson(legacyJsonPath),
-              { cardNumber: rawNumber, now }
-            );
+        const rawSegment = requestUrl.pathname.slice('/api/showcase/'.length);
+        if (rawSegment.includes('/')) {
+          return json(res, 404, { ok: false, status: 'not_found', card: null, operatorStudioAvailable: showOperatorLink }, {}, method);
+        }
+        const result = await lookupShowcaseCard(rawSegment);
         if (!result.card) {
           return json(res, 404, {
             ok: false,
@@ -395,8 +509,6 @@ export function createThreadScoutServer({
           }, {}, method);
         }
         const markdown = exportDeterministicMarkdownCard(result.card);
-        const safe = assertPublicReadModelSafe(result.card);
-        if (!safe.ok) throw new Error(`Unsafe showcase card: ${safe.leaks.join(', ')}`);
         return json(res, 200, {
           ok: true,
           status: 'ok',
@@ -500,6 +612,42 @@ export function createThreadScoutServer({
       if (!isRead) {
         res.writeHead(405, securityHeaders({ 'content-type': 'text/plain; charset=utf-8', allow: 'GET, HEAD' }));
         return res.end('Method not allowed');
+      }
+
+      if (requestUrl.pathname === '/showcase' || requestUrl.pathname.startsWith('/showcase/')) {
+        const showcaseHtmlPath = path.resolve(repoRoot, 'apps/web/showcase.html');
+        const rawShowcaseHtml = await readFile(showcaseHtmlPath, 'utf8');
+        const configuredPublicOrigin = String(process.env.THREADSCOUT_PUBLIC_ORIGIN || '').trim();
+        const origin = resolveRequestOrigin(req, {
+          trustProxy: auth.config.trustProxy === true,
+          publicOrigin: configuredPublicOrigin
+        });
+        const killActive = isGlobalKillSwitchActive();
+        const trimmedShowcasePath = requestUrl.pathname.length > '/showcase/'.length
+          ? requestUrl.pathname.replace(/\/$/, '')
+          : requestUrl.pathname;
+        const detailTail = trimmedShowcasePath === '/showcase' || trimmedShowcasePath === '/showcase/'
+          ? ''
+          : trimmedShowcasePath.slice('/showcase/'.length);
+        const isDetailRoute = detailTail.length > 0;
+        let card = null;
+        if (isDetailRoute && !killActive && !detailTail.includes('/')) {
+          const found = await lookupShowcaseCard(detailTail);
+          card = found.card ?? null;
+        }
+        const ogModel = buildShowcaseOpenGraphModel({
+          card,
+          isDetailRoute,
+          origin,
+          killSwitchActive: killActive
+        });
+        const injectedBuf = Buffer.from(injectShowcaseOpenGraphHtml(rawShowcaseHtml, ogModel), 'utf8');
+        res.writeHead(200, securityHeaders({
+          'content-type': 'text/html; charset=utf-8',
+          'content-length': injectedBuf.length,
+          ...(configuredPublicOrigin ? {} : { vary: 'Host' })
+        }));
+        return res.end(method === 'HEAD' ? undefined : injectedBuf);
       }
 
       // Awaited on purpose: returning the promise would let a rejection escape this

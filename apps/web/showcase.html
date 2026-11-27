@@ -229,9 +229,9 @@
         flex-wrap: wrap;
       }
       .verified-date { color: var(--muted); font-size: 12px; }
-      .cta-row { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
+      .cta-row { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin-top: 4px; }
       .dest-btn {
-        flex: 1;
+        flex: 1 1 100%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -245,8 +245,9 @@
         text-decoration: none;
       }
       .copy-md-btn {
+        flex: 1 1 calc(50% - 4px);
         min-height: 44px;
-        padding: 0 12px;
+        padding: 0 10px;
         border: 1px solid var(--line);
         border-radius: 11px;
         background: transparent;
@@ -254,6 +255,7 @@
         font: inherit;
         font-size: 12px;
         font-weight: 700;
+        text-align: center;
         cursor: pointer;
       }
       .empty-showcase {
