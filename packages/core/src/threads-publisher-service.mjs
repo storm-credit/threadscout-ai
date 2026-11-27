@@ -136,12 +136,21 @@ export function buildRedactedThreadsPublishPreview(rawOptions = {}) {
   });
 }
 
-export function computeApprovalHash({ candidateId, boundMaterialRevision, draftId, draftText }) {
+export function computeApprovalHash({
+  candidateId,
+  boundMaterialRevision,
+  draftId,
+  draftText,
+  boundCandidateRevision = null
+}) {
   return sha256({
     candidateId: String(candidateId ?? ''),
     boundMaterialRevision: String(boundMaterialRevision ?? ''),
     draftId: String(draftId ?? ''),
-    draftText: String(draftText ?? '')
+    draftText: String(draftText ?? ''),
+    ...(boundCandidateRevision !== null && boundCandidateRevision !== undefined
+      ? { boundCandidateRevision: Number(boundCandidateRevision) }
+      : {})
   });
 }
 
@@ -163,7 +172,12 @@ function evaluateCandidateAffiliateGate(candidate, verifiedAt) {
   if (!candidate?.affiliate) return { ok: true, mapping: null };
   const desiredState = candidate.affiliateMappingState
     || (candidate.exactMatchStatus === 'substitute' ? 'alternative' : 'exact');
-  const explicitSeller = String(candidate.canonicalListingSnapshot?.seller ?? candidate.seller ?? '').trim();
+  const explicitSeller = String(
+    candidate.canonicalListingSnapshot?.seller
+    || candidate.affiliateMapping?.canonicalListingSnapshot?.seller
+    || candidate.seller
+    || ''
+  ).trim();
   const snapshot = candidate.canonicalListingSnapshot ?? {
     brand: candidate.brand,
     model: candidate.model,
@@ -203,9 +217,27 @@ function checkEvidenceTtl(candidate, nowIsoString) {
 /**
  * Deterministic Single-Post Schedule, Preflight, and Reconciliation Registry (`PUBLISHING_SPEC.md` §§2–9).
  */
-export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}) {
+export function createThreadsPublisherRegistry({
+  clock = () => new Date(),
+  initialSchedules = [],
+  initialConsumedApprovalHashes = []
+} = {}) {
   const schedules = new Map();
   const consumedApprovalHashes = new Set();
+
+  for (const item of initialSchedules ?? []) {
+    if (item && item.scheduleId) {
+      schedules.set(item.scheduleId, structuredClone(item));
+      const releasedFailedHash =
+        item.status === SCHEDULE_STATES.FAILED && item.invalidationReason !== 'remote_policy_rejected';
+      if (item.approvalHash && item.status !== SCHEDULE_STATES.CANCELLED && !releasedFailedHash) {
+        consumedApprovalHashes.add(item.approvalHash);
+      }
+    }
+  }
+  for (const hash of initialConsumedApprovalHashes ?? []) {
+    if (hash) consumedApprovalHashes.add(String(hash));
+  }
 
   function nowIso() {
     return clock().toISOString();
@@ -224,6 +256,9 @@ export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}
   } = {}) {
     if (killSwitchActive) {
       return { ok: false, code: 'KILL_SWITCH_ACTIVE', message: 'Cannot admit schedule while Global Kill Switch is active.' };
+    }
+    if (candidate?.suppression?.active === true) {
+      return { ok: false, code: 'CANDIDATE_SUPPRESSED', message: 'Owner-suppressed candidate cannot be scheduled until restored.' };
     }
     if (!candidate || candidate.workflowState !== 'approved' || candidate.review?.decision !== 'approved' || candidate.review?.stale === true) {
       return { ok: false, code: 'APPROVAL_REQUIRED', message: 'Only non-stale human-approved candidates can be scheduled.' };
@@ -245,7 +280,16 @@ export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}
     const ttlCheck = checkEvidenceTtl(candidate, now);
     if (!ttlCheck.ok) return ttlCheck;
 
-    const chosenDraftId = draftId || candidate.selectedDraftId || candidate.drafts?.[0]?.id;
+    const boundApprovedDraftId = candidate.review?.approvedDraftId ?? null;
+    if (boundApprovedDraftId && draftId && draftId !== boundApprovedDraftId) {
+      return {
+        ok: false,
+        code: 'UNAPPROVED_DRAFT_SELECTION',
+        message: `Approval is bound solely to draft '${boundApprovedDraftId}', not '${draftId}'.`
+      };
+    }
+
+    const chosenDraftId = boundApprovedDraftId || draftId || candidate.selectedDraftId || candidate.drafts?.[0]?.id;
     const draft = (candidate.drafts ?? []).find((d) => d.id === chosenDraftId);
     if (!draft) {
       return { ok: false, code: 'DRAFT_NOT_FOUND', message: 'Selected approved draft does not exist.' };
@@ -296,8 +340,17 @@ export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}
       candidateId: candidate.id,
       boundMaterialRevision: candidate.review.boundMaterialRevision,
       draftId: draft.id,
-      draftText: draft.text
+      draftText: draft.text,
+      boundCandidateRevision: candidate.review?.boundCandidateRevision ?? null
     });
+
+    if (candidate.review?.approvalHash && candidate.review.approvalHash !== approvalHash) {
+      return {
+        ok: false,
+        code: 'STALE_APPROVAL_HASH',
+        message: 'Computed approvalHash does not match bound candidate.review.approvalHash.'
+      };
+    }
 
     if (consumedApprovalHashes.has(approvalHash)) {
       return {
@@ -408,6 +461,12 @@ export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}
       return { ok: false, code: 'KILL_SWITCH_ACTIVE', status: record.status, schedule: structuredClone(record) };
     }
 
+    if (candidate?.suppression?.active === true) {
+      record.status = SCHEDULE_STATES.INVALIDATED;
+      record.invalidationReason = 'owner_suppressed';
+      return { ok: false, code: 'CANDIDATE_SUPPRESSED', status: record.status, schedule: structuredClone(record) };
+    }
+
     const draft = (candidate?.drafts ?? []).find((d) => d.id === record.draftId);
     if (
       !candidate
@@ -415,6 +474,7 @@ export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}
       || candidate.workflowState !== 'approved'
       || candidate.review?.decision !== 'approved'
       || candidate.review?.stale === true
+      || (candidate.review?.approvedDraftId && candidate.review.approvedDraftId !== record.draftId)
       || candidate.guardian?.decision !== 'pass'
       || candidate.materialRevision !== record.boundMaterialRevision
       || candidate.guardian?.boundMaterialRevision !== record.boundMaterialRevision
@@ -612,12 +672,76 @@ export function createThreadsPublisherRegistry({ clock = () => new Date() } = {}
     return { ok: true, status: record.status, schedule: structuredClone(record) };
   }
 
+  /**
+   * Owner confirms manual single-root-post publication (`externalPublishingEnabled: false`).
+   * Runs full §2/§5 preflight checks before recording `published`, and reports whether `BS-60`
+   * irreversible non-commercial lock applies (`!candidate.affiliate`).
+   */
+  function recordManualPublication({
+    candidate,
+    scheduleId = null,
+    draftId = null,
+    publishedNote = '',
+    killSwitchActive = false,
+    activeMonetizedShowcaseCount = 0,
+    monetizedCardNumbers = []
+  } = {}) {
+    if (killSwitchActive) {
+      return { ok: false, code: 'KILL_SWITCH_ACTIVE', message: 'Cannot record publication while Global Kill Switch is active.' };
+    }
+
+    let targetId = scheduleId;
+    if (!targetId) {
+      const admitted = scheduleApprovedPost({
+        candidate,
+        draftId,
+        desiredLocalDatetime: nowIso(),
+        timezone: 'Asia/Seoul',
+        killSwitchActive,
+        activeMonetizedShowcaseCount,
+        monetizedCardNumbers
+      });
+      if (!admitted.ok) return admitted;
+      targetId = admitted.schedule.scheduleId;
+    }
+
+    const preflight = runPreflight(targetId, {
+      candidate,
+      activeMonetizedShowcaseCount,
+      monetizedCardNumbers,
+      killSwitchActive
+    });
+    if (!preflight.ok) return preflight;
+
+    const record = schedules.get(targetId);
+    record.status = SCHEDULE_STATES.PUBLISHED;
+    record.publicationMode = 'manual_owner_confirmed';
+    record.publishedNote = String(publishedNote ?? '').trim().slice(0, 240) || null;
+    record.updatedAt = nowIso();
+
+    return {
+      ok: true,
+      status: record.status,
+      lockNonCommercialRequired: !candidate?.affiliate,
+      schedule: structuredClone(record)
+    };
+  }
+
+  function exportState() {
+    return {
+      schedules: [...schedules.values()].map((item) => structuredClone(item)),
+      consumedApprovalHashes: [...consumedApprovalHashes]
+    };
+  }
+
   return {
     scheduleApprovedPost,
     runPreflight,
     recordDispatchOutcome,
     reconcileUnknownRemoteState,
     cancelSchedule,
+    recordManualPublication,
+    exportState,
     getSchedule: (id) => (schedules.has(id) ? structuredClone(schedules.get(id)) : null),
     listSchedules: () => [...schedules.values()].map((item) => structuredClone(item))
   };

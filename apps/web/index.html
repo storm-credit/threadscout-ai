@@ -187,6 +187,9 @@
                             </select>
                           </label>
                         </div>
+                        <label>판매자 / 공식 스토어명 (제휴 시 필수)
+                          <input id="evidence-seller" name="seller" maxlength="160" placeholder="예: 무아스 공식 네이버 브랜드스토어" />
+                        </label>
                         <label>검증 도착 URL (https://)
                           <input id="evidence-destination-url" name="destinationUrl" maxlength="1200" placeholder="https://..." />
                         </label>
@@ -242,6 +245,21 @@
                   </div>
                   <div id="approval-binding" class="binding-summary"></div>
                   <div id="showcase-preview-box" class="showcase-preview-box" hidden></div>
+                  <div id="approved-operator-box" class="approved-operator-box" hidden>
+                    <div class="copy-actions-row">
+                      <button id="copy-root-post" class="secondary-button" type="button">단일 포스트 본문 복사</button>
+                      <button id="copy-showcase-md" class="ghost-button" type="button">쇼케이스 Markdown 복사</button>
+                    </div>
+                    <div class="schedule-inline-box">
+                      <label>로컬 게시 예정 시각 (Asia/Seoul)
+                        <input id="schedule-datetime" type="datetime-local" />
+                      </label>
+                      <div class="copy-actions-row">
+                        <button id="schedule-post-btn" class="secondary-button" type="button">◷ 예약 대기열 등록</button>
+                        <button id="record-manual-publish-btn" class="ghost-button" type="button">✔ 수동 게시 완료 기록</button>
+                      </div>
+                    </div>
+                  </div>
                   <div class="approval-actions">
                     <button id="hold-candidate" class="ghost-button" type="button">보류</button>
                     <button id="reject-candidate" class="ghost-button danger-text" type="button">거절</button>
@@ -249,6 +267,10 @@
                     <button id="lock-non-commercial" class="ghost-button" type="button" hidden>무고지 게시 잠금(BS-60)</button>
                     <button id="approve-draft" class="primary-button" type="button">승인</button>
                   </div>
+                  <details id="provenance-details" class="provenance-details">
+                    <summary>계보·불변 해시 추적 (AT-13 · 6단계 아티팩트 검증)</summary>
+                    <div id="provenance-list" class="provenance-list"></div>
+                  </details>
                 </section>
               </div>
             </div>

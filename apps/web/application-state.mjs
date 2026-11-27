@@ -20,6 +20,19 @@ import {
   formatCardNumber,
   projectPublicShowcaseCard
 } from '../../packages/core/src/public-showcase-projector.mjs';
+import {
+  SCHEDULE_STATES,
+  computeApprovalHash,
+  createThreadsPublisherRegistry
+} from '../../packages/core/src/threads-publisher-service.mjs';
+import {
+  buildLearningSummary,
+  createOutcomeSnapshot
+} from '../../packages/core/src/analytics-learning-service.mjs';
+import {
+  buildApprovedExportBundle,
+  buildCandidateProvenance
+} from '../../packages/core/src/provenance-lineage.mjs';
 import { fenceUntrustedPayload } from '../../packages/orchestra/src/passive-data-fencer.mjs';
 import {
   evaluateEvidenceReadiness,
@@ -138,11 +151,52 @@ function materialRevision(candidate) {
     affiliate: candidate.affiliate,
     affiliateNetwork: candidate.affiliateNetwork ?? '',
     affiliateMappingState: candidate.affiliateMappingState ?? '',
+    seller: candidate.seller ?? '',
     destinationUrl: candidate.destinationUrl ?? '',
     publishableMediaUrl: candidate.publishableMediaUrl ?? '',
     disclosure: candidate.disclosure,
     configRevision: candidate.configRevision
   });
+}
+
+export function isGlobalKillSwitchActive() {
+  const raw = String(process.env.THREADSCOUT_GLOBAL_KILL_SWITCH ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'on';
+}
+
+export function markApprovedCandidateStaleOnInvalidation(candidate, reason) {
+  if (!candidate) return;
+  const msg = reason || '기존 승인 또는 예약 조건이 변경되어 재검수·재승인이 필요합니다.';
+  if (candidate.review?.decision === 'approved' && candidate.review?.stale !== true) {
+    candidate.review = { ...candidate.review, stale: true, staleReason: msg };
+  }
+  if (candidate.workflowState === 'approved') {
+    candidate.workflowState = 'stale';
+    candidate.blockers = [msg, ...(candidate.blockers ?? []).filter((b) => b !== msg)];
+  }
+}
+
+export function invalidateActiveSchedulesForCandidate(state, candidateId, reason, atIso) {
+  if (!state || !Array.isArray(state.schedules)) return 0;
+  state.consumedApprovalHashes = Array.isArray(state.consumedApprovalHashes)
+    ? [...new Set(state.consumedApprovalHashes)]
+    : [];
+  const hashSet = new Set(state.consumedApprovalHashes);
+  let count = 0;
+  for (const sched of state.schedules) {
+    if (
+      sched.candidateId === candidateId
+      && [SCHEDULE_STATES.SCHEDULED, SCHEDULE_STATES.HELD, SCHEDULE_STATES.READY].includes(sched.status)
+    ) {
+      sched.status = SCHEDULE_STATES.INVALIDATED;
+      sched.invalidationReason = reason || 'upstream_candidate_mutated';
+      sched.updatedAt = atIso;
+      if (sched.approvalHash) hashSet.add(sched.approvalHash);
+      count += 1;
+    }
+  }
+  state.consumedApprovalHashes = [...hashSet];
+  return count;
 }
 
 function createFreshEpochBudget(lifecycleEpoch = 1, { maxInvocations = 16, maxCostKrw = 150 } = {}) {
@@ -233,6 +287,7 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
       code: 'invalid_input', statusCode: 422, details: { field: 'affiliateMappingState', rule: 'invalid' }
     });
   }
+  const seller = cleanString(payload.seller, { max: 160 });
   const destinationUrl = cleanString(payload.destinationUrl, { max: 1200 });
   const publishableMediaUrl = cleanString(payload.publishableMediaUrl, { max: 1200 });
   const verifiedPros = Array.isArray(payload.verifiedPros)
@@ -265,6 +320,7 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     affiliateNetwork,
     affiliateMappingState,
     affiliateMapping: null,
+    seller,
     destinationUrl,
     publishableMediaUrl,
     verifiedPros,
@@ -302,6 +358,14 @@ function createCandidate(payload, { id = `candidate-${randomUUID()}`, synthetic 
     revision: 1,
     configRevision: configRevision(),
     materialRevision: null,
+    intakeSnapshot: {
+      id,
+      name,
+      sourceMode: synthetic ? 'synthetic_fixture' : 'owner_supplied',
+      initialSourceRef: sourceRef,
+      initialCorroborationRef: corroborationRef,
+      createdAt
+    },
     createdAt,
     updatedAt: createdAt,
     audit: [{ event: 'candidate_created', at: createdAt, revision: 1, sourceMode: synthetic ? 'synthetic_fixture' : 'owner_supplied' }]
@@ -358,6 +422,9 @@ export function createInitialApplicationState({ clock } = {}) {
     fixedAgentCount: AGENT_REGISTRY.length,
     nextCardNumber: 0,
     candidates: [seedReadyCandidate(clock), seedHighScoreUnresolved(clock)],
+    schedules: [],
+    consumedApprovalHashes: [],
+    outcomeSnapshots: [],
     commandHistory: {},
     commandOrder: [],
     audit: [{ event: 'application_state_created', at: createdAt }],
@@ -379,7 +446,7 @@ function assertExpectedRevision(candidate, expectedRevision) {
 }
 
 function applyEvidenceFields(candidate, payload) {
-  for (const key of ['brand', 'model', 'variant', 'sourceRef', 'sourceOrigin', 'corroborationRef', 'corroborationOrigin', 'destinationUrl', 'publishableMediaUrl', 'verifiedLimitation']) {
+  for (const key of ['brand', 'model', 'variant', 'seller', 'sourceRef', 'sourceOrigin', 'corroborationRef', 'corroborationOrigin', 'destinationUrl', 'publishableMediaUrl', 'verifiedLimitation']) {
     if (key in payload) {
       const max = (key.endsWith('Ref') || key.endsWith('Url')) ? 1200 : 240;
       candidate[key] = cleanString(payload[key], { max });
@@ -505,8 +572,11 @@ function verifyCandidate(candidate, payload, clock) {
   candidate.blockers = [...new Set(blockers)];
 
   const identityText = `${candidate.brand} ${candidate.model} ${candidate.variant}`.trim();
+  const vManifest = buildVersionManifest();
   candidate.evidencePacket = {
     agentId: AGENT_IDS.VERIFIER,
+    promptVersion: vManifest.promptHashes?.[AGENT_IDS.VERIFIER] ?? null,
+    schemaVersion: vManifest.schemaHashes?.[AGENT_IDS.VERIFIER] ?? null,
     truthClass: candidate.synthetic ? 'synthetic_fixture' : 'owner_supplied',
     verificationBasis: 'owner_supplied_evidence_no_network',
     observedAt,
@@ -579,8 +649,11 @@ function createStrategies(candidate, clock) {
   if (!identity) throw new ApplicationCommandError('Verifier identity evidence is missing.', { code: 'verifier_authority_missing', statusCode: 422 });
   chargeEpochBudget(candidate, { chars: 1200 });
   const createdAt = nowIso(clock);
+  const sManifest = buildVersionManifest();
   candidate.strategies = {
     agentId: AGENT_IDS.STRATEGIST,
+    promptVersion: sManifest.promptHashes?.[AGENT_IDS.STRATEGIST] ?? null,
+    schemaVersion: sManifest.schemaHashes?.[AGENT_IDS.STRATEGIST] ?? null,
     createdAt,
     evidenceObservedAt: candidate.evidencePacket.observedAt,
     evidenceClaimIds: ['claim-identity'],
@@ -659,13 +732,16 @@ function createDrafts(candidate, clock) {
     `구매 전 체크: ① 브랜드 ② 모델 ③ 옵션/변형. 현재 확인 대상으로 입력된 제품은 ${identity}입니다. 가격·재고·판매자는 이 로컬 검토 단계에서 현재 사실로 단정하지 않습니다.`,
     `${candidate.name}이 모든 사람에게 필요한 제품이라고 보기는 어렵습니다. ${candidate.readerValue}이 실제 문제인 경우에만 후보로 검토하고, 직접 써본 기록이 없다면 체험담처럼 쓰지 않습니다.`
   ];
+  const wManifest = buildVersionManifest();
   candidate.drafts = candidate.strategies.angles.map((angle, index) => ({
     id: `draft-${index + 1}`,
     angleId: angle.id,
     title: angle.title,
     text: `${offsetZeroPrefix}${texts[index]}${substituteNotice}${identityCaveat}${showcasePointer}`,
     claimIds: ['claim-identity'],
-    disclosure
+    disclosure,
+    promptVersion: wManifest.promptHashes?.[AGENT_IDS.WRITER] ?? null,
+    schemaVersion: wManifest.schemaHashes?.[AGENT_IDS.WRITER] ?? null
   }));
   candidate.selectedDraftId = candidate.drafts[0].id;
   candidate.guardian = null;
@@ -680,6 +756,35 @@ function createDrafts(candidate, clock) {
   }
   bump(candidate, clock, 'drafts_created', { count: 4 });
   return candidate;
+}
+
+function selectDraft(candidate, payload, clock) {
+  if (!candidate.drafts?.length) {
+    throw new ApplicationCommandError('Drafts do not exist.', { code: 'draft_not_ready', statusCode: 422 });
+  }
+  const draftId = cleanString(payload.draftId, { required: true, max: 80, label: 'draftId' });
+  const exists = candidate.drafts.some((draft) => draft.id === draftId);
+  if (!exists) {
+    throw new ApplicationCommandError('Draft not found.', { code: 'not_found', statusCode: 404 });
+  }
+  if (candidate.selectedDraftId === draftId) {
+    bump(candidate, clock, 'draft_selected', { draftId, unchanged: true });
+    return { candidate, changedSelection: false };
+  }
+  const hadApprovedReview = candidate.review?.decision === 'approved' && candidate.review?.stale !== true;
+  candidate.selectedDraftId = draftId;
+  candidate.guardian = null;
+  if (hadApprovedReview) {
+    candidate.review = { ...candidate.review, stale: true, staleReason: '선택 초안이 변경되어 재검수·재승인이 필요합니다.' };
+    candidate.workflowState = 'stale';
+    candidate.blockers = ['선택 초안이 변경되어 재검수·재승인이 필요합니다.'];
+  } else {
+    candidate.review = null;
+    candidate.workflowState = 'draft_ready';
+    candidate.blockers = [];
+  }
+  bump(candidate, clock, 'draft_selected', { draftId, unchanged: false });
+  return { candidate, changedSelection: true };
 }
 
 function editDraft(candidate, payload, clock) {
@@ -749,7 +854,7 @@ function runGuardian(candidate, clock, state = null) {
         brand: candidate.brand,
         model: candidate.model,
         variant: candidate.variant,
-        seller: candidate.sourceOrigin || 'owner_verified_seller',
+        seller: candidate.seller,
         destinationUrl: candidate.destinationUrl,
         capturedAt: candidate.evidencePacket?.observedAt || now
       },
@@ -795,8 +900,11 @@ function runGuardian(candidate, clock, state = null) {
     lockedNonCommercialAfterPublish: candidate.lockedNonCommercialAfterPublish === true
   });
 
+  const gManifest = buildVersionManifest();
   candidate.guardian = {
     agentId: AGENT_IDS.GUARDIAN,
+    promptVersion: gManifest.promptHashes?.[AGENT_IDS.GUARDIAN] ?? null,
+    schemaVersion: gManifest.schemaHashes?.[AGENT_IDS.GUARDIAN] ?? null,
     decision: review.decision,
     checks: review.checks,
     revisionRequests: review.revisionRequests,
@@ -827,13 +935,43 @@ function recordReviewDecision(candidate, payload, clock, state = null) {
     });
   }
 
+  let approvedDraftId = null;
+  let approvalHash = null;
+
   if (decision === 'approved') {
+    if (candidate.suppression?.active === true) {
+      throw new ApplicationCommandError('Owner-suppressed candidate cannot be approved until restored.', {
+        code: 'candidate_suppressed',
+        statusCode: 422
+      });
+    }
     if (candidate.guardian?.decision !== 'pass') {
       throw new ApplicationCommandError('Guardian pass is required before approval.', { code: 'guardian_gate', statusCode: 422 });
     }
     if (candidate.guardian.boundMaterialRevision !== candidate.materialRevision) {
       throw new ApplicationCommandError('Guardian review is stale. Run Guardian again.', { code: 'stale_guardian', statusCode: 409 });
     }
+    const requestedDraftId = payload.draftId ? cleanString(payload.draftId, { max: 80 }) : null;
+    const currentSelectedId = candidate.selectedDraftId || candidate.drafts?.[0]?.id || null;
+    if (requestedDraftId && requestedDraftId !== currentSelectedId) {
+      throw new ApplicationCommandError('Selected draft changed since Guardian review. Select the draft and run Guardian first.', {
+        code: 'stale_guardian',
+        statusCode: 409
+      });
+    }
+    const approvedDraft = (candidate.drafts ?? []).find((d) => d.id === currentSelectedId);
+    if (!approvedDraft) {
+      throw new ApplicationCommandError('Approved draft not found.', { code: 'draft_not_ready', statusCode: 422 });
+    }
+    approvedDraftId = approvedDraft.id;
+    approvalHash = computeApprovalHash({
+      candidateId: candidate.id,
+      boundMaterialRevision: candidate.materialRevision,
+      draftId: approvedDraft.id,
+      draftText: approvedDraft.text,
+      boundCandidateRevision: candidate.revision
+    });
+
     if (candidate.cardNumber == null && ['exact', 'substitute'].includes(candidate.exactMatchStatus)) {
       const currentMax = Math.max(
         Number(state?.nextCardNumber ?? 0),
@@ -848,6 +986,8 @@ function recordReviewDecision(candidate, payload, clock, state = null) {
   candidate.review = {
     decision,
     actor: 'owner',
+    approvedDraftId,
+    approvalHash,
     boundMaterialRevision: candidate.materialRevision,
     boundCandidateRevision: candidate.revision,
     decidedAt,
@@ -855,7 +995,7 @@ function recordReviewDecision(candidate, payload, clock, state = null) {
   };
   candidate.workflowState = decision === 'approved' ? 'approved' : decision;
   candidate.blockers = [];
-  bump(candidate, clock, 'human_review_decision', { decision });
+  bump(candidate, clock, 'human_review_decision', { decision, approvedDraftId });
   return candidate;
 }
 
@@ -904,8 +1044,34 @@ function nextAction(candidate) {
   return { label: '상세 보기', action: 'open_workspace', disabled: false, reason: null };
 }
 
-function toCandidateReadModel(candidate, { now } = {}) {
+function computeActiveMonetizedShowcase(state, excludeCandidateId, now) {
+  const monetizedCards = (state?.candidates ?? [])
+    .filter((item) => item.id !== excludeCandidateId && item.cardNumber != null)
+    .map((item) => projectPublicShowcaseCard(item, { now }))
+    .filter((proj) => proj.projected && proj.card.verifiedDestinationUrl !== null)
+    .map((proj) => proj.card);
+  return {
+    activeMonetizedShowcaseCount: monetizedCards.length,
+    monetizedCardNumbers: monetizedCards.map((c) => Number(String(c.cardNumber).replace(/^#/, '')))
+  };
+}
+
+function liveCandidateFreshness(candidate, evalNow) {
+  if (!candidate?.evidencePacket?.observedAt) return candidate?.freshnessState ?? 'stale';
+  const ttlHours = candidate.priceClaimed ? 4 : candidate.issueLinked ? 12 : 24;
+  return evaluateFreshness({
+    observedAt: candidate.evidencePacket.observedAt,
+    now: evalNow,
+    ttlHours
+  }).state;
+}
+
+function toCandidateReadModel(candidate, { now, schedules = [], monetized = { activeMonetizedShowcaseCount: 0, monetizedCardNumbers: [] } } = {}) {
   const evalNow = now || candidate.updatedAt;
+  const candidateSchedules = schedules
+    .filter((s) => s.candidateId === candidate.id)
+    .map((s) => structuredClone(s));
+  const freshnessState = liveCandidateFreshness(candidate, evalNow);
   return {
     id: candidate.id,
     synthetic: candidate.synthetic,
@@ -914,6 +1080,7 @@ function toCandidateReadModel(candidate, { now } = {}) {
     brand: candidate.brand,
     model: candidate.model,
     variant: candidate.variant,
+    seller: candidate.seller ?? '',
     sourceRef: candidate.sourceRef,
     lane: candidate.lane,
     whyNow: candidate.whyNow,
@@ -927,7 +1094,7 @@ function toCandidateReadModel(candidate, { now } = {}) {
     verifierDecisionLabel: candidate.verifierDecision
       ? VERIFIER_DECISION_LABELS_KO[candidate.verifierDecision]
       : null,
-    freshnessState: candidate.freshnessState ?? 'stale',
+    freshnessState,
     independentOrigins: candidate.evidencePacket?.independentOrigins ?? 0,
     prohibitedClaims: structuredClone(candidate.evidencePacket?.prohibitedClaims ?? []),
     unresolvedQuestions: structuredClone(candidate.evidencePacket?.unresolvedQuestions ?? []),
@@ -953,6 +1120,16 @@ function toCandidateReadModel(candidate, { now } = {}) {
     showcaseProjected: candidate.cardNumber != null
       ? projectPublicShowcaseCard(candidate, { now: evalNow }).projected
       : false,
+    exportBundle: buildApprovedExportBundle(candidate, {
+      now: evalNow,
+      activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
+      monetizedCardNumbers: monetized.monetizedCardNumbers
+    }),
+    provenance: buildCandidateProvenance(candidate, {
+      activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
+      monetizedCardNumbers: monetized.monetizedCardNumbers
+    }),
+    schedules: candidateSchedules,
     workflowState: candidate.workflowState,
     blockers: structuredClone(candidate.blockers),
     topBlocker: candidate.blockers[0] ?? null,
@@ -970,16 +1147,23 @@ function toCandidateReadModel(candidate, { now } = {}) {
 
 export function toTodayReadModel(state, { now } = {}) {
   const evalNow = now || state.updatedAt;
+  const allSchedules = Array.isArray(state.schedules) ? state.schedules : [];
   // The first five are not simply the five highest scores, and every inclusion or
   // exclusion states its reason (RANKING_SCORING_SPEC section 11, AT-29). Returning
   // fewer than five, or none, is a valid outcome rather than a failure (AT-28).
   const selection = selectFirstScreen(state.candidates);
-  const candidates = selection.selected.map((c) => toCandidateReadModel(c, { now: evalNow }));
+  const candidates = selection.selected.map((c) =>
+    toCandidateReadModel(c, { now: evalNow, schedules: allSchedules, monetized: computeActiveMonetizedShowcase(state, c.id, evalNow) })
+  );
   const excludedById = new Map(selection.excluded.map((item) => [item.candidateId, item]));
   const excluded = state.candidates
     .filter((candidate) => excludedById.has(candidate.id))
     .map((candidate) => ({
-      ...toCandidateReadModel(candidate, { now: evalNow }),
+      ...toCandidateReadModel(candidate, {
+        now: evalNow,
+        schedules: allSchedules,
+        monetized: computeActiveMonetizedShowcase(state, candidate.id, evalNow)
+      }),
       exclusionReason: excludedById.get(candidate.id)
     }));
 
@@ -987,10 +1171,29 @@ export function toTodayReadModel(state, { now } = {}) {
     (candidate) => candidate.cardNumber != null && projectPublicShowcaseCard(candidate, { now: evalNow }).projected
   ).length;
 
+  const candidateById = new Map(state.candidates.map((c) => [c.id, c]));
+  const queue = [...allSchedules]
+    .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))
+    .map((sched) => {
+      const cand = candidateById.get(sched.candidateId) ?? null;
+      return {
+        ...structuredClone(sched),
+        candidateName: cand?.name ?? sched.candidateId,
+        cardCode: cand?.cardNumber != null ? formatCardNumber(cand.cardNumber) : null,
+        candidateRevision: cand?.revision ?? null,
+        evidenceFreshness: cand ? liveCandidateFreshness(cand, evalNow) : 'stale',
+        affiliate: Boolean(cand?.affiliate)
+      };
+    });
+
+  const analytics = buildLearningSummary(state.outcomeSnapshots ?? [], state.candidates ?? []);
+
   return {
     excluded,
     emptyReason: selection.emptyReason,
     showcaseCount,
+    queue,
+    analytics,
     version: state.version,
     serverUpdatedAt: state.updatedAt,
     externalPublishingEnabled: false,
@@ -999,7 +1202,9 @@ export function toTodayReadModel(state, { now } = {}) {
       observed: state.candidates.length,
       recommended: candidates.length,
       verificationNeeded: state.candidates.filter((candidate) => ['verification_needed', 'evidence_partial', 'stale'].includes(candidate.workflowState)).length,
-      approved: state.candidates.filter((candidate) => candidate.workflowState === 'approved').length
+      approved: state.candidates.filter((candidate) => candidate.workflowState === 'approved').length,
+      scheduled: allSchedules.filter((s) => ['scheduled', 'ready'].includes(s.status)).length,
+      published: allSchedules.filter((s) => s.status === 'published').length
     },
     candidates,
     capability: {
@@ -1068,26 +1273,320 @@ function applyCommandToState(state, request, clock) {
 
   const candidate = getCandidate(state, request.candidateId);
   assertExpectedRevision(candidate, request.expectedRevision);
+  const atNow = nowIso(clock);
 
-  if (command === 'request_verification') verifyCandidate(candidate, request.payload, clock);
-  else if (command === 'request_strategies') createStrategies(candidate, clock);
-  else if (command === 'request_drafts') createDrafts(candidate, clock);
-  else if (command === 'run_guardian') runGuardian(candidate, clock, state);
-  else if (command === 'edit_draft') editDraft(candidate, request.payload, clock);
-  else if (command === 'review_decision') recordReviewDecision(candidate, request.payload, clock, state);
-  else if (command === 'reopen_rejected_candidate') reopenRejectedCandidate(candidate, clock);
-  else if (command === 'lock_non_commercial_showcase') lockNonCommercialShowcase(candidate, clock);
-  else throw new ApplicationCommandError(`Unsupported command: ${command}`, { code: 'unsupported_command', statusCode: 400 });
+  let extraResponseFields = {};
+  let customResultLabel = null;
+
+  if (command === 'request_verification') {
+    verifyCandidate(candidate, request.payload, clock);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'evidence_mutated_after_schedule', atNow);
+  } else if (command === 'request_strategies') {
+    createStrategies(candidate, clock);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'strategies_regenerated_after_schedule', atNow);
+  } else if (command === 'request_drafts') {
+    createDrafts(candidate, clock);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'drafts_regenerated_after_schedule', atNow);
+  } else if (command === 'run_guardian') {
+    runGuardian(candidate, clock, state);
+  } else if (command === 'select_draft') {
+    const sel = selectDraft(candidate, request.payload, clock);
+    if (sel.changedSelection) {
+      invalidateActiveSchedulesForCandidate(state, candidate.id, 'selected_draft_changed_after_schedule', atNow);
+    }
+    customResultLabel = 'draft_selected';
+  } else if (command === 'edit_draft') {
+    editDraft(candidate, request.payload, clock);
+    invalidateActiveSchedulesForCandidate(state, candidate.id, 'draft_edited_after_schedule', atNow);
+  } else if (command === 'review_decision') {
+    recordReviewDecision(candidate, request.payload, clock, state);
+    if (request.payload?.decision !== 'approved') {
+      invalidateActiveSchedulesForCandidate(state, candidate.id, `review_changed_to_${request.payload?.decision}`, atNow);
+    }
+  } else if (command === 'reopen_rejected_candidate') {
+    reopenRejectedCandidate(candidate, clock);
+    customResultLabel = 'candidate_reopened';
+  } else if (command === 'lock_non_commercial_showcase') {
+    lockNonCommercialShowcase(candidate, clock);
+    customResultLabel = 'non_commercial_showcase_locked';
+  } else if (command === 'schedule_approved_post') {
+    const killSwitchActive = isGlobalKillSwitchActive();
+    const registry = createThreadsPublisherRegistry({
+      clock: () => clock?.() ?? new Date(),
+      initialSchedules: state.schedules ?? [],
+      initialConsumedApprovalHashes: state.consumedApprovalHashes ?? []
+    });
+    const monetized = computeActiveMonetizedShowcase(state, candidate.id, atNow);
+    const res = registry.scheduleApprovedPost({
+      candidate,
+      draftId: request.payload?.draftId || null,
+      desiredLocalDatetime: request.payload?.desiredLocalDatetime,
+      timezone: cleanString(request.payload?.timezone || 'Asia/Seoul', { max: 64 }),
+      preflightWindowMinutes: request.payload?.preflightWindowMinutes ?? 15,
+      killSwitchActive,
+      activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
+      monetizedCardNumbers: monetized.monetizedCardNumbers
+    });
+    if (!res.ok) {
+      throw new ApplicationCommandError(res.message || 'Approved post could not be scheduled.', {
+        code: res.code.toLowerCase(),
+        statusCode: 422,
+        details: { publisherCode: res.code }
+      });
+    }
+    const exported = registry.exportState();
+    state.schedules = exported.schedules;
+    state.consumedApprovalHashes = exported.consumedApprovalHashes;
+    bump(candidate, clock, 'post_scheduled', { scheduleId: res.schedule.scheduleId, desiredLocalDatetime: res.schedule.desiredLocalDatetime });
+    customResultLabel = 'post_scheduled';
+    extraResponseFields = { schedule: res.schedule };
+  } else if (command === 'run_schedule_preflight') {
+    const scheduleId = cleanString(request.payload?.scheduleId, { required: true, max: 120, label: 'scheduleId' });
+    const killSwitchActive = isGlobalKillSwitchActive();
+    const registry = createThreadsPublisherRegistry({
+      clock: () => clock?.() ?? new Date(),
+      initialSchedules: state.schedules ?? [],
+      initialConsumedApprovalHashes: state.consumedApprovalHashes ?? []
+    });
+    const existing = registry.getSchedule(scheduleId);
+    if (!existing || existing.candidateId !== candidate.id) {
+      throw new ApplicationCommandError('Schedule not found for candidate.', { code: 'not_found', statusCode: 404 });
+    }
+    const monetized = computeActiveMonetizedShowcase(state, candidate.id, atNow);
+    const res = registry.runPreflight(scheduleId, {
+      candidate,
+      currentDestinationSnapshot: request.payload?.currentDestinationSnapshot ?? null,
+      activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
+      monetizedCardNumbers: monetized.monetizedCardNumbers,
+      killSwitchActive
+    });
+    if (!res.ok && ['TERMINAL_SCHEDULE_REQUIRES_NEW_REVIEW', 'ALREADY_PUBLISHED', 'RECONCILIATION_REQUIRED'].includes(res.code)) {
+      throw new ApplicationCommandError(res.message || 'Schedule cannot run preflight.', {
+        code: res.code.toLowerCase(),
+        statusCode: 422,
+        details: { publisherCode: res.code, status: res.status }
+      });
+    }
+    const exported = registry.exportState();
+    state.schedules = exported.schedules;
+    state.consumedApprovalHashes = exported.consumedApprovalHashes;
+    if (res.status === SCHEDULE_STATES.INVALIDATED || res.status === SCHEDULE_STATES.EXPIRED) {
+      markApprovedCandidateStaleOnInvalidation(
+        candidate,
+        '발송 전 사전점검에서 변경사항 또는 근거 유효기간 만료가 감지되어 재검수·재승인이 필요합니다.'
+      );
+    }
+    bump(candidate, clock, 'schedule_preflight_checked', { scheduleId, preflightOk: res.ok, status: res.status, code: res.code ?? null });
+    customResultLabel = res.ok ? 'schedule_preflight_ready' : 'schedule_preflight_blocked';
+    extraResponseFields = { schedule: res.schedule, preflightOk: res.ok, preflightCode: res.code ?? null };
+  } else if (command === 'cancel_schedule') {
+    const scheduleId = cleanString(request.payload?.scheduleId, { required: true, max: 120, label: 'scheduleId' });
+    const registry = createThreadsPublisherRegistry({
+      clock: () => clock?.() ?? new Date(),
+      initialSchedules: state.schedules ?? [],
+      initialConsumedApprovalHashes: state.consumedApprovalHashes ?? []
+    });
+    const existing = registry.getSchedule(scheduleId);
+    if (!existing || existing.candidateId !== candidate.id) {
+      throw new ApplicationCommandError('Schedule not found for candidate.', { code: 'not_found', statusCode: 404 });
+    }
+    const res = registry.cancelSchedule(scheduleId);
+    if (!res.ok) {
+      throw new ApplicationCommandError(res.message || 'Schedule cannot be cancelled.', {
+        code: res.code.toLowerCase(),
+        statusCode: 422,
+        details: { publisherCode: res.code, status: res.status }
+      });
+    }
+    const exported = registry.exportState();
+    state.schedules = exported.schedules;
+    state.consumedApprovalHashes = exported.consumedApprovalHashes;
+    bump(candidate, clock, 'schedule_cancelled', { scheduleId });
+    customResultLabel = 'schedule_cancelled';
+    extraResponseFields = { schedule: res.schedule };
+  } else if (command === 'record_manual_publication') {
+    const scheduleId = request.payload?.scheduleId ? cleanString(request.payload.scheduleId, { max: 120 }) : null;
+    const killSwitchActive = isGlobalKillSwitchActive();
+    const registry = createThreadsPublisherRegistry({
+      clock: () => clock?.() ?? new Date(),
+      initialSchedules: state.schedules ?? [],
+      initialConsumedApprovalHashes: state.consumedApprovalHashes ?? []
+    });
+    if (scheduleId) {
+      const existing = registry.getSchedule(scheduleId);
+      if (!existing || existing.candidateId !== candidate.id) {
+        throw new ApplicationCommandError('Schedule not found for candidate.', { code: 'not_found', statusCode: 404 });
+      }
+    }
+    const monetized = computeActiveMonetizedShowcase(state, candidate.id, atNow);
+    const res = registry.recordManualPublication({
+      candidate,
+      scheduleId,
+      draftId: request.payload?.draftId || null,
+      publishedNote: request.payload?.publishedNote || '',
+      killSwitchActive,
+      activeMonetizedShowcaseCount: monetized.activeMonetizedShowcaseCount,
+      monetizedCardNumbers: monetized.monetizedCardNumbers
+    });
+    if (!res.ok) {
+      if (scheduleId && res.schedule && [SCHEDULE_STATES.INVALIDATED, SCHEDULE_STATES.EXPIRED, SCHEDULE_STATES.HELD].includes(res.status)) {
+        const exported = registry.exportState();
+        state.schedules = exported.schedules;
+        state.consumedApprovalHashes = exported.consumedApprovalHashes;
+        if (res.status !== SCHEDULE_STATES.HELD) {
+          markApprovedCandidateStaleOnInvalidation(
+            candidate,
+            '수동 게시 기록 전 사전점검에서 변경 또는 기한 만료가 감지되어 기존 승인이 무효화되었습니다.'
+          );
+        }
+        bump(candidate, clock, 'manual_publication_preflight_blocked', { scheduleId, status: res.status, code: res.code ?? null });
+        customResultLabel = 'manual_publication_preflight_blocked';
+        extraResponseFields = { schedule: res.schedule, preflightOk: false, preflightCode: res.code ?? null };
+      } else {
+        throw new ApplicationCommandError(res.message || 'Manual publication could not be recorded.', {
+          code: (res.code || 'publication_blocked').toLowerCase(),
+          statusCode: 422,
+          details: { publisherCode: res.code }
+        });
+      }
+    } else {
+      const exported = registry.exportState();
+      state.schedules = exported.schedules;
+      state.consumedApprovalHashes = exported.consumedApprovalHashes;
+      if (res.lockNonCommercialRequired) {
+        candidate.lockedNonCommercialAfterPublish = true;
+      }
+      bump(candidate, clock, 'manual_publication_recorded', {
+        scheduleId: res.schedule.scheduleId,
+        lockedNonCommercial: candidate.lockedNonCommercialAfterPublish === true
+      });
+      customResultLabel = 'manual_publication_recorded';
+      extraResponseFields = { schedule: res.schedule };
+    }
+  } else if (command === 'record_schedule_timeout') {
+    const scheduleId = cleanString(request.payload?.scheduleId, { required: true, max: 120, label: 'scheduleId' });
+    const registry = createThreadsPublisherRegistry({
+      clock: () => clock?.() ?? new Date(),
+      initialSchedules: state.schedules ?? [],
+      initialConsumedApprovalHashes: state.consumedApprovalHashes ?? []
+    });
+    const existing = registry.getSchedule(scheduleId);
+    if (!existing || existing.candidateId !== candidate.id) {
+      throw new ApplicationCommandError('Schedule not found for candidate.', { code: 'not_found', statusCode: 404 });
+    }
+    const res = registry.recordDispatchOutcome(scheduleId, {
+      outcome: 'timeout',
+      remoteContainerId: request.payload?.remoteContainerId || null,
+      errorReason: request.payload?.errorReason || 'submission_timeout_remote_unknown'
+    });
+    if (!res.schedule) {
+      throw new ApplicationCommandError(res.message || 'Cannot record dispatch timeout from current schedule state.', {
+        code: (res.code || 'not_ready_for_dispatch').toLowerCase(),
+        statusCode: 422
+      });
+    }
+    const exported = registry.exportState();
+    state.schedules = exported.schedules;
+    state.consumedApprovalHashes = exported.consumedApprovalHashes;
+    bump(candidate, clock, 'schedule_dispatch_timeout_unknown', { scheduleId });
+    customResultLabel = 'schedule_unknown_remote_state';
+    extraResponseFields = { schedule: res.schedule };
+  } else if (command === 'reconcile_unknown_schedule') {
+    const scheduleId = cleanString(request.payload?.scheduleId, { required: true, max: 120, label: 'scheduleId' });
+    const registry = createThreadsPublisherRegistry({
+      clock: () => clock?.() ?? new Date(),
+      initialSchedules: state.schedules ?? [],
+      initialConsumedApprovalHashes: state.consumedApprovalHashes ?? []
+    });
+    const existing = registry.getSchedule(scheduleId);
+    if (!existing || existing.candidateId !== candidate.id) {
+      throw new ApplicationCommandError('Schedule not found for candidate.', { code: 'not_found', statusCode: 404 });
+    }
+    const res = registry.reconcileUnknownRemoteState(scheduleId, {
+      remoteExists: request.payload?.remoteExists,
+      remotePostId: request.payload?.remotePostId || null
+    });
+    if (!res.ok) {
+      throw new ApplicationCommandError('Schedule reconciliation failed.', {
+        code: (res.code || 'reconciliation_failed').toLowerCase(),
+        statusCode: 422
+      });
+    }
+    const exported = registry.exportState();
+    state.schedules = exported.schedules;
+    state.consumedApprovalHashes = exported.consumedApprovalHashes;
+    if (res.reconciledTo === SCHEDULE_STATES.PUBLISHED && !candidate.affiliate) {
+      candidate.lockedNonCommercialAfterPublish = true;
+    } else if (res.reconciledTo === SCHEDULE_STATES.FAILED) {
+      // `reconcileUnknownRemoteState(false)` already released `approvalHash` so the existing valid approval can reschedule cleanly.
+    }
+    bump(candidate, clock, 'schedule_unknown_reconciled', { scheduleId, reconciledTo: res.reconciledTo });
+    customResultLabel = 'schedule_reconciled';
+    extraResponseFields = { schedule: res.schedule, reconciledTo: res.reconciledTo, repostAllowed: res.repostAllowed };
+  } else if (command === 'record_outcome_snapshot') {
+    const requestedScheduleId = request.payload?.scheduleId
+      ? cleanString(request.payload.scheduleId, { max: 120 })
+      : null;
+    if (requestedScheduleId) {
+      const matchedSchedule = (state.schedules ?? []).find(
+        (s) => s.scheduleId === requestedScheduleId && s.candidateId === candidate.id
+      );
+      if (!matchedSchedule) {
+        throw new ApplicationCommandError('Schedule not found for candidate.', {
+          code: 'schedule_not_found',
+          statusCode: 404
+        });
+      }
+    }
+    const publishedSchedules = (state.schedules ?? [])
+      .filter((s) => s.candidateId === candidate.id && s.status === SCHEDULE_STATES.PUBLISHED)
+      .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
+    const hasPublished = publishedSchedules.length > 0;
+    if (candidate.workflowState !== 'approved' && !hasPublished) {
+      throw new ApplicationCommandError('Outcome snapshots require an approved or published candidate.', {
+        code: 'publication_or_approval_required_for_outcome',
+        statusCode: 422
+      });
+    }
+    const effectiveScheduleId = requestedScheduleId ?? publishedSchedules[0]?.scheduleId ?? null;
+    const snapRes = createOutcomeSnapshot({
+      candidate: {
+        ...candidate,
+        cardCode: candidate.cardNumber != null ? formatCardNumber(candidate.cardNumber) : null
+      },
+      scheduleId: effectiveScheduleId,
+      window: cleanString(request.payload?.window || 'manual', { max: 16 }),
+      payload: request.payload ?? {},
+      recordedAt: atNow
+    });
+    if (!snapRes.ok) {
+      throw new ApplicationCommandError(snapRes.message || 'Invalid outcome snapshot.', {
+        code: snapRes.code.toLowerCase(),
+        statusCode: 422
+      });
+    }
+    state.outcomeSnapshots = [snapRes.snapshot, ...(state.outcomeSnapshots ?? [])].slice(0, 500);
+    bump(candidate, clock, 'outcome_snapshot_recorded', {
+      snapshotId: snapRes.snapshot.snapshotId,
+      quarantined: snapRes.snapshot.quarantined
+    });
+    customResultLabel = 'outcome_snapshot_recorded';
+    extraResponseFields = { outcomeSnapshot: snapRes.snapshot };
+  } else {
+    throw new ApplicationCommandError(`Unsupported command: ${command}`, { code: 'unsupported_command', statusCode: 400 });
+  }
 
   state.updatedAt = nowIso(clock);
   state.audit.push({ event: command, candidateId: candidate.id, at: state.updatedAt, revision: candidate.revision });
   state.audit = state.audit.slice(-200);
-  const resultLabel = command === 'reopen_rejected_candidate'
-    ? 'candidate_reopened'
-    : command === 'lock_non_commercial_showcase'
-      ? 'non_commercial_showcase_locked'
-      : command;
-  const response = { result: resultLabel, candidateId: candidate.id, revision: candidate.revision, today: toTodayReadModel(state, { now: state.updatedAt }) };
+  const resultLabel = customResultLabel ?? command;
+  const response = {
+    result: resultLabel,
+    candidateId: candidate.id,
+    revision: candidate.revision,
+    ...extraResponseFields,
+    today: toTodayReadModel(state, { now: state.updatedAt })
+  };
   recordCommand(state, request, response);
   return { state, response, changed: true };
 }
